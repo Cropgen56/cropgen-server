@@ -60,17 +60,14 @@ export const addField = async (req, res) => {
     /* ---------- 🔔 Trigger advisory (NON-BLOCKING) ---------- */
     axios
       .post(
-        `${process.env.ADVISORY_SERVER_URL}/api/advisory/internal/advisory/generate`,
+        `${process.env.ADVISORY_SERVER_URL}/api/advisory/internal/generate-advisory`,
         {
-          farmFieldId: savedFarmField._id,
+          farmFieldId: savedFarmField?._id,
           language: user.language || "en",
         },
       )
       .catch((err) => {
-        console.error(
-          "Advisory trigger failed:",
-          err.response?.data || err.message,
-        );
+        console.error("Advisory trigger failed:", err);
       });
 
     /* ---------- Response ---------- */
