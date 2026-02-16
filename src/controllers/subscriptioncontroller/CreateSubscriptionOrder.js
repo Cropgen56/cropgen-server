@@ -13,14 +13,22 @@ export const createSubscriptionOrder = async (req, res) => {
     const userId = req.user?.id || req.user?._id;
     const { farmId, planId, billingCycle, displayCurrency } = req.body;
 
-    /* ================= 1. FARM ================= */
-    const farm = await FarmField.findOne({ _id: farmId, user: userId });
+    /* ================= 1️⃣ FARM ================= */
+    const farm = await FarmField.findOne({
+      _id: farmId,
+      user: userId,
+    });
+
     if (!farm) {
       return res.status(404).json({ message: "Farm not found" });
     }
 
-    /* ================= 2. PLAN ================= */
-    const plan = await SubscriptionPlan.findOne({ _id: planId, active: true });
+    /* ================= 2️⃣ PLAN ================= */
+    const plan = await SubscriptionPlan.findOne({
+      _id: planId,
+      active: true,
+    });
+
     if (!plan) {
       return res.status(404).json({ message: "Plan not found" });
     }
@@ -29,7 +37,7 @@ export const createSubscriptionOrder = async (req, res) => {
     const startDate = new Date();
 
     /* =================================================
-       3. TRIAL FLOW (NO PAYMENT)
+       3️⃣ TRIAL FLOW (NO PAYMENT)
     ================================================= */
     if (billingCycle === "trial") {
       if (!plan.isTrialEnabled) {
@@ -59,10 +67,8 @@ export const createSubscriptionOrder = async (req, res) => {
         platform: plan.platform,
         area,
         unit: "acre",
-
         billingCycle: "trial",
 
-        // 🔒 force clean trial values
         displayCurrency: null,
         pricePerUnitMinor: 0,
         totalAmountMinor: 0,
@@ -85,7 +91,7 @@ export const createSubscriptionOrder = async (req, res) => {
     }
 
     /* =================================================
-       4. PAID FLOW (RAZORPAY)
+       4️⃣ PAID FLOW (RAZORPAY)
     ================================================= */
 
     if (!displayCurrency) {
@@ -100,26 +106,44 @@ export const createSubscriptionOrder = async (req, res) => {
       return res.status(400).json({ message: "Pricing not found" });
     }
 
+    /* ---- Calculate display amount ---- */
     const displayAmountMinor = Math.round(area * pricing.pricePerUnitMinor);
 
     let chargedAmountMinor = displayAmountMinor;
     let exchangeRate = null;
 
-    // Razorpay supports INR only
+    /* ---- USD → INR Conversion ---- */
     if (displayCurrency === "USD") {
-      exchangeRate = 83;
+      exchangeRate = 83; // production: use live FX API
       chargedAmountMinor = Math.round(
         (displayAmountMinor / 100) * exchangeRate * 100,
       );
     }
 
-    /* ---- end date ---- */
-    const endDate = new Date(startDate);
-    if (billingCycle === "monthly") endDate.setDate(endDate.getDate() + 30);
-    if (billingCycle === "yearly") endDate.setDate(endDate.getDate() + 365);
-    if (billingCycle === "season") endDate.setDate(endDate.getDate() + 120);
+    /* =================================================
+       ✅ MINIMUM ₹1 SAFETY FIX (100 paise)
+    ================================================= */
+    if (chargedAmountMinor < 100) {
+      console.log(`Amount too low (${chargedAmountMinor}). Adjusted to ₹1.`);
+      chargedAmountMinor = 100;
+    }
 
-    /* ---- pending subscription ---- */
+    /* ---- End Date Calculation ---- */
+    const endDate = new Date(startDate);
+
+    if (billingCycle === "monthly") {
+      endDate.setDate(endDate.getDate() + 30);
+    }
+
+    if (billingCycle === "yearly") {
+      endDate.setDate(endDate.getDate() + 365);
+    }
+
+    if (billingCycle === "season") {
+      endDate.setDate(endDate.getDate() + 120);
+    }
+
+    /* ---- Create Pending Subscription ---- */
     const subscription = await UserSubscription.create({
       userId,
       fieldId: farmId,
@@ -141,7 +165,7 @@ export const createSubscriptionOrder = async (req, res) => {
       endDate,
     });
 
-    /* ---- Razorpay order ---- */
+    /* ---- Razorpay Order ---- */
     const order = await razorpay.orders.create({
       amount: chargedAmountMinor,
       currency: "INR",
