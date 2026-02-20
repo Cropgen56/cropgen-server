@@ -15,31 +15,23 @@ const router = express.Router();
 
 router.post(
   "/",
-  // isAuthenticated,
-  // authorizeRoles("admin"),
+  isAuthenticated,
+  authorizeRoles("admin"),
   createSubscriptionPlan,
 );
-router.get(
-  "/",
-  //  isAuthenticated,
-  getAllSubscriptionPlans,
-);
-router.get(
-  "/:id",
-  //  isAuthenticated,
-  getSubscriptionPlanById,
-);
+router.get("/", isAuthenticated, getAllSubscriptionPlans);
+router.get("/:id", isAuthenticated, getSubscriptionPlanById);
 router.patch(
   "/:id",
-  // isAuthenticated,
-  // authorizeRoles("admin"),
+  isAuthenticated,
+  authorizeRoles("admin"),
   updateSubscriptionPlan,
 );
 
 router.delete(
   "/:id",
-  // isAuthenticated,
-  // authorizeRoles("admin"),
+  isAuthenticated,
+  authorizeRoles("admin"),
   deleteSubscriptionPlan,
 );
 
