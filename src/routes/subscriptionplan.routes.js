@@ -19,7 +19,7 @@ router.post(
   authorizeRoles("admin"),
   createSubscriptionPlan,
 );
-router.get("/", isAuthenticated, getAllSubscriptionPlans);
+router.get("/", getAllSubscriptionPlans);
 router.get("/:id", isAuthenticated, getSubscriptionPlanById);
 router.patch(
   "/:id",
