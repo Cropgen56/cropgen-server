@@ -17,11 +17,13 @@ import postsRoutes from "./src/routes/postRoutes.js";
 import commonRoutes from "./src/routes/commonRoutes.js";
 import analyticRoutes from "./src/routes/analyticsRoutes.js";
 import whatsappRoutes from "./src/routes/whatsappRoutes.js";
-
-// import emailRoutes from "./src/routes/emailRoutes.js";
 import "./src/config/firebaseConfig.js";
 import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
+// import emailRoutes from "./src/routes/emailRoutes.js";
+
+// import corn jobs
+import { startSubscriptionExpiryJob } from "./src/jobs/subscriptionExpiryJob.js";
 
 dotenv.config();
 
@@ -83,6 +85,9 @@ app.use("/v1/api/user-subscriptions/webhook", (req, res, next) => {
 
 app.use(express.json());
 app.use(cookieParser());
+
+// crops jobs
+startSubscriptionExpiryJob();
 
 // Routes
 app.use("/v1/api/auth", authRoutes);

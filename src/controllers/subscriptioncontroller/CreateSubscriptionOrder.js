@@ -37,7 +37,7 @@ export const createSubscriptionOrder = async (req, res) => {
     const startDate = new Date();
 
     /* =================================================
-       3️⃣ TRIAL FLOW (NO PAYMENT)
+   3️⃣ TRIAL FLOW (NO PAYMENT)
     ================================================= */
     if (billingCycle === "trial") {
       if (!plan.isTrialEnabled) {
@@ -46,48 +46,52 @@ export const createSubscriptionOrder = async (req, res) => {
           .json({ message: "Trial not available for this plan" });
       }
 
-      const existingTrial = await UserSubscription.findOne({
-        userId,
-        fieldId: farmId,
-        planId,
-        billingCycle: "trial",
-      });
-
-      if (existingTrial) {
-        return res.status(400).json({ message: "Trial already used" });
-      }
-
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + plan.trialDays);
 
-      const subscription = await UserSubscription.create({
-        userId,
-        fieldId: farmId,
-        planId,
-        platform: plan.platform,
-        area,
-        unit: "acre",
-        billingCycle: "trial",
+      try {
+        const subscription = await UserSubscription.create({
+          userId,
+          fieldId: farmId,
+          planId,
+          platform: plan.platform,
+          area,
+          unit: "acre",
+          billingCycle: "trial",
 
-        displayCurrency: null,
-        pricePerUnitMinor: 0,
-        totalAmountMinor: 0,
-        chargedCurrency: null,
-        exchangeRate: null,
+          displayCurrency: null,
+          pricePerUnitMinor: 0,
+          totalAmountMinor: 0,
+          chargedCurrency: null,
+          exchangeRate: null,
 
-        status: "active",
-        startDate,
-        endDate,
-      });
+          status: "active",
+          startDate,
+          endDate,
+        });
 
-      return res.status(201).json({
-        success: true,
-        type: "trial",
-        subscriptionId: subscription._id,
-        startDate,
-        endDate,
-        daysLeft: plan.trialDays,
-      });
+        return res.status(201).json({
+          success: true,
+          type: "trial",
+          subscriptionId: subscription._id,
+          startDate,
+          endDate,
+          daysLeft: plan.trialDays,
+        });
+      } catch (error) {
+        // 🔐 Duplicate trial protection (from unique index)
+        if (error.code === 11000) {
+          return res.status(400).json({
+            message:
+              "Your free trial for this farm has already been used. Please upgrade to a paid plan to continue accessing our services.",
+          });
+        }
+
+        console.error("Trial creation failed:", error);
+        return res.status(500).json({
+          message: "Failed to create trial subscription",
+        });
+      }
     }
 
     /* =================================================

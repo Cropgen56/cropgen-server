@@ -90,6 +90,25 @@ const UserSubscriptionSchema = new Schema(
   { timestamps: true },
 );
 
+/* ===========================================================
+   🔐 UNIQUE TRIAL PROTECTION (DATABASE LEVEL)
+   One trial per user per field
+=========================================================== */
+
+UserSubscriptionSchema.index(
+  { userId: 1, fieldId: 1, billingCycle: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { billingCycle: "trial" },
+  },
+);
+
+/* ===========================================================
+   🚀 PERFORMANCE INDEX FOR EXPIRY CRON
+=========================================================== */
+
+UserSubscriptionSchema.index({ status: 1, endDate: 1 });
+
 const UserSubscription =
   mongoose.models.UserSubscription ||
   mongoose.model("UserSubscription", UserSubscriptionSchema);

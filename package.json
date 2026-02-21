@@ -39,6 +39,7 @@
     "multer": "^1.4.5-lts.2",
     "multer-storage-cloudinary": "^4.0.0",
     "mysql2": "^3.11.5",
+    "node-cron": "^4.2.1",
     "nodemailer": "^7.0.3",
     "openai": "^5.10.2",
     "pino": "^9.11.0",
