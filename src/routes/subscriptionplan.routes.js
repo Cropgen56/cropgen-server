@@ -15,8 +15,8 @@ const router = express.Router();
 
 router.post(
   "/",
-  isAuthenticated,
-  authorizeRoles("admin"),
+  // isAuthenticated,
+  // authorizeRoles("admin"),
   createSubscriptionPlan,
 );
 router.get("/", getAllSubscriptionPlans);

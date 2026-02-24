@@ -22,8 +22,9 @@ import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
 // import emailRoutes from "./src/routes/emailRoutes.js";
 
-// import corn jobs
-import { startSubscriptionExpiryJob } from "./src/jobs/subscriptionExpiryJob.js";
+// import workers
+import { startSubscriptionExpiryJob } from "./src/worker/subscriptionexpire.worker.js";
+import { runWhatsAppWorker } from "./src/worker/whatsapp.worker.js";
 
 dotenv.config();
 
@@ -88,6 +89,7 @@ app.use(cookieParser());
 
 // crops jobs
 startSubscriptionExpiryJob();
+runWhatsAppWorker();
 
 // Routes
 app.use("/v1/api/auth", authRoutes);

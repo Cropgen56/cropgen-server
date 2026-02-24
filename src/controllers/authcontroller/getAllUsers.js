@@ -1,5 +1,4 @@
-import User from "../../models/usersModel.js"
-
+import User from "../../models/usersModel.js";
 
 // Fetch all users (paginated by default). Admins/developers can pass ?all=true to fetch every user.
 export const getAllUsers = async (req, res) => {
@@ -40,6 +39,7 @@ export const getAllUsers = async (req, res) => {
     if (wantsAll) {
       // Fetch every matching user (no pagination). Be careful with very large collections.
       users = await User.find(finalQuery)
+        .sort({ createdAt: -1 })
         .select("-password -__v")
         .populate({ path: "organization", select: "organizationCode" })
         .lean();
@@ -49,6 +49,7 @@ export const getAllUsers = async (req, res) => {
 
       // fetch paginated results
       users = await User.find(finalQuery)
+        .sort({ createdAt: -1 })
         .select("-password -__v")
         .populate({ path: "organization", select: "organizationCode" })
         .skip(skip)

@@ -8,28 +8,67 @@ const ActivitySchema = new Schema(
     type: {
       type: String,
       enum: ["SPRAY", "FERTIGATION", "IRRIGATION", "WEATHER", "CROP_RISK"],
-      required: true
+      required: true,
     },
 
     title: {
-      type: String, 
-      required: true
+      type: String,
+      required: true,
     },
 
     message: {
       type: String,
-      required: true
+      required: true,
     },
 
     details: {
-      chemical: String,    
-      fertilizer: String,  
+      chemical: String,
+      fertilizer: String,
       quantity: String,
-      method: String, 
-      time: String 
-    }
+      method: String,
+      time: String,
+    },
   },
-  { _id: false }
+  { _id: false },
+);
+
+/* ================= WHATSAPP STATUS SCHEMA ================= */
+
+const WhatsAppNotificationSchema = new Schema(
+  {
+    isSent: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "sent", "delivered", "read", "failed"],
+      default: "pending",
+    },
+    messageId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    retryCount: {
+      type: Number,
+      default: 0,
+    },
+    error: {
+      type: String,
+      default: null,
+    },
+    lastAttemptAt: {
+      type: Date,
+      default: null,
+    },
+    sentAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { _id: false },
 );
 
 /* ================= MAIN ================= */
@@ -40,28 +79,23 @@ const FarmAdvisorySchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "FarmField",
       required: true,
-      index: true
+      index: true,
     },
-
-    targetDate: {
-      type: Date,
-      required: true
-    },
-
-    /* =========  NEW SECTION ========= */
 
     activitiesToDo: {
       type: [ActivitySchema],
-      default: []
+      default: [],
     },
 
-    /* ========= OLD STRUCTURE (UNCHANGED) ========= */
-
+    whatsappNotification: {
+      type: WhatsAppNotificationSchema,
+      default: () => ({}),
+    },
     cropHealth: {
       score: Number,
       percentage: Number,
       category: String,
-      recommendation: String
+      recommendation: String,
     },
 
     yield: {
@@ -70,22 +104,26 @@ const FarmAdvisorySchema = new Schema(
       unit: {
         type: String,
         enum: ["tons", "quintal"],
-        default: "quintal"
+        default: "quintal",
       },
-      explanation: String
+      explanation: String,
     },
 
     plantGrowthActivity: {
       bbchStage: Number,
       stageName: String,
-      description: String
+      description: String,
+      cumulativeGDD: Number,
     },
 
-    npkManagement: Schema.Types.Mixed
+    npkManagement: Schema.Types.Mixed,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-FarmAdvisorySchema.index({ farmFieldId: 1, targetDate: -1 });
+FarmAdvisorySchema.index({ farmFieldId: 1 });
+FarmAdvisorySchema.index({ "whatsappNotification.isSent": 1 });
+FarmAdvisorySchema.index({ "whatsappNotification.status": 1 });
+FarmAdvisorySchema.index({ createdAt: -1 });
 
 export default mongoose.model("FarmAdvisory", FarmAdvisorySchema);
