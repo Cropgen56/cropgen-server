@@ -20,17 +20,28 @@ export const runWhatsAppWorker = () => {
     console.log("🔄 WhatsApp worker running...");
 
     try {
-      const unsentAdvisories = await FarmAdvisory.find({
-        "whatsappNotification.isSent": false,
-        "whatsappNotification.retryCount": { $lt: 3 },
-      }).limit(10);
+      // Keep processing until no pending advisory found
+      while (true) {
+        const advisory = await FarmAdvisory.findOneAndUpdate(
+          {
+            "whatsappNotification.isSent": false,
+            "whatsappNotification.status": "pending",
+            "whatsappNotification.retryCount": { $lt: 3 },
+          },
+          {
+            $set: {
+              "whatsappNotification.status": "processing",
+              "whatsappNotification.lastAttemptAt": new Date(),
+            },
+          },
+          { new: true },
+        );
 
-      if (!unsentAdvisories.length) {
-        console.log("No pending advisories");
-        return;
-      }
+        if (!advisory) {
+          console.log("No pending advisories");
+          break;
+        }
 
-      for (const advisory of unsentAdvisories) {
         try {
           const farm = await FarmField.findById(advisory.farmFieldId).populate(
             "user",
@@ -38,10 +49,13 @@ export const runWhatsAppWorker = () => {
 
           if (!farm?.user?.phone) {
             console.log("User phone missing. Skipping...");
+            advisory.whatsappNotification.status = "failed";
+            advisory.whatsappNotification.error = "Phone number missing";
+            await advisory.save();
             continue;
           }
 
-          /* ================= EXTRACT ACTIVITIES BY TYPE ================= */
+          /* ================= EXTRACT ACTIVITIES ================= */
 
           const getActivityText = (type) => {
             const activity = advisory.activitiesToDo?.find(
@@ -109,7 +123,6 @@ export const runWhatsAppWorker = () => {
           advisory.whatsappNotification.messageId =
             response.data.messages?.[0]?.id || null;
           advisory.whatsappNotification.error = null;
-          advisory.whatsappNotification.lastAttemptAt = new Date();
           advisory.whatsappNotification.sentAt = new Date();
 
           await advisory.save();
@@ -125,9 +138,15 @@ export const runWhatsAppWorker = () => {
             "Unknown error";
 
           advisory.whatsappNotification.retryCount += 1;
-          advisory.whatsappNotification.status = "failed";
+
+          // If retry left → set back to pending
+          if (advisory.whatsappNotification.retryCount < 3) {
+            advisory.whatsappNotification.status = "pending";
+          } else {
+            advisory.whatsappNotification.status = "failed";
+          }
+
           advisory.whatsappNotification.error = metaError;
-          advisory.whatsappNotification.lastAttemptAt = new Date();
 
           await advisory.save();
 
