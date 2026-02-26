@@ -1,7 +1,7 @@
 import Joi from "joi";
 
 const pricingSchema = Joi.object({
-  currency: Joi.string().valid("INR", "USD"),
+  currency: Joi.string().valid("INR", "USD").required(),
   billingCycle: Joi.string().valid("monthly", "yearly", "season").required(),
   pricePerUnitMinor: Joi.number().integer().min(0).required(),
   unit: Joi.string().valid("acre").default("acre"),
@@ -14,7 +14,11 @@ export const subscriptionPlanSchema = Joi.object({
 
   platform: Joi.string().valid("mobile", "web").required(),
 
+  // ✅ Added isInternal
+  isInternal: Joi.boolean().default(false),
+
   isTrialEnabled: Joi.boolean().default(true),
+
   trialDays: Joi.number()
     .integer()
     .min(0)

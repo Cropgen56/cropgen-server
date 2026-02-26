@@ -82,6 +82,17 @@ const UserSubscriptionSchema = new Schema(
       index: true,
     },
 
+    activatedByAdmin: {
+      type: Boolean,
+      default: false,
+    },
+
+    activatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     startDate: { type: Date, default: Date.now },
     endDate: { type: Date, default: null },
 

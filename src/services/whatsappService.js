@@ -1,19 +1,20 @@
 import axios from "axios";
 
-
 // send custom message to the users
-export async function sendCustomWhatsAppMessage(phone, messageText, options = {}) {
-  const {
-    previewUrl = true,
-  } = options;
+export async function sendCustomWhatsAppMessage(
+  phone,
+  messageText,
+  options = {},
+) {
+  const { previewUrl = true } = options;
 
-  
   const formattedPhone = phone.replace(/[^\d]/g, "");
 
   if (!formattedPhone.match(/^\d{10,15}$/)) {
     return {
       success: false,
-      error: "Invalid phone number format. Use international format without + (e.g. 919322396236)",
+      error:
+        "Invalid phone number format. Use international format without + (e.g. 919322396236)",
     };
   }
 
@@ -36,7 +37,7 @@ export async function sendCustomWhatsAppMessage(phone, messageText, options = {}
         Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
         "Content-Type": "application/json",
       },
-      timeout: 10000, 
+      timeout: 10000,
     });
 
     const messageId = response.data?.messages?.[0]?.id;
@@ -63,8 +64,6 @@ export async function sendCustomWhatsAppMessage(phone, messageText, options = {}
   }
 }
 
-
-
 export async function sendWhatsAppReply(to, message) {
   await axios.post(
     `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
@@ -73,15 +72,14 @@ export async function sendWhatsAppReply(to, message) {
       to,
       type: "text",
       text: {
-        body: message
-      }
+        body: message,
+      },
     },
     {
       headers: {
         Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-        "Content-Type": "application/json"
-      }
-    }
+        "Content-Type": "application/json",
+      },
+    },
   );
 }
-

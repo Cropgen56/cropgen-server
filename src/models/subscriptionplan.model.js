@@ -44,13 +44,16 @@ const SubscriptionPlanSchema = new Schema(
       required: true,
       index: true,
     },
-
+    isInternal: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     isTrialEnabled: { type: Boolean, default: true },
     trialDays: { type: Number, default: 15 },
 
     pricing: {
       type: [PricingSchema],
-      required: true,
     },
 
     features: {
