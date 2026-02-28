@@ -23,9 +23,12 @@ import subscriptionRoutes from "./src/routes/subscription.routes.js";
 // import emailRoutes from "./src/routes/emailRoutes.js";
 
 // import workers
-import { startSubscriptionExpiryJob } from "./src/worker/subscriptionexpire.worker.js";
-import { runWhatsAppWorker } from "./src/worker/whatsapp.worker.js";
+import { startAdvisoryWorker } from "./src/worker/advisory.worker.js";
+import { startSubscriptionActivationWorker } from "./src/worker/subscriptionActivation.worker.js";
+// import { startSubscriptionReminderWorker } from "./src/worker/subscriptionReminder.worker.js";
+import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
 
+// import { startSubscriptionExpiryWorker } from "./src/worker/subscriptionExpiry.worker.js";
 dotenv.config();
 
 // Resolve __dirname for ESM
@@ -87,9 +90,10 @@ app.use("/v1/api/user-subscriptions/webhook", (req, res, next) => {
 app.use(express.json());
 app.use(cookieParser());
 
-// crops jobs
+// workers
 startSubscriptionExpiryJob();
-runWhatsAppWorker();
+startAdvisoryWorker();
+startSubscriptionActivationWorker();
 
 // Routes
 app.use("/v1/api/auth", authRoutes);
@@ -118,6 +122,7 @@ app.get("/health", (req, res) => {
 const startServer = async () => {
   try {
     await connectToDatabase();
+
     http.createServer(app).listen(PORT, "0.0.0.0", () => {
       console.log(`✅ HTTP Server running at http://localhost:${PORT}`);
     });
