@@ -12,14 +12,24 @@ export const startNotificationWorker = () => {
 
   cron.schedule("*/1 * * * *", async () => {
     try {
-      const notifications = await Notification.find({
-        status: { $in: ["pending", "failed"] },
-        retryCount: { $lt: MAX_RETRY },
-      })
-        .limit(BATCH_SIZE)
-        .populate("userId");
+      // Process up to BATCH_SIZE notifications safely
+      for (let i = 0; i < BATCH_SIZE; i++) {
+        // 🔐 Atomic locking to prevent duplicate processing
+        const notification = await Notification.findOneAndUpdate(
+          {
+            status: { $in: ["pending", "failed"] },
+            retryCount: { $lt: MAX_RETRY },
+          },
+          {
+            $set: { status: "processing" },
+          },
+          {
+            new: true,
+          },
+        ).populate("userId");
 
-      for (const notification of notifications) {
+        if (!notification) break;
+
         await processNotification(notification);
       }
     } catch (err) {
@@ -30,9 +40,6 @@ export const startNotificationWorker = () => {
 
 async function processNotification(notification) {
   try {
-    notification.status = "processing";
-    await notification.save();
-
     const user = notification.userId;
 
     if (!user) throw new Error("User not found");
@@ -47,9 +54,10 @@ async function processNotification(notification) {
       });
 
       notification.channel = "whatsapp";
-      notification.messageId = response.data?.messages?.[0]?.id;
+      notification.messageId = response?.data?.messages?.[0]?.id || null;
     } else if (user.email) {
-      /* ================= EMAIL FALLBACK ================= */
+
+    /* ================= EMAIL FALLBACK ================= */
       const { subject, html } = generateEmailFromTemplate(
         notification.templateName,
         notification.parameters,
@@ -67,11 +75,20 @@ async function processNotification(notification) {
       throw new Error("No contact method available");
     }
 
+    /* ================= SUCCESS ================= */
+
     notification.status = "sent";
     notification.error = null;
     await notification.save();
+
+    console.log(
+      `✅ Notification sent (${notification.templateName}) via ${notification.channel}`,
+    );
   } catch (err) {
+    /* ================= RETRY LOGIC ================= */
+
     notification.retryCount += 1;
+
     notification.status =
       notification.retryCount < MAX_RETRY ? "pending" : "failed";
 
@@ -79,5 +96,9 @@ async function processNotification(notification) {
       err.response?.data?.error?.message || err.message || "Unknown error";
 
     await notification.save();
+
+    console.error(
+      `❌ Notification failed (${notification.templateName}) - Retry ${notification.retryCount}`,
+    );
   }
 }
