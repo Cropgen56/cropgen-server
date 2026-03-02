@@ -1,4 +1,7 @@
 import { sendBasicEmail } from "../config/sesClient.js";
+import { advisoryEmailTemplateFromNotification } from "../templates/advisoryEmail.template.js";
+import { planActivationEmailTemplate } from "../templates/planActivationEmail.template.js";
+import { planExpiryReminderEmailTemplate } from "../templates/planExpiryReminderEmail.template.js";
 
 export const sendEmail = async ({ to, subject, html }) => {
   return sendBasicEmail({
@@ -7,4 +10,41 @@ export const sendEmail = async ({ to, subject, html }) => {
     html,
     from: process.env.SES_FROM_EMAIL,
   });
+};
+
+export const generateEmailFromTemplate = (templateName, parameters, date) => {
+  switch (templateName) {
+    case "plan_activation_notification":
+      return {
+        subject: "Your CropGen Subscription is Activated ✅",
+        html: planActivationEmailTemplate({
+          parameters,
+          createdAt: date,
+        }),
+      };
+
+    case "plan_expiry_reminder_notification":
+      return {
+        subject: "Your CropGen Subscription is Expiring Soon ⏳",
+        html: planExpiryReminderEmailTemplate({
+          parameters,
+          createdAt: date,
+        }),
+      };
+
+    case "farm_advisory_notification":
+      return {
+        subject: "CropGen Smart Farm Advisory",
+        html: advisoryEmailTemplateFromNotification({
+          parameters,
+          createdAt: date,
+        }),
+      };
+
+    default:
+      return {
+        subject: "Notification from CropGen",
+        html: `<p>Please check your CropGen account.</p>`,
+      };
+  }
 };

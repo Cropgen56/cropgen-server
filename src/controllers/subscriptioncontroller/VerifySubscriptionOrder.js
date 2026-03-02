@@ -2,6 +2,7 @@ import crypto from "crypto";
 import UserSubscription from "../../models/usersubscription.model.js";
 import FarmField from "../../models/fieldModel.js";
 import SubscriptionPlan from "../../models/subscriptionplan.model.js";
+import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
 
 export const verifySubscriptionOrder = async (req, res) => {
   try {
@@ -26,10 +27,19 @@ export const verifySubscriptionOrder = async (req, res) => {
 
     /* ================= 1. FETCH SUBSCRIPTION ================= */
     const subscription = await UserSubscription.findById(subscriptionId);
+
     if (!subscription) {
       return res.status(404).json({
         success: false,
         message: "Subscription not found",
+      });
+    }
+
+    /* ================= PREVENT DOUBLE ACTIVATION ================= */
+    if (subscription.status === "active") {
+      return res.status(400).json({
+        success: false,
+        message: "Subscription already activated",
       });
     }
 
@@ -46,13 +56,27 @@ export const verifySubscriptionOrder = async (req, res) => {
       });
     }
 
-    /* ================= 3. ACTIVATE SUBSCRIPTION ================= */
+    /* ================= EXPIRE OLD ACTIVE PLANS ================= */
+    await UserSubscription.updateMany(
+      {
+        userId: subscription.userId,
+        fieldId: subscription.fieldId,
+        status: "active",
+        _id: { $ne: subscription._id },
+      },
+      { status: "expired" },
+    );
+
+    /* ================= ACTIVATE SUBSCRIPTION ================= */
     subscription.status = "active";
     subscription.razorpayPaymentId = razorpay_payment_id;
     subscription.razorpaySignature = razorpay_signature;
     subscription.startDate = new Date();
 
     await subscription.save();
+
+    /* ================= CREATE NOTIFICATION ================= */
+    await createSubscriptionActivationNotification(subscription._id);
 
     /* ================= 4. RESPONSE DATA ================= */
     const farm = await FarmField.findById(subscription.fieldId);

@@ -97,16 +97,6 @@ const UserSubscriptionSchema = new Schema(
     endDate: { type: Date, default: null },
 
     razorpayOrderId: { type: String, default: null },
-    expiryReminder: {
-      isSent: { type: Boolean, default: false },
-      retryCount: { type: Number, default: 0 },
-      status: {
-        type: String,
-        enum: ["pending", "processing", "sent", "failed"],
-        default: "pending",
-      },
-      error: { type: String, default: null },
-    },
   },
   { timestamps: true },
 );

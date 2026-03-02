@@ -1,26 +1,34 @@
 import cron from "node-cron";
 import UserSubscription from "../models/usersubscription.model.js";
+import { createSubscriptionExpiryNotification } from "../services/notification.service.js";
 
 export const startSubscriptionExpiryJob = () => {
   cron.schedule("0 0 * * *", async () => {
-    console.log("Cron triggered at:", new Date());
-
     try {
       const now = new Date();
 
-      const expiredSubscriptions = await UserSubscription.updateMany(
+      /* 1️⃣ Expire subscriptions */
+      await UserSubscription.updateMany(
         {
           status: "active",
           endDate: { $lte: now },
         },
-        {
-          $set: { status: "expired" },
-        },
+        { $set: { status: "expired" } },
       );
 
-      console.log(
-        `Expired ${expiredSubscriptions.modifiedCount} subscriptions`,
-      );
+      /* 2️⃣ Reminder logic */
+      const activeSubs = await UserSubscription.find({
+        status: "active",
+      });
+
+      for (const sub of activeSubs) {
+        const diffTime = sub.endDate - now;
+        const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if ([7, 3, 1].includes(daysRemaining)) {
+          await createSubscriptionExpiryNotification(sub, daysRemaining);
+        }
+      }
     } catch (error) {
       console.error("Subscription expiry job failed:", error);
     }

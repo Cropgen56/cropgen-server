@@ -1,6 +1,7 @@
 import UserSubscription from "../../models/usersubscription.model.js";
 import SubscriptionPlan from "../../models/subscriptionplan.model.js";
 import FarmField from "../../models/fieldModel.js";
+import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
 
 export const activateSubscriptionManually = async (req, res) => {
   try {
@@ -81,6 +82,8 @@ export const activateSubscriptionManually = async (req, res) => {
       activatedByAdmin: true,
       activatedBy: adminId,
     });
+
+    await createSubscriptionActivationNotification(subscription._id);
 
     return res.status(201).json({
       success: true,

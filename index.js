@@ -22,13 +22,10 @@ import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
 // import emailRoutes from "./src/routes/emailRoutes.js";
 
-// import workers
-import { startAdvisoryWorker } from "./src/worker/advisory.worker.js";
-import { startSubscriptionActivationWorker } from "./src/worker/subscriptionActivation.worker.js";
-// import { startSubscriptionReminderWorker } from "./src/worker/subscriptionReminder.worker.js";
+// import worker
 import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
+import { startNotificationWorker } from "./src/worker/notification.worker.js";
 
-// import { startSubscriptionExpiryWorker } from "./src/worker/subscriptionExpiry.worker.js";
 dotenv.config();
 
 // Resolve __dirname for ESM
@@ -91,9 +88,8 @@ app.use(express.json());
 app.use(cookieParser());
 
 // workers
+startNotificationWorker();
 startSubscriptionExpiryJob();
-startAdvisoryWorker();
-startSubscriptionActivationWorker();
 
 // Routes
 app.use("/v1/api/auth", authRoutes);

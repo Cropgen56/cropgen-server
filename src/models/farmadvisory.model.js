@@ -32,45 +32,6 @@ const ActivitySchema = new Schema(
   { _id: false },
 );
 
-/* ================= WHATSAPP STATUS SCHEMA ================= */
-
-const WhatsAppNotificationSchema = new Schema(
-  {
-    isSent: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
-    status: {
-      type: String,
-      enum: ["pending", "processing", "sent", "delivered", "read", "failed"],
-      default: "pending",
-    },
-    messageId: {
-      type: String,
-      default: null,
-      index: true,
-    },
-    retryCount: {
-      type: Number,
-      default: 0,
-    },
-    error: {
-      type: String,
-      default: null,
-    },
-    lastAttemptAt: {
-      type: Date,
-      default: null,
-    },
-    sentAt: {
-      type: Date,
-      default: null,
-    },
-  },
-  { _id: false },
-);
-
 /* ================= MAIN ================= */
 
 const FarmAdvisorySchema = new Schema(
@@ -87,10 +48,6 @@ const FarmAdvisorySchema = new Schema(
       default: [],
     },
 
-    whatsappNotification: {
-      type: WhatsAppNotificationSchema,
-      default: () => ({}),
-    },
     cropHealth: {
       score: Number,
       percentage: Number,
@@ -122,8 +79,6 @@ const FarmAdvisorySchema = new Schema(
 );
 
 FarmAdvisorySchema.index({ farmFieldId: 1 });
-FarmAdvisorySchema.index({ "whatsappNotification.isSent": 1 });
-FarmAdvisorySchema.index({ "whatsappNotification.status": 1 });
 FarmAdvisorySchema.index({ createdAt: -1 });
 
 export default mongoose.model("FarmAdvisory", FarmAdvisorySchema);

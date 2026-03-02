@@ -2,6 +2,7 @@ import Razorpay from "razorpay";
 import FarmField from "../../models/fieldModel.js";
 import SubscriptionPlan from "../../models/subscriptionplan.model.js";
 import UserSubscription from "../../models/usersubscription.model.js";
+import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -70,6 +71,8 @@ export const createSubscriptionOrder = async (req, res) => {
           endDate,
         });
 
+        await createSubscriptionActivationNotification(subscription?._id);
+
         return res.status(201).json({
           success: true,
           type: "trial",
@@ -118,7 +121,7 @@ export const createSubscriptionOrder = async (req, res) => {
 
     /* ---- USD → INR Conversion ---- */
     if (displayCurrency === "USD") {
-      exchangeRate = 83; // production: use live FX API
+      exchangeRate = 91.46;
       chargedAmountMinor = Math.round(
         (displayAmountMinor / 100) * exchangeRate * 100,
       );
