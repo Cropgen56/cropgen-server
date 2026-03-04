@@ -6,7 +6,23 @@ import UserSubscription from "../models/usersubscription.model.js";
 
 const formatDate = (date) => new Date(date).toISOString().split("T")[0];
 
-const formatArea = (area) => Number(area || 1).toFixed(2);
+const formatAreaByClientSource = (area, clientSource) => {
+  const acre = Number(area || 0);
+
+  // Android / iOS → Acres
+  if (clientSource === "android" || clientSource === "ios") {
+    return acre.toFixed(2) + " Acre";
+  }
+
+  // Web → Convert to Hectare
+  if (clientSource === "web") {
+    const hectare = acre * 0.404686;
+    return hectare.toFixed(2) + " Hectare";
+  }
+
+  // Default fallback
+  return acre.toFixed(2);
+};
 
 export const createSubscriptionActivationNotification = async (
   subscriptionId,
@@ -32,7 +48,7 @@ export const createSubscriptionActivationNotification = async (
       subscription.billingCycle,
       farm.cropName || "N/A",
       farm.fieldName || farm.name || "Farm",
-      formatArea(subscription.area),
+      formatAreaByClientSource(subscription.area, user.clientSource),
       formatDate(subscription.startDate),
       formatDate(subscription.endDate),
     ],
@@ -70,7 +86,7 @@ export const createSubscriptionExpiryNotification = async (
       subscription.billingCycle,
       farm.cropName,
       farm.fieldName,
-      Number(subscription.area).toFixed(2),
+      formatAreaByClientSource(subscription.area, user.clientSource),
       subscription.startDate.toISOString().split("T")[0],
       subscription.endDate.toISOString().split("T")[0],
       daysRemaining.toString(),

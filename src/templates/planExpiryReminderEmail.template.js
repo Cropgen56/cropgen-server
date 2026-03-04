@@ -7,8 +7,6 @@ const formatDate = (date) =>
     year: "numeric",
   });
 
-const formatArea = (area) => Number(area || 0).toFixed(2);
-
 export const planExpiryReminderEmailTemplate = ({ parameters = [] }) => {
   const [
     userName = "",
@@ -40,7 +38,7 @@ export const planExpiryReminderEmailTemplate = ({ parameters = [] }) => {
 
       <p><strong>🌾 Crop:</strong> ${sanitize(cropName)}</p>
       <p><strong>🏞 Field:</strong> ${sanitize(fieldName)}</p>
-      <p><strong>📏 Area:</strong> ${formatArea(area)} acres</p>
+      <p><strong>📏 Area:</strong> ${sanitize(area)}</p>
 
       <hr style="margin:15px 0;">
 

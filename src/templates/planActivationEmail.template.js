@@ -51,7 +51,7 @@ export const planActivationEmailTemplate = ({ parameters = [], createdAt }) => {
 
       <p><strong>🌾 Crop:</strong> ${sanitize(cropName)}</p>
       <p><strong>🏞 Field:</strong> ${sanitize(fieldName)}</p>
-      <p><strong>📏 Area:</strong> ${formatArea(area)} acres</p>
+     <p><strong>📏 Area:</strong> ${sanitize(area)}</p>
 
       <hr style="margin:15px 0;">
 
