@@ -93,3 +93,25 @@ export const createSubscriptionExpiryNotification = async (
     ],
   });
 };
+
+export const createWelcomeFarmNotification = async (userId) => {
+  const user = await User.findById(userId);
+
+  if (!user) return;
+
+  // 🔒 Prevent duplicate notifications
+  const existing = await Notification.findOne({
+    userId,
+    type: "WELCOME_FARM",
+  });
+
+  if (existing) return;
+
+  await Notification.create({
+    userId,
+    type: "WELCOME_FARM",
+    referenceId: userId,
+    templateName: "cropgen_create_farm_reminder",
+    parameters: [user.firstName || "Farmer"],
+  });
+};

@@ -25,6 +25,7 @@ import subscriptionRoutes from "./src/routes/subscription.routes.js";
 // import worker
 import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
 import { startNotificationWorker } from "./src/worker/notification.worker.js";
+import { startWelcomeFarmReminderWorker } from "./src/worker/welcomeFarm.worker.js";
 
 dotenv.config();
 
@@ -90,6 +91,7 @@ app.use(cookieParser());
 // workers
 startNotificationWorker();
 startSubscriptionExpiryJob();
+startWelcomeFarmReminderWorker();
 
 // Routes
 app.use("/v1/api/auth", authRoutes);

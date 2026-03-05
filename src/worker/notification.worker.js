@@ -56,8 +56,7 @@ async function processNotification(notification) {
       notification.channel = "whatsapp";
       notification.messageId = response?.data?.messages?.[0]?.id || null;
     } else if (user.email) {
-
-    /* ================= EMAIL FALLBACK ================= */
+      /* ================= EMAIL FALLBACK ================= */
       const { subject, html } = generateEmailFromTemplate(
         notification.templateName,
         notification.parameters,

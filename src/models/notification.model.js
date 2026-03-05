@@ -13,7 +13,12 @@ const NotificationSchema = new Schema(
 
     type: {
       type: String,
-      enum: ["ADVISORY", "SUBSCRIPTION_ACTIVATION", "SUBSCRIPTION_EXPIRY"],
+      enum: [
+        "ADVISORY",
+        "SUBSCRIPTION_ACTIVATION",
+        "SUBSCRIPTION_EXPIRY",
+        "WELCOME_FARM",
+      ],
       required: true,
       index: true,
     },
