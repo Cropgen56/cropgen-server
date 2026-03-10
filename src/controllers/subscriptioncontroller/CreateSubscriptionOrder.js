@@ -47,6 +47,18 @@ export const createSubscriptionOrder = async (req, res) => {
           .json({ message: "Trial not available for this plan" });
       }
 
+      const existingTrial = await UserSubscription.findOne({
+        userId,
+        billingCycle: "trial",
+      }).lean();
+
+      if (existingTrial) {
+        return res.status(400).json({
+          message:
+            "Free trial is available only for your first farm. Please choose a paid plan for additional farms.",
+        });
+      }
+
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + plan.trialDays);
 
@@ -82,11 +94,11 @@ export const createSubscriptionOrder = async (req, res) => {
           daysLeft: plan.trialDays,
         });
       } catch (error) {
-        // 🔐 Duplicate trial protection (from unique index)
+        // Duplicate trial protection for concurrent requests.
         if (error.code === 11000) {
           return res.status(400).json({
             message:
-              "Your free trial for this farm has already been used. Please upgrade to a paid plan to continue accessing our services.",
+              "Free trial is available only for your first farm. Please choose a paid plan for additional farms.",
           });
         }
 

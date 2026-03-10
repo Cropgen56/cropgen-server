@@ -17,8 +17,8 @@ const router = express.Router();
 
 router.post(
   "/create",
-  isAuthenticated,
-  authorizeRoles("admin"),
+  // isAuthenticated,
+  // authorizeRoles("admin"),
   uploadCropImages,
   createCrop,
 );

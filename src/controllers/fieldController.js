@@ -112,6 +112,10 @@ export const getField = async (req, res) => {
     /* ================= FETCH FIELDS ================= */
 
     const fields = await FarmField.find({ user: userId }).lean();
+    const hasUsedTrial = await UserSubscription.exists({
+      userId,
+      billingCycle: "trial",
+    });
 
     if (!fields.length) {
       return res.status(200).json({
@@ -162,6 +166,7 @@ export const getField = async (req, res) => {
       if (!sub) {
         return {
           ...field,
+          trialEligible: !hasUsedTrial,
           subscription: {
             hasActiveSubscription: false,
           },
@@ -183,6 +188,7 @@ export const getField = async (req, res) => {
 
       return {
         ...field,
+        trialEligible: !hasUsedTrial,
         subscription: {
           hasActiveSubscription: sub.status === "active" && !isExpired,
 

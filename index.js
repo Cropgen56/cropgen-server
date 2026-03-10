@@ -37,7 +37,11 @@ const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 7070;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
-// allowedOrigins as you already have
+const envAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
   "https://admin.cropgenapp.com",
   "https://www.cropgenapp.com",
@@ -46,6 +50,8 @@ const allowedOrigins = [
   "https://test.cropgenapp.com",
   "http://localhost:3000",
   "http://localhost:5173",
+  "http://10.0.2.2:7070",
+  ...envAllowedOrigins,
 ].filter(Boolean);
 
 const corsOptions = {

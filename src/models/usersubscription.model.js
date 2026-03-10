@@ -103,11 +103,11 @@ const UserSubscriptionSchema = new Schema(
 
 /* ===========================================================
    🔐 UNIQUE TRIAL PROTECTION (DATABASE LEVEL)
-   One trial per user per field
+   One trial per user across all farms
 =========================================================== */
 
 UserSubscriptionSchema.index(
-  { fieldId: 1, billingCycle: 1 },
+  { userId: 1, billingCycle: 1 },
   {
     unique: true,
     partialFilterExpression: { billingCycle: "trial" },
