@@ -24,7 +24,7 @@ export const generateEmailFromTemplate = (templateName, parameters, date) => {
         }),
       };
 
-    case "plan_expiry_reminder_notification":
+    case "plan_expiry_reminder_notification_utility":
       return {
         subject: "Your CropGen Subscription is Expiring Soon ⏳",
         html: planExpiryReminderEmailTemplate({
@@ -33,7 +33,7 @@ export const generateEmailFromTemplate = (templateName, parameters, date) => {
         }),
       };
 
-    case "farm_advisory_notification":
+    case "farm_advisory_notification_en":
       return {
         subject: "CropGen Smart Farm Advisory",
         html: advisoryEmailTemplateFromNotification({

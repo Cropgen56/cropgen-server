@@ -2,6 +2,11 @@ import axios from "axios";
 
 const GRAPH_URL = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
+// Map internal notification template names to WhatsApp Business template names
+const WHATSAPP_TEMPLATE_NAME_MAP = {
+  plan_expiry_reminder_notification: "plan_expiry_reminder_notification_utility",
+};
+
 export const sendWhatsAppTemplate = async ({
   to,
   templateName,
@@ -11,6 +16,9 @@ export const sendWhatsAppTemplate = async ({
   if (!to) throw new Error("Phone number is required");
   if (!templateName) throw new Error("Template name is required");
 
+  const resolvedTemplateName =
+    WHATSAPP_TEMPLATE_NAME_MAP[templateName] || templateName;
+
   return axios.post(
     GRAPH_URL,
     {
@@ -18,7 +26,7 @@ export const sendWhatsAppTemplate = async ({
       to,
       type: "template",
       template: {
-        name: templateName,
+        name: resolvedTemplateName,
         language: { code: languageCode },
         components: [
           {

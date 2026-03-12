@@ -80,15 +80,25 @@ export const createSubscriptionExpiryNotification = async (
     referenceId: subscription._id,
     templateName: "plan_expiry_reminder_notification",
     parameters: [
-      user.firstName || "Farmer",
+      // {{1}} - Name
+      user.firstName || user.name || "Farmer",
+      // {{2}} - Plan
       plan.name,
+      // {{3}} - Platform
       plan.platform,
+      // {{4}} - Type (billing cycle)
       subscription.billingCycle,
-      farm.cropName,
-      farm.fieldName,
+      // {{5}} - Crop
+      farm.cropName || "N/A",
+      // {{6}} - Field
+      farm.fieldName || farm.name || "Farm",
+      // {{7}} - Area (formatted per client source)
       formatAreaByClientSource(subscription.area, user.clientSource),
-      subscription.startDate.toISOString().split("T")[0],
-      subscription.endDate.toISOString().split("T")[0],
+      // {{8}} - Start Date
+      formatDate(subscription.startDate),
+      // {{9}} - End Date
+      formatDate(subscription.endDate),
+      // {{10}} - Days Remaining
       daysRemaining.toString(),
     ],
   });
