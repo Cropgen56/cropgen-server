@@ -1,5 +1,5 @@
 import WhatsAppMessage from "../../models/whatsappmessage.model.js";
-import User from "../../models/usersModel.js";
+import User from "../../models/user.model.js";
 import { sendCustomWhatsAppMessage } from "../../services/whatsappService.js";
 
 export const getAllWhatsAppMessages = async (req, res) => {

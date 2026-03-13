@@ -9,14 +9,14 @@ import {
 import {
   isAuthenticated,
   authorizeRoles,
-} from "../middleware/authMiddleware.js";
+} from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
 router.post(
   "/",
-  // isAuthenticated,
-  // authorizeRoles("admin"),
+  isAuthenticated,
+  authorizeRoles("admin"),
   createSubscriptionPlan,
 );
 router.get("/", getAllSubscriptionPlans);

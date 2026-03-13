@@ -1,8 +1,8 @@
 import cron from "node-cron";
 import { connectToDatabase } from "../config/db.js";
 
-import User from "../models/usersModel.js";
-import FarmField from "../models/fieldModel.js";
+import User from "../models/user.model.js";
+import FarmField from "../models/field.model.js";
 import Notification from "../models/notification.model.js";
 import { createWelcomeFarmNotification } from "../services/notification.service.js";
 

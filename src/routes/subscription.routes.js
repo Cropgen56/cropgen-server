@@ -9,7 +9,7 @@ import {
   activateSubscriptionManually,
 } from "../controllers/subscriptioncontroller/index.js";
 
-import { isAuthenticated } from "../middleware/authMiddleware.js";
+import { isAuthenticated } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 

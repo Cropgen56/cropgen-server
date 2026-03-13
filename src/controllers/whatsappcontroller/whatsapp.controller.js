@@ -2,8 +2,8 @@ import FarmAdviosryModel from "../../models/farmadvisory.model.js";
 import WhatsAppMessage from "../../models/whatsappmessage.model.js"
 import { sendCustomWhatsAppMessage } from "../../services/whatsappService.js"
 import { formatFarmAdvisoryMessage , formatFarmAdvisoryMessageHindi} from "../../utils/whatsapp.utils.js";
-import FarmField from "../../models/fieldModel.js"
-import User from "../../models/usersModel.js"
+import FarmField from "../../models/field.model.js"
+import User from "../../models/user.model.js"
 
 
 export const sendFarmAdvisoryMessage = async (req, res) => {

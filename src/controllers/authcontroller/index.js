@@ -1,28 +1,24 @@
-export { requestOtp } from "./requestOtp.js";
-export { verifyOtp } from "./verifyOtp.js";
-export { completeProfile } from "./completeProfile.js";
-export { refreshTokenHandler } from "./refreshToken.js";
-export { cropydealsRegisterLogin } from "./cropydealsRegisterLogin.js";
-export { logoutHandler } from "./logoutHandler.js";
-export { loginWithGoogleWeb } from "./loginWithGoogleWeb.js";
-export { loginWithGoogleMobile } from "./loginWithGoogleMobile.js";
-export { requestAdminOtp } from "./requestAdminOtp.js";
-export { getAvatarPresignedUrl } from "./avatarController.js";
+export { requestOtp } from "./request.otp.controller.js";
+export { verifyOtp } from "./verify.otp.controller.js";
+export { completeProfile } from "./complete.profile.controller.js";
+export { refreshTokenHandler } from "./refresh.token.controller.js";
+export { cropydealsRegisterLogin } from "./cropydeal.auth.controller.js";
+export { logoutHandler } from "./logout.controller.js";
+export { loginWithGoogleWeb } from "./google.web.controller.js";
+export { loginWithGoogleMobile } from "./google.mobile.controller.js";
+export { requestAdminOtp } from "./admin.otp.controller.js";
+export { getAvatarPresignedUrl } from "./avatar.controller.js";
 
-export { checkUser } from "./checkUser.js";
-export { deleteUserByEmail } from "./deleteUserByEmail.js";
-export { deleteUserById } from "./deleteUserById.js";
-export { getAllUsers } from "./getAllUsers.js";
-export { getUserById } from "./getUserById.js";
-export { isUserExist } from "./isUserExist.js";
-export { loginWithPhone } from "./loginWithPhone.js";
-export { signupWithFirebase } from "./signupWithFirebase.js";
-export { updateUserById } from "./updateUserById.js";
+export { checkUser } from "./check.user.controller.js";
+export { deleteUserByEmail } from "./delete.user.email.controller.js";
+export { deleteUserById } from "./delete.user.id.controller.js";
+export { getAllUsers } from "./get.all.users.controller.js";
+export { getUserById } from "./get.user.id.controller.js";
+export { isUserExist } from "./is.user.exist.controller.js";
+export { loginWithPhone } from "./phone.login.controller.js";
+export { signupWithFirebase } from "./firebase.signup.controller.js";
+export { updateUserById } from "./update.user.controller.js";
 
-// whatsapp otp authentication exports
-export { sendWhatsappOtp } from "./phoneauth.controller.js";
-export { verifyWhatsappOtp } from "./phoneauth.controller.js";
-export { resendWhatsappOtp } from "./phoneauth.controller.js";
+export { sendWhatsappOtp, verifyWhatsappOtp, resendWhatsappOtp } from "./phoneauth.controller.js";
 
-// profile controller export
 export { getProfile } from "./profile.controller.js";

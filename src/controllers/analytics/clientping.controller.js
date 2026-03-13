@@ -1,8 +1,3 @@
-import express from "express";
-
-
-export const clientPing =(req,res)=>{
-     res.json({ success: true });
-}
-
-
+export const clientPing = (req, res) => {
+  res.json({ success: true });
+};

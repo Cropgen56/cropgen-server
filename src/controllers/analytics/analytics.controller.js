@@ -1,5 +1,5 @@
-import User from "../../models/usersModel.js";
-import FarmField from "../../models/fieldModel.js";
+import User from "../../models/user.model.js";
+import FarmField from "../../models/field.model.js";
 import {
   startOfDay,
   endOfDay,

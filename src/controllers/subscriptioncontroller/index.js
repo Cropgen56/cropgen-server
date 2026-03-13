@@ -1,9 +1,9 @@
-export { createSubscriptionOrder } from "./CreateSubscriptionOrder.js";
-export { verifySubscriptionOrder } from "./VerifySubscriptionOrder.js";
-export { activateSubscriptionManually } from "./activateSubscriptionManually.js";
+export { createSubscriptionOrder } from "./create.subscription.order.controller.js";
+export { verifySubscriptionOrder } from "./verify.subscription.order.controller.js";
+export { activateSubscriptionManually } from "./activate.subscription.controller.js";
 export {
   getUserSubscriptions,
   getUserSubscriptionById,
   updateUserSubscription,
   deleteUserSubscription,
-} from "./UserSubscription.js";
+} from "./user.subscription.controller.js";

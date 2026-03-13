@@ -3,24 +3,21 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import http from "http";
-import { fileURLToPath } from "url";
-import path from "path";
-import bodyParser from "body-parser";
 import { connectToDatabase } from "./src/config/db.js";
-import authRoutes from "./src/routes/authRoutes.js";
-import fieldRoutes from "./src/routes/fieldRoutes.js";
-import blogRoutes from "./src/routes/blogRoutes.js";
-import organizationRoutes from "./src/routes/organizationRoutes.js";
-import operationRoutes from "./src/routes/operationRoutes.js";
-import cropRoutes from "./src/routes/cropRoutes.js";
-import postsRoutes from "./src/routes/postRoutes.js";
-import commonRoutes from "./src/routes/commonRoutes.js";
-import analyticRoutes from "./src/routes/analyticsRoutes.js";
-import whatsappRoutes from "./src/routes/whatsappRoutes.js";
+import authRoutes from "./src/routes/auth.routes.js";
+import fieldRoutes from "./src/routes/field.routes.js";
+import blogRoutes from "./src/routes/blog.routes.js";
+import organizationRoutes from "./src/routes/organization.routes.js";
+import operationRoutes from "./src/routes/operation.routes.js";
+import cropRoutes from "./src/routes/crop.routes.js";
+import postsRoutes from "./src/routes/post.routes.js";
+import commonRoutes from "./src/routes/common.routes.js";
+import analyticRoutes from "./src/routes/analytics.routes.js";
+import whatsappRoutes from "./src/routes/whatsapp.routes.js";
 import "./src/config/firebaseConfig.js";
 import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
-// import emailRoutes from "./src/routes/emailRoutes.js";
+// import emailRoutes from "./src/routes/email.routes.js";
 
 // import worker
 import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
@@ -29,13 +26,8 @@ import { startWelcomeFarmReminderWorker } from "./src/worker/welcomeFarm.worker.
 
 dotenv.config();
 
-// Resolve __dirname for ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 7070;
-const NODE_ENV = process.env.NODE_ENV || "development";
 
 const envAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
   .split(",")
@@ -79,17 +71,19 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
-app.use("/v1/api/user-subscriptions/webhook", (req, res, next) => {
-  bodyParser.raw({ type: "application/json" })(req, res, () => {
+app.use(
+  "/v1/api/user-subscriptions/webhook",
+  express.raw({ type: "application/json" }),
+  (req, res, next) => {
     req.rawBody = req.body;
     try {
       req.body = JSON.parse(req.body.toString());
-    } catch (err) {
+    } catch {
       return res.status(400).json({ error: "Invalid JSON" });
     }
     next();
-  });
-});
+  },
+);
 
 app.use(express.json());
 app.use(cookieParser());
@@ -115,11 +109,7 @@ app.use("/v1/api/analytics", analyticRoutes);
 app.use("/v1/api/whatsapp", whatsappRoutes);
 
 app.get("/health", (req, res) => {
-  return res.status(200).json({
-    status: true,
-    message: "server is good and running ",
-    cookies: req.cookies,
-  });
+  return res.status(200).json({ status: true, message: "Server is running" });
 });
 
 // Start server

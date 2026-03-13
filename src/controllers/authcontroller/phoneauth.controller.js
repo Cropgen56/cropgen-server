@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import axios from "axios";
-import User from "../../models/usersModel.js";
-import Organization from "../../models/organizationModel.js";
+import User from "../../models/user.model.js";
+import Organization from "../../models/organization.model.js";
 import { whatsappLanguageMap } from "../../utils/whatsapputility/whatsapplanguage.map.js";
 
 /* ================= CONSTANTS ================= */
