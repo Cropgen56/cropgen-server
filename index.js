@@ -17,7 +17,7 @@ import whatsappRoutes from "./src/routes/whatsapp.routes.js";
 import "./src/config/firebaseConfig.js";
 import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
-// import emailRoutes from "./src/routes/email.routes.js";
+import emailRoutes from "./src/routes/email.routes.js";
 
 // import worker
 import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
@@ -100,7 +100,7 @@ app.use("/v1/api/blog", blogRoutes);
 app.use("/v1/api/org", organizationRoutes);
 app.use("/v1/api/operation", operationRoutes);
 app.use("/v1/api/crop", cropRoutes);
-// app.use("/v1/api/email", emailRoutes);
+app.use("/v1/api/email", emailRoutes);
 app.use("/v1/api/subscription", subscriptionRoutes);
 app.use("/v1/api/subscription-plans", subscriptionPlanRoutes);
 app.use("/v1/api/posts", postsRoutes);
