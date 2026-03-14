@@ -7,7 +7,15 @@ const ActivitySchema = new Schema(
   {
     type: {
       type: String,
-      enum: ["SPRAY", "FERTIGATION", "IRRIGATION", "WEATHER", "CROP_RISK"],
+      enum: [
+        "SPRAY",
+        "FERTIGATION",
+        "IRRIGATION",
+        "WEATHER",
+        "CROP_RISK",
+        "MONITORING",
+        "CARBON_TRACKING",
+      ],
       required: true,
     },
 
@@ -74,6 +82,12 @@ const FarmAdvisorySchema = new Schema(
     },
 
     npkManagement: Schema.Types.Mixed,
+
+    carbonData: {
+      emissionKgCO2: Number,
+      capturedKgCO2: Number,
+      netBalanceKgCO2: Number,
+    },
   },
   { timestamps: true },
 );

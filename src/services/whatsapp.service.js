@@ -5,6 +5,7 @@ const GRAPH_URL = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE
 // Map internal notification template names to WhatsApp Business template names
 const WHATSAPP_TEMPLATE_NAME_MAP = {
   plan_expiry_reminder_notification: "plan_expiry_reminder_notification_utility",
+  farm_advisory_notification_en: "farm_advisory",
 };
 
 export const sendWhatsAppTemplate = async ({

@@ -19,15 +19,20 @@ export const advisoryEmailTemplateFromNotification = ({
 
   const [
     userName = "",
-    farmName = "",
+    date = "",
+    crop = "",
+    field = "",
+    area = "",
     spray = "",
     fertigation = "",
     irrigation = "",
     weather = "",
     cropRisk = "",
+    monitoring = "",
+    carbonUpdate = "",
   ] = parameters;
 
-  const date = formatDate(createdAt);
+  const displayDate = date || formatDate(createdAt);
 
   return `
   <div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:auto;background:#ffffff;padding:25px;border-radius:10px;border:1px solid #e5e7eb;">
@@ -40,19 +45,21 @@ export const advisoryEmailTemplateFromNotification = ({
       Hello <strong>${sanitize(userName)}</strong>,
     </p>
     <p style="margin:0 0 5px 0;">
-      <strong>Farm:</strong> ${sanitize(farmName)}
+      <strong>Date:</strong> ${sanitize(displayDate)}
     </p>
     <p style="margin:0 0 15px 0;">
-      <strong>Date:</strong> ${date}
+      <strong>Crop:</strong> ${sanitize(crop)} | <strong>Field:</strong> ${sanitize(field)} | <strong>Area:</strong> ${sanitize(area)}
     </p>
 
     <hr style="margin:20px 0;border:none;border-top:1px solid #e5e7eb;" />
 
     ${buildSection("🧴 Spray Advisory", spray)}
-    ${buildSection("💧 Fertigation Advisory", fertigation)}
+    ${buildSection("🧪 Fertigation Advisory", fertigation)}
     ${buildSection("🚿 Irrigation Advisory", irrigation)}
-    ${buildSection("🌦 Weather Advisory", weather)}
+    ${buildSection("🌤 Weather Advisory", weather)}
     ${buildSection("⚠ Crop Risk Alert", cropRisk)}
+    ${buildSection("👁 Monitoring", monitoring)}
+    ${buildSection("🌍 Carbon Update", carbonUpdate)}
 
     <hr style="margin:25px 0;border:none;border-top:1px solid #e5e7eb;" />
 

@@ -18,6 +18,8 @@ const TYPE_ICONS = {
   IRRIGATION: "🚿",
   WEATHER: "🌦️",
   CROP_RISK: "⚠️",
+  MONITORING: "👁️",
+  CARBON_TRACKING: "🌍",
 };
 
 /* ================= FORMAT MESSAGE ================= */
