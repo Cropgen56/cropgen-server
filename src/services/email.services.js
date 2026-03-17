@@ -33,7 +33,8 @@ export const generateEmailFromTemplate = (templateName, parameters, date) => {
         }),
       };
 
-    case "farm_advisory_notification_en":
+    // Advisory email uses the same template key as WhatsApp Manager: "farm_advisory"
+    case "farm_advisory":
       return {
         subject: "CropGen Smart Farm Advisory",
         html: advisoryEmailTemplateFromNotification({
