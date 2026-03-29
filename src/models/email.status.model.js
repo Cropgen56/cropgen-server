@@ -20,7 +20,7 @@ const schema = new mongoose.Schema(
     isTest: { type: Boolean, default: false },
     batchId: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 schema.index({ campaign: 1, status: 1, createdAt: -1 });

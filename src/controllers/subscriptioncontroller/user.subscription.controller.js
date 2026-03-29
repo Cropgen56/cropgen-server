@@ -28,6 +28,9 @@ export const getUserSubscriptions = async (req, res) => {
             { "user.lastName": { $regex: search, $options: "i" } },
             { "user.email": { $regex: search, $options: "i" } },
             { "user.phone": { $regex: search, $options: "i" } },
+            { "field.fieldName": { $regex: search, $options: "i" } },
+            { "plan.name": { $regex: search, $options: "i" } },
+            { "plan.slug": { $regex: search, $options: "i" } },
           ],
         }
       : {};
@@ -56,6 +59,16 @@ export const getUserSubscriptions = async (req, res) => {
         },
       },
       { $unwind: { path: "$plan", preserveNullAndEmptyArrays: true } },
+
+      {
+        $lookup: {
+          from: "farmfields",
+          localField: "fieldId",
+          foreignField: "_id",
+          as: "field",
+        },
+      },
+      { $unwind: { path: "$field", preserveNullAndEmptyArrays: true } },
 
       ...(search ? [{ $match: searchMatch }] : []),
 
@@ -101,9 +114,16 @@ export const getUserSubscriptionById = async (req, res) => {
   }
 
   const subscription = await UserSubscription.findById(id)
-    .populate("userId", "name email")
-    .populate("fieldId", "name")
-    .populate("planId", "name slug pricing")
+    .populate("userId", "firstName lastName email phone")
+    .populate(
+      "fieldId",
+      "fieldName acre cropName variety sowingDate typeOfFarming typeOfIrrigation",
+    )
+    .populate(
+      "planId",
+      "name slug description platform pricing isTrialEnabled trialDays active isInternal",
+    )
+    .populate("postTrialPlanId", "name slug")
     .lean();
 
   if (!subscription) {

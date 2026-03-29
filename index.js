@@ -18,6 +18,7 @@ import "./src/config/firebaseConfig.js";
 import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
 import emailRoutes from "./src/routes/email.routes.js";
+import { handleRazorpayWebhook } from "./src/controllers/subscriptioncontroller/razorpay.webhook.controller.js";
 
 // import worker
 import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
@@ -71,18 +72,10 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
-app.use(
+app.post(
   "/v1/api/user-subscriptions/webhook",
   express.raw({ type: "application/json" }),
-  (req, res, next) => {
-    req.rawBody = req.body;
-    try {
-      req.body = JSON.parse(req.body.toString());
-    } catch {
-      return res.status(400).json({ error: "Invalid JSON" });
-    }
-    next();
-  },
+  handleRazorpayWebhook,
 );
 
 app.use(express.json());

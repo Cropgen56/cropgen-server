@@ -1,20 +1,120 @@
-import Razorpay from "razorpay";
 import FarmField from "../../models/field.model.js";
 import SubscriptionPlan from "../../models/subscriptionplan.model.js";
 import UserSubscription from "../../models/usersubscription.model.js";
 import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
+import {
+  getRazorpay,
+  ensureRazorpayCustomer,
+  createRazorpayPlan,
+  createRazorpaySubscription,
+  createPostTrialRazorpaySubscription,
+  cancelRazorpaySubscriptionBestEffort,
+  formatRazorpayApiError,
+  YEARLY_TOTAL_COUNT,
+  MONTHLY_COMMIT_TOTAL_COUNT,
+  SEASON_SINGLE_TOTAL_COUNT,
+} from "../../services/razorpay.subscription.service.js";
+import {
+  billingPatternFromBillingCycle,
+  resolveRazorpayChargeMinor,
+  resolveDisplayPricing,
+} from "../../utils/subscriptionPricing.js";
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+const razorpay = getRazorpay();
+
+/** Web: fixed 7-day trial per field (mobile still uses plan.trialDays when set). */
+const WEB_TRIAL_DAYS = 7;
+
+/**
+ * Ends any live trial rows for this farm (cancel Razorpay sub if present, mark cancelled)
+ * so a new trial checkout can start without hitting the unique trial index or duplicate rules.
+ */
+async function cancelLiveTrialsForField(userId, fieldId) {
+  const live = await UserSubscription.find({
+    userId,
+    fieldId,
+    billingCycle: "trial",
+    status: { $in: ["active", "pending"] },
+  }).lean();
+
+  for (const row of live) {
+    await cancelRazorpaySubscriptionBestEffort(
+      razorpay,
+      row.razorpaySubscriptionId,
+    );
+    await UserSubscription.updateOne(
+      { _id: row._id },
+      { $set: { status: "cancelled" } },
+    );
+  }
+}
+
+/** Old DB index was unique on user + billingCycle (or userId + billingCycle) — blocked a second farm's trial. */
+function looksLikeLegacyUserTrialIndexError(error) {
+  if (error?.code !== 11000) return false;
+  const msg = String(
+    error.message || error.errmsg || error.errorResponse?.errmsg || "",
+  );
+  if (
+    /userId_1_billingCycle_1|user_1_billingCycle_1/i.test(msg)
+  ) {
+    return true;
+  }
+  const kp = error.keyPattern;
+  if (!kp || typeof kp !== "object") return false;
+  if (Object.prototype.hasOwnProperty.call(kp, "fieldId")) return false;
+  const hasUserKey =
+    Object.prototype.hasOwnProperty.call(kp, "userId") ||
+    Object.prototype.hasOwnProperty.call(kp, "user");
+  return (
+    hasUserKey && Object.prototype.hasOwnProperty.call(kp, "billingCycle")
+  );
+}
+
+const LEGACY_TRIAL_INDEX_MESSAGE =
+  "Database still has an old one-trial-per-account index. In MongoDB run: db.usersubscriptions.dropIndex('userId_1_billingCycle_1') and dropIndex('user_1_billingCycle_1') if present, then restart the API (syncIndexes runs on boot).";
+
+/**
+ * Inserts trial row; on duplicate (same field, stale pending/active), cancel live trials and retry once.
+ * Surfaces legacy index errors with an actionable message instead of a generic conflict.
+ */
+async function createUserSubscriptionTrialDocWithRetry(userId, fieldId, doc) {
+  const throwIfLegacy = (e) => {
+    if (looksLikeLegacyUserTrialIndexError(e)) {
+      const err = new Error(LEGACY_TRIAL_INDEX_MESSAGE);
+      err.isLegacyTrialIndex = true;
+      throw err;
+    }
+  };
+
+  try {
+    return await UserSubscription.create(doc);
+  } catch (e1) {
+    if (e1.code !== 11000) throw e1;
+    throwIfLegacy(e1);
+    await cancelLiveTrialsForField(userId, fieldId);
+    try {
+      return await UserSubscription.create(doc);
+    } catch (e2) {
+      if (e2.code !== 11000) throw e2;
+      throwIfLegacy(e2);
+      throw e2;
+    }
+  }
+}
 
 export const createSubscriptionOrder = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
-    const { farmId, planId, billingCycle, displayCurrency } = req.body;
+    const {
+      farmId,
+      planId,
+      billingCycle,
+      displayCurrency: bodyDisplayCurrency,
+      /** Billing cycle that starts after trial ends (monthly | yearly | season). */
+      commitBillingCycle: bodyCommitCycle,
+    } = req.body;
 
-    /* ================= 1️⃣ FARM ================= */
     const farm = await FarmField.findOne({
       _id: farmId,
       user: userId,
@@ -24,7 +124,6 @@ export const createSubscriptionOrder = async (req, res) => {
       return res.status(404).json({ message: "Farm not found" });
     }
 
-    /* ================= 2️⃣ PLAN ================= */
     const plan = await SubscriptionPlan.findOne({
       _id: planId,
       active: true,
@@ -37,132 +136,229 @@ export const createSubscriptionOrder = async (req, res) => {
     const area = Number(farm.acre) || 1;
     const startDate = new Date();
 
-    /* =================================================
-   3️⃣ TRIAL FLOW (NO PAYMENT)
-    ================================================= */
-    if (billingCycle === "trial") {
-      if (!plan.isTrialEnabled) {
+    /* ================= TRIAL + POST-TRIAL (web + mobile: one Razorpay subscription, charge at trial end via start_at) ================= */
+    const webPaidAsTrial =
+      plan.platform === "web" &&
+      ["monthly", "yearly", "season"].includes(billingCycle);
+
+    const mobilePaidAsTrial =
+      plan.platform === "mobile" &&
+      plan.isTrialEnabled &&
+      ["monthly", "yearly", "season"].includes(billingCycle);
+
+    if (billingCycle === "trial" || webPaidAsTrial || mobilePaidAsTrial) {
+      if (!plan.isTrialEnabled && plan.platform !== "web") {
         return res
           .status(400)
           .json({ message: "Trial not available for this plan" });
       }
 
-      const existingTrial = await UserSubscription.findOne({
-        userId,
-        billingCycle: "trial",
-      }).lean();
+      await cancelLiveTrialsForField(userId, farmId);
 
-      if (existingTrial) {
+      const trialDayCount =
+        plan.platform === "web"
+          ? WEB_TRIAL_DAYS
+          : plan.trialDays >= 1
+            ? plan.trialDays
+            : 7;
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + trialDayCount);
+
+      const commitBillingCycle =
+        webPaidAsTrial || mobilePaidAsTrial
+          ? billingCycle
+          : bodyCommitCycle || "yearly";
+      if (!["monthly", "yearly", "season"].includes(commitBillingCycle)) {
         return res.status(400).json({
           message:
-            "Free trial is available only for your first farm. Please choose a paid plan for additional farms.",
+            "commitBillingCycle must be monthly, yearly, or season for trial checkout",
         });
       }
 
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + plan.trialDays);
+      const trialDisplayCurrency = bodyDisplayCurrency || "USD";
+
+      const charge = resolveRazorpayChargeMinor(plan, area, commitBillingCycle);
+      let display = resolveDisplayPricing(
+        plan,
+        area,
+        commitBillingCycle,
+        trialDisplayCurrency,
+      );
+      if (!display) {
+        display = resolveDisplayPricing(
+          plan,
+          area,
+          commitBillingCycle,
+          "INR",
+        );
+      }
+
+      /* No pricing for post-trial period → legacy free trial (no mandate). */
+      if (!charge || !display) {
+        try {
+          const subscription = await createUserSubscriptionTrialDocWithRetry(
+            userId,
+            farmId,
+            {
+              userId,
+              fieldId: farmId,
+              planId,
+              platform: plan.platform,
+              area,
+              unit: "acre",
+              billingCycle: "trial",
+              displayCurrency: null,
+              pricePerUnitMinor: 0,
+              totalAmountMinor: 0,
+              chargedCurrency: null,
+              exchangeRate: null,
+              status: "active",
+              startDate,
+              endDate,
+              billingMode: "legacy_order",
+            },
+          );
+
+          await createSubscriptionActivationNotification(subscription?._id);
+
+          return res.status(201).json({
+            success: true,
+            type: "trial",
+            subscriptionId: subscription._id,
+            startDate,
+            endDate,
+            daysLeft: trialDayCount,
+          });
+        } catch (error) {
+          if (error.isLegacyTrialIndex) {
+            return res.status(409).json({ message: error.message });
+          }
+          if (error.code === 11000) {
+            return res.status(409).json({
+              message:
+                "Trial checkout conflict. Wait a moment and try again, or refresh the page.",
+            });
+          }
+          console.error("Trial creation failed:", error);
+          return res.status(500).json({
+            message: "Failed to create trial subscription",
+          });
+        }
+      }
 
       try {
-        const subscription = await UserSubscription.create({
+        const subscription = await createUserSubscriptionTrialDocWithRetry(
           userId,
-          fieldId: farmId,
-          planId,
-          platform: plan.platform,
-          area,
-          unit: "acre",
-          billingCycle: "trial",
-
-          displayCurrency: null,
-          pricePerUnitMinor: 0,
-          totalAmountMinor: 0,
-          chargedCurrency: null,
-          exchangeRate: null,
-
-          status: "active",
-          startDate,
-          endDate,
-        });
+          farmId,
+          {
+            userId,
+            fieldId: farmId,
+            planId,
+            platform: plan.platform,
+            area,
+            unit: "acre",
+            billingCycle: "trial",
+            commitBillingCycle,
+            displayCurrency: display.displayCurrency,
+            pricePerUnitMinor: display.pricePerUnitMinor,
+            totalAmountMinor: display.totalAmountMinor,
+            chargedCurrency: "INR",
+            exchangeRate: display.exchangeRate,
+            status: "active",
+            startDate,
+            endDate,
+            billingMode: "recurring",
+            postTrialPlanId: plan._id,
+            trialEndsAt: endDate,
+            subscriptionPhase: "trial_mandate_pending",
+          },
+        );
 
         await createSubscriptionActivationNotification(subscription?._id);
 
+        await ensureRazorpayCustomer(razorpay, userId);
+
+        const { rzPlan, rzSub, billingPattern } =
+          await createPostTrialRazorpaySubscription({
+            razorpay,
+            userId,
+            userSubscriptionId: subscription._id,
+            plan,
+            area,
+            commitBillingCycle,
+            trialEndDate: endDate,
+          });
+
+        subscription.razorpaySubscriptionId = rzSub.id;
+        subscription.razorpayPlanId = rzPlan.id;
+        subscription.billingPattern = billingPattern;
+        await subscription.save();
+
         return res.status(201).json({
           success: true,
-          type: "trial",
+          type: "trial_with_mandate",
           subscriptionId: subscription._id,
           startDate,
           endDate,
-          daysLeft: plan.trialDays,
+          daysLeft: trialDayCount,
+          razorpay: {
+            subscription_id: rzSub.id,
+            key: process.env.RAZORPAY_KEY_ID,
+          },
         });
       } catch (error) {
-        // Duplicate trial protection for concurrent requests.
+        if (error.isLegacyTrialIndex) {
+          return res.status(409).json({ message: error.message });
+        }
         if (error.code === 11000) {
-          return res.status(400).json({
+          return res.status(409).json({
             message:
-              "Free trial is available only for your first farm. Please choose a paid plan for additional farms.",
+              "Trial checkout conflict. Wait a moment and try again, or refresh the page.",
           });
         }
-
-        console.error("Trial creation failed:", error);
-        return res.status(500).json({
-          message: "Failed to create trial subscription",
-        });
+        console.error("Trial + mandate creation failed:", error);
+        const { message, status } = formatRazorpayApiError(error);
+        return res.status(status).json({ message });
       }
     }
 
-    /* =================================================
-       4️⃣ PAID FLOW (RAZORPAY)
-    ================================================= */
-
-    if (!displayCurrency) {
+    /* ================= PAID (all cycles use Razorpay Subscriptions — no Orders API) ================= */
+    if (!bodyDisplayCurrency) {
       return res.status(400).json({ message: "Currency is required" });
     }
+    const displayCurrency = bodyDisplayCurrency;
 
     const pricing = plan.pricing.find(
-      (p) => p.currency === displayCurrency && p.billingCycle === billingCycle,
+      (pr) => pr.currency === displayCurrency && pr.billingCycle === billingCycle,
     );
 
     if (!pricing) {
       return res.status(400).json({ message: "Pricing not found" });
     }
 
-    /* ---- Calculate display amount ---- */
     const displayAmountMinor = Math.round(area * pricing.pricePerUnitMinor);
-
-    let chargedAmountMinor = displayAmountMinor;
     let exchangeRate = null;
-
-    /* ---- USD → INR Conversion ---- */
     if (displayCurrency === "USD") {
-      exchangeRate = 91.46;
-      chargedAmountMinor = Math.round(
-        (displayAmountMinor / 100) * exchangeRate * 100,
-      );
+      exchangeRate = Number(process.env.RAZORPAY_USD_INR_RATE || "91.46");
     }
 
-    /* =================================================
-       ✅ MINIMUM ₹1 SAFETY FIX (100 paise)
-    ================================================= */
-    if (chargedAmountMinor < 100) {
-      console.log(`Amount too low (${chargedAmountMinor}). Adjusted to ₹1.`);
-      chargedAmountMinor = 100;
+    const chargeResolved = resolveRazorpayChargeMinor(plan, area, billingCycle);
+    if (!chargeResolved) {
+      return res.status(400).json({
+        message: "Could not resolve INR charge for this plan and billing cycle",
+      });
     }
+    const chargedAmountMinor = chargeResolved.chargedMinor;
 
-    /* ---- End Date Calculation ---- */
     const endDate = new Date(startDate);
-
     if (billingCycle === "monthly") {
-      endDate.setDate(endDate.getDate() + 30);
-    }
-
-    if (billingCycle === "yearly") {
-      endDate.setDate(endDate.getDate() + 365);
-    }
-
-    if (billingCycle === "season") {
+      endDate.setMonth(endDate.getMonth() + 1);
+    } else if (billingCycle === "yearly") {
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    } else if (billingCycle === "season") {
       endDate.setDate(endDate.getDate() + 120);
     }
 
-    /* ---- Create Pending Subscription ---- */
     const subscription = await UserSubscription.create({
       userId,
       fieldId: farmId,
@@ -170,47 +366,73 @@ export const createSubscriptionOrder = async (req, res) => {
       platform: plan.platform,
       area,
       unit: "acre",
-
       billingCycle,
       displayCurrency,
       pricePerUnitMinor: pricing.pricePerUnitMinor,
       totalAmountMinor: displayAmountMinor,
-
       chargedCurrency: "INR",
       exchangeRate,
-
       status: "pending",
       startDate,
       endDate,
     });
 
-    /* ---- Razorpay Order ---- */
-    const order = await razorpay.orders.create({
-      amount: chargedAmountMinor,
-      currency: "INR",
-      receipt: `sub_${subscription._id.toString().slice(-10)}`,
+    const { customerId } = await ensureRazorpayCustomer(razorpay, userId);
+
+    let period = "monthly";
+    let totalCount = MONTHLY_COMMIT_TOTAL_COUNT;
+    let billingPattern = "twelve_monthly";
+
+    if (billingCycle === "yearly") {
+      period = "yearly";
+      totalCount = YEARLY_TOTAL_COUNT;
+      billingPattern = "yearly";
+    } else if (billingCycle === "season") {
+      period = "monthly";
+      totalCount = SEASON_SINGLE_TOTAL_COUNT;
+      billingPattern = "season";
+    }
+
+    const rzPlan = await createRazorpayPlan(razorpay, {
+      period,
+      interval: 1,
+      itemName: `CropGen ${plan.slug} ${String(subscription._id).slice(-8)}`,
+      amountMinor: chargedAmountMinor,
+      description: `${area} acres ${billingCycle}`,
     });
 
-    subscription.razorpayOrderId = order.id;
+    const rzSub = await createRazorpaySubscription(razorpay, {
+      planId: rzPlan.id,
+      customerId,
+      startAtUnix: undefined,
+      totalCount,
+      notes: {
+        userSubscriptionId: String(subscription._id),
+        cropgenUserId: String(userId),
+        flow: "paid_recurring",
+      },
+    });
+
+    subscription.razorpaySubscriptionId = rzSub.id;
+    subscription.razorpayPlanId = rzPlan.id;
+    subscription.billingMode = "recurring";
+    subscription.billingPattern = billingPattern;
     await subscription.save();
 
     return res.status(201).json({
       success: true,
-      type: "payment",
-      order: {
-        id: order.id,
-        amount: chargedAmountMinor,
-        currency: "INR",
-        key: process.env.RAZORPAY_KEY_ID,
-      },
+      type: "subscription",
       subscriptionId: subscription._id,
       startDate,
       endDate,
+      razorpay: {
+        subscription_id: rzSub.id,
+        key: process.env.RAZORPAY_KEY_ID,
+      },
     });
   } catch (error) {
     console.error("Create subscription order failed:", error);
-    return res
-      .status(500)
-      .json({ message: "Failed to create subscription order" });
+    const { message, status } = formatRazorpayApiError(error);
+    return res.status(status).json({ message });
   }
 };

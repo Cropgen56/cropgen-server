@@ -2,7 +2,13 @@ import SubscriptionPlan from "../../models/subscriptionplan.model.js";
 
 export const getAllSubscriptionPlans = async (req, res) => {
   try {
-    const plans = await SubscriptionPlan.find({})
+    const { platform } = req.query;
+    const filter = {};
+    if (platform === "mobile" || platform === "web") {
+      filter.platform = platform;
+    }
+
+    const plans = await SubscriptionPlan.find(filter)
       .sort({ createdAt: -1 })
       .lean();
     res.json({ success: true, data: plans });

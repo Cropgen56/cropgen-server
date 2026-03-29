@@ -87,6 +87,12 @@ const userSchema = new Schema(
       enum: ["web", "android", "ios", "webview", "unknown"],
       default: "unknown",
     },
+
+    razorpayCustomerId: {
+      type: String,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

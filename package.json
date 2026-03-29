@@ -7,7 +7,10 @@
   "scripts": {
     "test": "jest --detectOpenHandles --forceExit",
     "start": "node index.js",
-    "worker": "node src/worker/emailWorker.js"
+    "worker": "node src/worker/emailWorker.js",
+    "seed:web-plans": "node scripts/seed-web-plans.mjs",
+    "seed:mobile-plans": "node scripts/seed-mobile-plans.mjs",
+    "test:subscription-pricing": "node scripts/test-subscription-pricing.mjs"
   },
   "author": "crop gen team",
   "license": "ISC",

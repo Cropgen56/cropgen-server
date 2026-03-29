@@ -7,9 +7,11 @@ import {
   updateUserSubscription,
   deleteUserSubscription,
   activateSubscriptionManually,
+  getSubscriptionAdminDetail,
+  cancelSubscriptionAdmin,
 } from "../controllers/subscriptioncontroller/index.js";
 
-import { isAuthenticated } from "../middleware/auth.middleware.js";
+import { isAuthenticated, authorizeRoles } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -24,6 +26,18 @@ router.post(
 
 // crud apis
 router.get("/", getUserSubscriptions);
+router.get(
+  "/admin/:id/detail",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  getSubscriptionAdminDetail,
+);
+router.post(
+  "/admin/:id/cancel",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  cancelSubscriptionAdmin,
+);
 router.get("/:id", getUserSubscriptionById);
 router.patch("/:id", updateUserSubscription);
 router.delete("/:id", deleteUserSubscription);

@@ -49,6 +49,13 @@ const UserSubscriptionSchema = new Schema(
       required: true,
     },
 
+    /** After trial: monthly | yearly | season (web + mandate flows). */
+    commitBillingCycle: {
+      type: String,
+      enum: ["monthly", "yearly", "season"],
+      default: null,
+    },
+
     displayCurrency: {
       type: String,
       enum: ["INR", "USD"],
@@ -97,20 +104,66 @@ const UserSubscriptionSchema = new Schema(
     endDate: { type: Date, default: null },
 
     razorpayOrderId: { type: String, default: null },
+    razorpayPaymentId: { type: String, default: null },
+    razorpaySignature: { type: String, default: null },
+
+    razorpaySubscriptionId: { type: String, default: null, index: true },
+    razorpayPlanId: { type: String, default: null },
+
+    postTrialPlanId: {
+      type: Schema.Types.ObjectId,
+      ref: "SubscriptionPlan",
+      default: null,
+    },
+    paymentMethodCapturedAt: { type: Date, default: null },
+    trialEndsAt: { type: Date, default: null },
+
+    termStart: { type: Date, default: null },
+    termEnd: { type: Date, default: null },
+    currentPeriodStart: { type: Date, default: null },
+    currentPeriodEnd: { type: Date, default: null },
+
+    billingPattern: {
+      type: String,
+      default: null,
+    },
+
+    billingMode: {
+      type: String,
+      enum: ["legacy_order", "recurring"],
+      default: "legacy_order",
+    },
+
+    subscriptionPhase: {
+      type: String,
+      enum: [
+        "trial",
+        "trial_verification_pending",
+        "trial_enrollment_pending",
+        "trial_mandate_pending",
+        "trial_mandate_saved",
+        "active_paid",
+      ],
+      default: null,
+    },
   },
   { timestamps: true },
 );
 
 /* ===========================================================
-   🔐 UNIQUE TRIAL PROTECTION (DATABASE LEVEL)
-   One trial per user across all farms
+   UNIQUE TRIAL PER FIELD (DATABASE LEVEL)
+   At most one trial row per user per farm. Drop legacy index
+   userId_1_billingCycle_1 on upgrade if migrations fail.
 =========================================================== */
 
 UserSubscriptionSchema.index(
-  { userId: 1, billingCycle: 1 },
+  { userId: 1, fieldId: 1, billingCycle: 1 },
   {
     unique: true,
-    partialFilterExpression: { billingCycle: "trial" },
+    partialFilterExpression: {
+      billingCycle: "trial",
+      status: { $in: ["active", "pending"] },
+    },
   },
 );
 

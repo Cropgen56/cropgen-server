@@ -7,3 +7,7 @@ export {
   updateUserSubscription,
   deleteUserSubscription,
 } from "./user.subscription.controller.js";
+export {
+  getSubscriptionAdminDetail,
+  cancelSubscriptionAdmin,
+} from "./admin.user.subscription.controller.js";
