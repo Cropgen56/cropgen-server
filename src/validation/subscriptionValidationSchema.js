@@ -7,6 +7,8 @@ const pricingSchema = Joi.object({
   unit: Joi.string().valid("acre").default("acre"),
 });
 
+const pricingArraySchema = Joi.array().items(pricingSchema);
+
 export const subscriptionPlanSchema = Joi.object({
   name: Joi.string().min(1).max(100).required(),
   slug: Joi.string().min(1).max(100).required(),
@@ -28,7 +30,13 @@ export const subscriptionPlanSchema = Joi.object({
       otherwise: Joi.number().default(0),
     }),
 
-  pricing: Joi.array().items(pricingSchema).min(1),
+  // For normal public plans, require at least one pricing row.
+  // For internal plans (admin-only), pricing is optional.
+  pricing: Joi.when("isInternal", {
+    is: true,
+    then: pricingArraySchema.min(0).default([]),
+    otherwise: pricingArraySchema.min(1),
+  }),
 
   features: Joi.object({
     satelliteImagery: Joi.boolean().default(false),

@@ -4,6 +4,13 @@ import User from "../models/user.model.js";
 import UserSubscription from "../models/usersubscription.model.js";
 import axios from "axios";
 
+/** cropgen-smart-advisory base; use 127.0.0.1 not localhost (avoids Node using ::1 when only IPv4 is bound). */
+function getAdvisoryServerBase() {
+  const raw =
+    process.env.ADVISORY_SERVER_URL?.trim() || "http://127.0.0.1:3001";
+  return raw.replace(/\/$/, "");
+}
+
 // Add a new farm field for a particular user
 export const addField = async (req, res) => {
   try {
@@ -58,16 +65,23 @@ export const addField = async (req, res) => {
     const savedFarmField = await newFarmField.save();
 
     /* ---------- 🔔 Trigger advisory (NON-BLOCKING) ---------- */
+    const advisoryBase = getAdvisoryServerBase();
+    const generateUrl = `${advisoryBase}/api/advisory/internal/generate-advisory`;
     axios
-      .post(
-        `${process.env.ADVISORY_SERVER_URL}/api/advisory/internal/generate-advisory`,
-        {
-          farmFieldId: savedFarmField?._id,
-          language: user.language || "en",
-        },
-      )
+      .post(generateUrl, {
+        farmFieldId: savedFarmField?._id,
+        language: user.language || "en",
+      })
       .catch((err) => {
-        console.error("Advisory trigger failed:", err);
+        const code = err?.code || err?.cause?.code;
+        console.error(
+          "Advisory trigger failed:",
+          err?.message || err,
+          "| url:",
+          generateUrl,
+          code ? `| ${code}` : "",
+          "| Start cropgen-smart-advisory (PORT in its .env must match this URL).",
+        );
       });
 
     /* ---------- Response ---------- */

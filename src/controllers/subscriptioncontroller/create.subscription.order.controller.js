@@ -219,8 +219,6 @@ export const createSubscriptionOrder = async (req, res) => {
             },
           );
 
-          await createSubscriptionActivationNotification(subscription?._id);
-
           return res.status(201).json({
             success: true,
             type: "trial",
@@ -273,8 +271,6 @@ export const createSubscriptionOrder = async (req, res) => {
             subscriptionPhase: "trial_mandate_pending",
           },
         );
-
-        await createSubscriptionActivationNotification(subscription?._id);
 
         await ensureRazorpayCustomer(razorpay, userId);
 
