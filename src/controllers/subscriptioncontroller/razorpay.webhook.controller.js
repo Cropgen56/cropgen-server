@@ -86,6 +86,10 @@ async function processRazorpayEvent(event, eventId) {
     ) {
       userSubscription.paymentMethodCapturedAt = new Date();
       userSubscription.subscriptionPhase = "trial_mandate_saved";
+      /* Align with client verify: trial access only after mandate is authenticated. */
+      if (userSubscription.status === "pending") {
+        userSubscription.status = "active";
+      }
       await userSubscription.save();
     }
     return;

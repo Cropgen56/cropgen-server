@@ -86,26 +86,6 @@ export const verifySubscriptionOrder = async (req, res) => {
       subscription.status === "pending" &&
       subscription.billingMode === "legacy_order";
 
-    if (
-      subscription.status === "active" &&
-      !isTrialMandatePending
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Subscription already activated",
-      });
-    }
-
-    if (
-      subscription.status !== "pending" &&
-      !(subscription.status === "active" && isTrialMandatePending)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Subscription cannot be verified in this state",
-      });
-    }
-
     let generatedSignature;
     if (razorpay_subscription_id) {
       generatedSignature = crypto
@@ -126,6 +106,57 @@ export const verifySubscriptionOrder = async (req, res) => {
       });
     }
 
+    /* Webhook may activate trial before client verify — same payment must still verify. */
+    const isTrialMandateAlreadyDone =
+      subscription.status === "active" &&
+      subscription.billingCycle === "trial" &&
+      subscription.billingMode === "recurring" &&
+      subscription.subscriptionPhase === "trial_mandate_saved";
+
+    if (isTrialMandateAlreadyDone) {
+      if (
+        razorpay_subscription_id &&
+        subscription.razorpaySubscriptionId &&
+        razorpay_subscription_id !== subscription.razorpaySubscriptionId
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Subscription id mismatch",
+        });
+      }
+      if (!subscription.razorpayPaymentId) {
+        subscription.razorpayPaymentId = razorpay_payment_id;
+        subscription.razorpaySignature = razorpay_signature;
+        await subscription.save();
+      }
+      const farm = await FarmField.findById(subscription.fieldId);
+      const plan = await SubscriptionPlan.findById(subscription.planId);
+      return res.status(200).json({
+        success: true,
+        data: {
+          subscriptionId: subscription._id,
+          fieldName: farm?.fieldName,
+          planName: plan?.name,
+          transactionId: razorpay_payment_id,
+          verifyType: "trial_mandate",
+        },
+      });
+    }
+
+    if (subscription.status === "active") {
+      return res.status(400).json({
+        success: false,
+        message: "Subscription already activated",
+      });
+    }
+
+    if (subscription.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Subscription cannot be verified in this state",
+      });
+    }
+
     /* ================= TRIAL: mandate captured (still on trial until charged) ================= */
     if (isTrialMandatePending) {
       if (
@@ -143,6 +174,7 @@ export const verifySubscriptionOrder = async (req, res) => {
       subscription.razorpaySignature = razorpay_signature;
       subscription.paymentMethodCapturedAt = new Date();
       subscription.subscriptionPhase = "trial_mandate_saved";
+      subscription.status = "active";
       await subscription.save();
 
       await recordVerifyBillingEvent(

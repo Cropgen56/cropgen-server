@@ -262,7 +262,8 @@ export const createSubscriptionOrder = async (req, res) => {
             totalAmountMinor: display.totalAmountMinor,
             chargedCurrency: "INR",
             exchangeRate: display.exchangeRate,
-            status: "active",
+            /* pending until Razorpay checkout completes (mandate / first payment). */
+            status: "pending",
             startDate,
             endDate,
             billingMode: "recurring",
