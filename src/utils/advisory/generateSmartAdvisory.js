@@ -1,5 +1,6 @@
 import { callOpenAI } from "./openaiClient.js";
 import { normalizeTypeOfFarming } from "./farmingTypeNormalize.js";
+import { postProcessAdvisory } from "./postProcessAdvisory.js";
 
 const ACRES_PER_HA = 2.471;
 
@@ -350,224 +351,101 @@ export async function generateSmartAdvisory({
     throw new Error("Invalid advisory response from LLM");
   }
 
-  // Ensure ALL 7 activities exist; cap message length for WhatsApp (~160 safe for templates)
-  const WHATSAPP_MESSAGE_MAX = 155;
-  const map = new Map();
-  response.activitiesToDo.forEach((a) => map.set(a.type, a));
-
-  const truncateMessage = (text, maxLen = WHATSAPP_MESSAGE_MAX) => {
-    if (!text || typeof text !== "string") return text || "";
-    const trimmed = text.trim();
-    if (trimmed.length <= maxLen) return trimmed;
-    return trimmed.slice(0, maxLen - 3) + "...";
-  };
-
-  const farmType = normalizeTypeOfFarming(evidence?.typeOfFarming);
-
-  const finalActivities = ACTIVITY_TYPES.map((type) => {
-    let activity = map.get(type) || {
-      type,
-      title: "No action required",
-      message: `No action required for ${type.toLowerCase()} today.`,
-      details: {},
-    };
-
-    if (type === "IRRIGATION") {
-      activity = {
-        ...activity,
-        message: buildIrrigationMessage(language, evidence),
-      };
-    }
-
-    if (type === "FERTIGATION") {
-      activity = buildFertigationActivityFromHints(language, evidence);
-    }
-
-    const sprayHint = evidence?.decisionHints?.spray;
-    if (type === "SPRAY" && !sprayHint?.shouldSpray) {
-      activity = {
-        ...activity,
-        title:
-          language === "mr" || language === "hi" ? "फवारणी" : "Spray",
-        message: buildNoSprayMessage(language, sprayHint?.reason || ""),
-      };
-    }
-
-    if (type === "CROP_RISK" && farmType === "Organic") {
-      activity = buildOrganicCropRiskActivity(language);
-    }
-
-    return {
-      ...activity,
-      message: truncateMessage(activity.message, WHATSAPP_MESSAGE_MAX),
-    };
-  });
-
-  return { activitiesToDo: finalActivities };
+  /* Post-process: deterministic overrides on top of LLM text.
+     buildFertigationActivityFromHints is defined earlier in this file. */
+  return postProcessAdvisory(response, evidence, language, buildFertigationActivityFromHints);
 }
 
 /* =====================================================
-   PROMPT (LANGUAGE HARD FORCED)
+   PROMPT (REFINED — uses precision evidence fields)
 ===================================================== */
 
 function buildLLMPrompt(languageName, evidence) {
-  const farmAcresRaw = evidence?.acre ?? evidence?.area ?? 1;
+  const farmAcresRaw = evidence?.acre ?? 1;
   const farmAcresNum = Number(farmAcresRaw);
   const farmAcres =
     Number.isFinite(farmAcresNum) && farmAcresNum > 0 ? farmAcresNum : 1;
   const exampleTotalKg = Math.round(5 * farmAcres * 100) / 100;
   const farmType = normalizeTypeOfFarming(evidence?.typeOfFarming);
 
-  return `
-You are a senior agronomist generating DAILY PRECISION FARM ADVISORY.
+  const irrReq      = evidence?.irrigationRequirement;
+  const fertSched   = evidence?.fertilizerSchedule;
+  const stressZ     = evidence?.stressZones;
+  const soilMoi     = evidence?.soilMoisture;
+  const irrSummary  = irrReq?.recommendation ?? "Check soil moisture before irrigating.";
+  const currentFert = fertSched?.currentApplication;
+  const fertSummary = currentFert
+    ? `BBCH ${currentFert.bbchWindow}: N=${currentFert.N_kgPerHa} P=${currentFert.P_kgPerHa} K=${currentFert.K_kgPerHa} kg/ha. ${currentFert.timing}.`
+    : "No active fertigation window.";
+  const diseasePressure = stressZ?.diseasePressure ?? "low";
+  const soilStatus      = soilMoi?.status ?? "ADEQUATE";
 
-━━━━━━━━━━━━━━━━━━━━
-🚨 ABSOLUTE RULES (STRICT)
-━━━━━━━━━━━━━━━━━━━━
-1. Output ONLY in ${languageName} — simple, village-style, WhatsApp-friendly. No other language mixed in.
-2. Do NOT use the farmer’s name, the word "Farmer", folded hands emoji, or any greeting prefix in any "message" field.
-3. One activity = ONE short actionable sentence; each "message" MUST stay under ~155 characters (WhatsApp); put full product names and kg/acre totals in "details" only if needed.
-4. NO vague phrases: "as per label", "recommended dose", "if needed", "as required", "appropriate", bare "NPK" without grade.
-5. Fertilizers and sprays: ALWAYS full commercial names + grade where applicable, e.g. "Urea 46%", "DAP 18:46:0", "MOP 60%", "NPK 19:19:19", "NPK 13:0:45", "Zn EDTA 12%"; organic: "Vermicompost", "Jeevamruth", "Neem cake", etc., each with numeric quantity (kg/acre or L/acre) and farm total when relevant.
-6. ALWAYS give NUMERIC doses: kg/acre, litre/acre, ml per litre of spray water, hours/minutes for irrigation.
-7. Use ONLY the evidence below. If decisionHints say skip an action, say so clearly. Do not invent pests, diseases, or products.
-8. NO SCIENCE JARGON in farmer text: ❌ NDVI, BBCH, ET0, HSI, index names. ✅ crop stage, soil, weather in plain words.
+  return `You are a senior agronomist generating a DAILY PRECISION FARM ADVISORY.
 
-━━━━━━━━━━━━━━━━━━━━
-📐 AREA RULE (CRITICAL)
-━━━━━━━━━━━━━━━━━━━━
-Farm size: ${farmAcres} acre(s)
+ABSOLUTE RULES (never violate):
+1. Output ONLY in ${languageName} — simple, WhatsApp-friendly. No language mixing.
+2. No farmer name, no "Farmer" word, no folded-hands emoji in any "message" field.
+3. Each "message" <= 155 characters. Full product names, doses, and math go in "details".
+4. No vague phrases: "as per label", "recommended dose", "if needed", "appropriate amount".
+5. Full commercial names + grade: "Urea 46%", "DAP 18:46:0", "MOP 60%", "NPK 19:19:19", "Mancozeb 75% WP". Organic: "Vermicompost", "Neem cake", "Jeevamruth" with kg/acre or L/acre.
+6. NUMERIC doses everywhere: kg/acre, L/acre, ml/L spray water, hours/minutes for irrigation.
+7. Use ONLY the evidence provided. Do NOT invent pests, diseases, products, or data.
+8. No jargon in farmer text. No NDVI, BBCH, ET0, HSI. Use: crop stage, soil moisture, weather conditions.
 
-For every solid or liquid input (fertilizer, manure, spray mix totals):
-- State per-acre rate (e.g. kg/acre, L/acre)
-- AND total for this farm: total = per_acre × ${farmAcres}
-  Example: 5 kg/acre × ${farmAcres} = ${exampleTotalKg} kg total (use correct math for your own per-acre values).
-- Put the clearest summary in "message" (within ~155 chars); full breakdown may go in details.quantity / details fields.
+AREA RULE (critical):
+Farm: ${farmAcres} acre(s). For every input, state per-acre rate AND total (rate x ${farmAcres}).
+Example: 5 kg/acre x ${farmAcres} = ${exampleTotalKg} kg total.
 
-━━━━━━━━━━━━━━━━━━━━
-🎯 CORE PRINCIPLE
-━━━━━━━━━━━━━━━━━━━━
-The farmer must instantly see: what EXACTLY to do today (inputs, amounts, timing).
+FARMING TYPE: ${farmType}
+- Organic: bio/organic inputs ONLY. No Urea, DAP, NPK, or chemical pesticides.
+- Inorganic: chemical fertilizers + crop protection chemicals ONLY. No FYM or vermicompost.
+- Integrated: organic base + targeted chemical; label each clearly.
 
-━━━━━━━━━━━━━━━━━━━━
-🌱 FARMING TYPE (evidence.typeOfFarming → ${farmType})
-━━━━━━━━━━━━━━━━━━━━
-Apply this to EVERY relevant activity (SPRAY, FERTIGATION, CROP_RISK, etc.):
-• Organic: ONLY organic / bio inputs everywhere. NO synthetic fertilizers or synthetic pesticides in text. SPRAY/CROP_RISK → neem, biocontrol, monitoring — never recommend urea, DAP, NPK, or chemical fungicide/insecticide by name.
-• Inorganic: ONLY synthetic/chemical fertilizers and (if justified) chemical crop protection. NO vermicompost, jeevamruth, FYM, neem cake as fertilizer. Use full product names + doses.
-• Integrated: BOTH organic-style base inputs AND chemical fertilizers/chemistry as per decisionHints; label which is which; full names + quantities for each.
+PRECISION CONTEXT (pre-computed - use exactly as given):
+IRRIGATION (ET0-based): ${irrSummary}
+  Soil status: ${soilStatus}. Criticality: ${irrReq?.criticality ?? "MODERATE"}.
+  NOTE: The irrigation activity message will be overridden by code. Focus your irrigation text on the schedule context.
 
-━━━━━━━━━━━━━━━━━━━━
-🌾 HARD AGRICULTURE RULES
-━━━━━━━━━━━━━━━━━━━━
-• SPRAY only when justified: name + formulation; dose (ml or g per litre of water); water volume (litre/acre or tanks); time (morning/evening). If wind high OR rain probability > 40% → NO spray.
-• FERTIGATION: exact product names (not bare "NPK"); kg/acre + total AND/OR L/acre + total; no unreal heavy doses. Organic reference bands when hint lacks a number: vermicompost 40–80 kg/acre once per cycle; neem cake 10–25 kg/acre; liquid organics ~2–5 L/acre — still prefer decisionHints.fertigation numbers when present.
-• IRRIGATION: litres/acre + total OR hours/minutes; open-irrigation → prefer HOURS; drip/sprinkler → minutes or hours. If soil moisture adequate / shouldIrrigate false → no irrigation.
-• HARVEST STAGE (evidence.isHarvestStage === true): NO spray, NO fertigation — harvest planning, weather, monitoring, carbon only.
-• LOW confidence: say clearly to avoid major inputs today; emphasize monitoring.
+FERTIGATION (BBCH schedule): ${fertSummary}
+  Use products in evidence.fertilizerSchedule.currentApplication. Exact doses already computed.
 
-━━━━━━━━━━━━━━━━━━━━
-🧠 DECISION ENGINE
-━━━━━━━━━━━━━━━━━━━━
-Always align with evidence.decisionHints: spray.shouldSpray, irrigation.shouldIrrigate, fertigation.shouldFertigate, monitoring.hint.
-If crop stress is indicated → slightly increase allowed nutrition (within that farm type’s rules), do not contradict hints.
+DISEASE PRESSURE: ${diseasePressure}
+Water-stressed area: ${stressZ?.percentageWaterStressed ?? 0}% of field.
+Nitrogen-deficient area: ${stressZ?.percentageNitrogenDeficient ?? 0}% of field.
 
-━━━━━━━━━━━━━━━━━━━━
-🎯 ACTIVITY TYPES (GENERATE ALL 7)
-━━━━━━━━━━━━━━━━━━━━
-["SPRAY","FERTIGATION","IRRIGATION","WEATHER","CROP_RISK","MONITORING","CARBON_TRACKING"]
+HARD AGRONOMY RULES:
+- SPRAY: if evidence.decisionHints.spray.shouldSpray === false, message = "No spray today." + reason. Otherwise include product + formulation + dose (ml or g/L water) + water vol (L/acre) + time.
+- SPRAY wind/rain gate: wind > 15 km/h OR rain probability > 40% means no spray.
+- FERTIGATION: follow evidence.fertilizerSchedule.currentApplication products + doses. If null, say "No fertigation at current stage."
+- IRRIGATION: use evidence.irrigationRequirement.recommendation text. Do NOT change amounts.
+- HARVEST STAGE (isHarvestStage=true): no spray, no fertigation - harvest planning only.
+- If stressZones.diseasePressure=high AND shouldSpray=true, escalate in CROP_RISK too.
 
-────────────────────
-SPRAY — follow decisionHints.spray; respect wind/rain; Organic farms → no chemical spray.
-FERTIGATION — match evidence.typeOfFarming: Organic = hint.products only; Inorganic = chemical hint.fertilizer + hint.quantity + formulation list, no organic rows; Integrated = organicPortion + chemicalPortion + sequence. If shouldFertigate is false, mirror hint.reason.
-IRRIGATION — follow decisionHints.irrigation and irrigationRequirement.
-WEATHER — actionable only; no forecast dumps.
-CROP_RISK — align with decisionHints; Inorganic/Integrated may use preventive chemistry with formulation + dose; Organic → monitoring / bio only.
-MONITORING — decisionHints.monitoring.hint; stress zones if present.
-CARBON_TRACKING — evidence.carbonData; else short "not available" message; numeric fields in details.
+GENERATE ALL 7 ACTIVITY TYPES: ["SPRAY","FERTIGATION","IRRIGATION","WEATHER","CROP_RISK","MONITORING","CARBON_TRACKING"]
 
-━━━━━━━━━━━━━━━━━━━━
-📊 EVIDENCE
-━━━━━━━━━━━━━━━━━━━━
+SPRAY       - follow decisionHints.spray; respect wind/rain/organic rules.
+FERTIGATION - current BBCH window products + doses from evidence.fertilizerSchedule; farm-type rules.
+IRRIGATION  - evidence.irrigationRequirement.recommendation text.
+WEATHER     - actionable only; flag temperature extremes or disease risk.
+CROP_RISK   - decisionHints.spray + stressZones; Inorganic/Integrated = chemical with dose; Organic = bio/monitoring only.
+MONITORING  - decisionHints.monitoring.hint + stress zone percentages; frequency.
+CARBON_TRACKING - evidence.carbonData; numeric CO2 fields in details.
+
+FULL EVIDENCE (JSON):
 ${JSON.stringify(evidence, null, 2)}
 
-━━━━━━━━━━━━━━━━━━━━
-📦 OUTPUT FORMAT (STRICT JSON ONLY)
-━━━━━━━━━━━━━━━━━━━━
+OUTPUT - STRICT JSON ONLY, NO MARKDOWN:
 {
   "activitiesToDo": [
-    {
-      "type": "SPRAY",
-      "title": "string",
-      "message": "string",
-      "details": {
-        "chemical": "string",
-        "quantity": "string",
-        "method": "string",
-        "time": "string"
-      }
-    },
-    {
-      "type": "FERTIGATION",
-      "title": "string",
-      "message": "string",
-      "details": {
-        "fertilizer": "string",
-        "quantity": "string",
-        "method": "string",
-        "time": "string",
-        "farmerSteps": ["string"],
-        "organicProducts": [{"name": "string", "composition": "string", "quantity": "string", "method": "string"}],
-        "chemicalProducts": [{"name": "string", "quantity": "string", "method": "string"}]
-      }
-    },
-    {
-      "type": "IRRIGATION",
-      "title": "string",
-      "message": "string",
-      "details": {
-        "quantity": "string",
-        "method": "string",
-        "time": "string"
-      }
-    },
-    {
-      "type": "WEATHER",
-      "title": "string",
-      "message": "string",
-      "details": {}
-    },
-    {
-      "type": "CROP_RISK",
-      "title": "string",
-      "message": "string",
-      "details": {
-        "chemical": "string",
-        "quantity": "string"
-      }
-    },
-    {
-      "type": "MONITORING",
-      "title": "string",
-      "message": "string",
-      "details": {
-        "zone": "string",
-        "checks": "string"
-      }
-    },
-    {
-      "type": "CARBON_TRACKING",
-      "title": "string",
-      "message": "string",
-      "details": {
-        "emissionKgCO2": 0,
-        "capturedKgCO2": 0,
-        "netBalanceKgCO2": 0
-      }
-    }
+    { "type": "SPRAY",    "title": "string", "message": "string", "details": { "chemical": "string", "quantity": "string", "method": "string", "time": "string" } },
+    { "type": "FERTIGATION", "title": "string", "message": "string", "details": { "fertilizer": "string", "quantity": "string", "method": "string", "time": "string", "farmerSteps": ["string"], "organicProducts": [{"name":"string","composition":"string","quantity":"string","method":"string"}], "chemicalProducts": [{"name":"string","quantity":"string","method":"string"}] } },
+    { "type": "IRRIGATION",  "title": "string", "message": "string", "details": { "quantity": "string", "method": "string", "time": "string", "discharge": "string", "frequency": "string" } },
+    { "type": "WEATHER",     "title": "string", "message": "string", "details": { "temperature": "string", "humidity": "string", "wind": "string", "action": "string" } },
+    { "type": "CROP_RISK",   "title": "string", "message": "string", "details": { "chemical": "string", "quantity": "string", "riskLevel": "string", "monitoringFrequency": "string" } },
+    { "type": "MONITORING",  "title": "string", "message": "string", "details": { "zone": "string", "checks": "string", "frequency": "string" } },
+    { "type": "CARBON_TRACKING", "title": "string", "message": "string", "details": { "emissionKgCO2": 0, "capturedKgCO2": 0, "netBalanceKgCO2": 0 } }
   ]
 }
 
-Now generate TODAY'S advisory.
-`;
+Generate TODAY'S advisory. Output ONLY the JSON — no markdown, no explanation.`;
 }

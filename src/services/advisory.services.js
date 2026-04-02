@@ -38,6 +38,7 @@ import {
 import { calculateNPKFromfarmField } from "../utils/npk/npkCalculator.js";
 import { calcCropHealth } from "../utils/crophealth/cropHealth.js";
 import { calculateYield } from "../utils/cropyield/calculateYield.js";
+import { calculateYieldPrecise } from "../utils/advisory/yieldCalculator.js";
 
 /* =========================================================
    HELPERS
@@ -186,7 +187,6 @@ export async function generateAdvisoryForField(
       plantGrowthActivity = getCropGrowthStage(
         farmField.cropName,
         cumulativeGDD,
-        language,
         ndvi,
       );
     }
@@ -215,14 +215,15 @@ export async function generateAdvisoryForField(
     language,
   });
 
-  /* ---------- Yield ---------- */
-  const yieldInfo = calculateYield({
+  /* ---------- Yield (precision multivariate model) ---------- */
+  const yieldInfo = calculateYieldPrecise({
     farmField,
     cropHealth,
     plantGrowthActivity,
     npkManagement,
     ndvi,
     water,
+    weatherSummary,
     language,
   });
 
@@ -231,6 +232,7 @@ export async function generateAdvisoryForField(
     aiYield: yieldInfo?.yield?.aiYield ?? null,
     unit: yieldInfo?.yield?.unit || "quintal",
     explanation: yieldInfo?.yield?.explanation || "",
+    yieldGap: yieldInfo?.yieldGap ?? null,
   };
 
   /* ---------- Evidence Builder (pre-processed, no raw satellite data) ---------- */
@@ -243,6 +245,7 @@ export async function generateAdvisoryForField(
     npkManagement,
     cropHealth,
     regionProfile: farmField.regionProfile ?? {},
+    yieldGap: safeYield.yieldGap,
   });
 
   /* ---------- LLM Advisory ---------- */
