@@ -2,14 +2,8 @@ import mongoose from "mongoose";
 import FarmField from "../models/field.model.js";
 import User from "../models/user.model.js";
 import UserSubscription from "../models/usersubscription.model.js";
-import axios from "axios";
-
-/** cropgen-smart-advisory base; use 127.0.0.1 not localhost (avoids Node using ::1 when only IPv4 is bound). */
-function getAdvisoryServerBase() {
-  const raw =
-    process.env.ADVISORY_SERVER_URL?.trim() || "http://127.0.0.1:3001";
-  return raw.replace(/\/$/, "");
-}
+import { generateAdvisoryForField } from "../services/advisory.services.js";
+import { resolveAOIForFarm } from "../utils/weather/weather.utils.js";
 
 // Add a new farm field for a particular user
 export const addField = async (req, res) => {
@@ -64,24 +58,21 @@ export const addField = async (req, res) => {
 
     const savedFarmField = await newFarmField.save();
 
-    /* ---------- 🔔 Trigger advisory (NON-BLOCKING) ---------- */
-    const advisoryBase = getAdvisoryServerBase();
-    const generateUrl = `${advisoryBase}/api/advisory/internal/generate-advisory`;
-    axios
-      .post(generateUrl, {
-        farmFieldId: savedFarmField?._id,
-        language: user.language || "en",
+    /* ---------- Trigger advisory in-process (non-blocking) ---------- */
+    FarmField.findById(savedFarmField._id)
+      .populate("user", "language")
+      .then(async (farm) => {
+        if (!farm?.user) return;
+        const { aoiId } = await resolveAOIForFarm(farm);
+        await generateAdvisoryForField(
+          farm._id,
+          aoiId,
+          user.language || farm.user?.language || "en",
+          "whatsapp",
+        );
       })
       .catch((err) => {
-        const code = err?.code || err?.cause?.code;
-        console.error(
-          "Advisory trigger failed:",
-          err?.message || err,
-          "| url:",
-          generateUrl,
-          code ? `| ${code}` : "",
-          "| Start cropgen-smart-advisory (PORT in its .env must match this URL).",
-        );
+        console.error("Advisory trigger failed:", err?.message || err);
       });
 
     /* ---------- Response ---------- */

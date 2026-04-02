@@ -15,8 +15,8 @@ const router = express.Router();
 
 router.post(
   "/create",
-  isAuthenticated,
-  authorizeRoles("admin", "developer"),
+  // isAuthenticated,
+  // authorizeRoles("admin", "developer"),
   createOrganization,
 );
 

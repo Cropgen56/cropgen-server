@@ -487,9 +487,10 @@ export const getCropNamesAndImages = async (req, res) => {
       .exec();
 
     if (!crops || crops.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No crops found",
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: "No crops in database yet",
       });
     }
 

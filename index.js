@@ -3,7 +3,10 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import http from "http";
+import { Server as SocketIOServer } from "socket.io";
 import { connectToDatabase } from "./src/config/db.js";
+
+// Core routes
 import authRoutes from "./src/routes/auth.routes.js";
 import fieldRoutes from "./src/routes/field.routes.js";
 import blogRoutes from "./src/routes/blog.routes.js";
@@ -14,16 +17,31 @@ import postsRoutes from "./src/routes/post.routes.js";
 import commonRoutes from "./src/routes/common.routes.js";
 import analyticRoutes from "./src/routes/analytics.routes.js";
 import whatsappRoutes from "./src/routes/whatsapp.routes.js";
-import "./src/config/firebaseConfig.js";
 import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
 import emailRoutes from "./src/routes/email.routes.js";
+
+// Smart advisory routes
+import advisoryRoutes from "./src/routes/advisory.routes.js";
+import carbonRoutes from "./src/routes/carbon.routes.js";
+
+// Agent chat routes
+import chatRoutes from "./src/routes/chat.routes.js";
+
+// Firebase config
+import "./src/config/firebaseConfig.js";
+
+// Webhook (raw body must come before express.json)
 import { handleRazorpayWebhook } from "./src/controllers/subscriptioncontroller/razorpay.webhook.controller.js";
 
-// import worker
+// Workers
 import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
 import { startNotificationWorker } from "./src/worker/notification.worker.js";
 import { startWelcomeFarmReminderWorker } from "./src/worker/welcomeFarm.worker.js";
+import { runAdvisoryJob } from "./src/worker/advisory.worker.js";
+
+// Agent socket
+import { setupSocket } from "./src/socket/setupSocket.js";
 
 dotenv.config();
 
@@ -42,8 +60,10 @@ const allowedOrigins = [
   "https://cropydeals.cropgenapp.com",
   "https://test.cropgenapp.com",
   "http://localhost:3000",
+  "http://localhost:3001",
   "http://localhost:5173",
   "http://10.0.2.2:7070",
+  "http://localhost:5176",
   ...envAllowedOrigins,
 ].filter(Boolean);
 
@@ -68,7 +88,6 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
-// Apply middleware
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
@@ -78,15 +97,16 @@ app.post(
   handleRazorpayWebhook,
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
-// workers
+// Workers
 startNotificationWorker();
 startSubscriptionExpiryJob();
 startWelcomeFarmReminderWorker();
+runAdvisoryJob();
 
-// Routes
+// Core API routes
 app.use("/v1/api/auth", authRoutes);
 app.use("/v1/api/field", fieldRoutes);
 app.use("/v1/api/blog", blogRoutes);
@@ -101,17 +121,34 @@ app.use("/v1/api/common", commonRoutes);
 app.use("/v1/api/analytics", analyticRoutes);
 app.use("/v1/api/whatsapp", whatsappRoutes);
 
+// Smart advisory routes (v2 matches mobile/web client expectations)
+app.use("/v1/api/advisory", advisoryRoutes);
+app.use("/v1/api/carbon", carbonRoutes);
+app.use("/v2/api/advisory", advisoryRoutes);
+app.use("/v2/api/carbon", carbonRoutes);
+
+// Agent chat API routes
+app.use("/api/chats", chatRoutes);
+app.use("/v3/api/chats", chatRoutes);
+
 app.get("/health", (req, res) => {
   return res.status(200).json({ status: true, message: "Server is running" });
 });
 
-// Start server
+// Start server with Socket.IO
 const startServer = async () => {
   try {
     await connectToDatabase();
 
-    http.createServer(app).listen(PORT, "0.0.0.0", () => {
-      console.log(`✅ HTTP Server running at http://localhost:${PORT}`);
+    const httpServer = http.createServer(app);
+
+    // Wire up Socket.IO for the AI chat
+    setupSocket(httpServer);
+
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      console.log(
+        `✅ HTTP + Socket.IO Server running at http://localhost:${PORT}`,
+      );
     });
   } catch (error) {
     console.error("Server failed to start:", error.message);
