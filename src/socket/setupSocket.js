@@ -156,6 +156,19 @@ export const setupSocket = (httpServer) => {
       socket.emit("ai_response", resetMsg);
     });
 
+    socket.on("set_active_farm", async (fieldId) => {
+      try {
+        const reply = await appSocketService.setActiveFarm(userId, fieldId);
+        socket.emit("ai_response", reply);
+      } catch (err) {
+        console.error("set_active_farm error:", err);
+        socket.emit(
+          "ai_response",
+          "Could not switch farm context. Please try again."
+        );
+      }
+    });
+
     socket.on("get_history", async () => {
       const history = await appSocketService.getChatHistory(userId);
       socket.emit("chat_history", { conversations: history });

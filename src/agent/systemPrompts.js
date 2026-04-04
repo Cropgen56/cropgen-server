@@ -1,3 +1,5 @@
+import { formatAcresTwoDecimals } from "../utils/formatAcres.js";
+
 const COMPANY_BLOCK = `CropGen: cropgenapp.com | info@cropgenapp.com | Pune, Maharashtra, India
 Satellite crop monitoring, AI advisory, NDVI + other vegetation indices for field-level insight.`;
 
@@ -48,7 +50,7 @@ export function buildAppSystemPrompt(userName, farms) {
         `${i + 1}. "${f.fieldName}"`,
         `Crop: ${f.cropName} (${f.variety})`,
         `Sown: ${f.sowingDate}`,
-        `Area: ${f.acre} acre`,
+        `Area: ${formatAcresTwoDecimals(f.acre)} acre`,
         `Irrigation: ${f.typeOfIrrigation}`,
         `Farming: ${f.typeOfFarming}`,
       ];

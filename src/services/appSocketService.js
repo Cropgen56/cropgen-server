@@ -2,6 +2,7 @@ import { createAppAgent } from "../agent/index.js";
 import User from "../models/user.model.js";
 import FarmField from "../models/field.model.js";
 import AppUserChat from "../models/AppUserChat.js";
+import { formatAcresTwoDecimals } from "../utils/formatAcres.js";
 
 const userAgents = new Map();
 
@@ -80,6 +81,46 @@ class AppSocketService {
     } catch (err) {
       console.error("Reset re-init failed:", err);
     }
+  }
+
+  /**
+   * Narrow or broaden the AI context to one field (or all farms if fieldId is null/invalid).
+   * Call from socket event `set_active_farm` after the client loads farm list.
+   */
+  async setActiveFarm(userId, fieldId) {
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return "Could not load your profile. Please try again.";
+    }
+
+    const allFarms = await FarmField.find({ user: userId }).lean();
+    const userName =
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Farmer";
+
+    let farmsForAgent = allFarms;
+    if (fieldId) {
+      const sid = String(fieldId);
+      const match = allFarms.find((f) => f._id.toString() === sid);
+      if (match) {
+        farmsForAgent = [match];
+      }
+    }
+
+    const agent = createAppAgent(userName, farmsForAgent);
+    userAgents.set(userId, agent);
+
+    if (allFarms.length === 0) {
+      return `Hi ${userName}! Add a farm from the dashboard for field-specific advice. You can still ask general farming questions.`;
+    }
+
+    if (farmsForAgent.length === 1) {
+      const f = farmsForAgent[0];
+      const acres = formatAcresTwoDecimals(f.acre);
+      return `Now discussing ${f.fieldName} (${f.cropName}, ${acres} acre). What would you like to know?`;
+    }
+
+    const farmNames = allFarms.map((f) => f.fieldName).join(", ");
+    return `Showing all your farms: ${farmNames}. Tap a farm above to focus the chat on one field, or ask a general question.`;
   }
 
   async getChatHistory(userId) {
