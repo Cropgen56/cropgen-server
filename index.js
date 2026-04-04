@@ -65,10 +65,38 @@ const allowedOrigins = [
   ...envAllowedOrigins,
 ].filter(Boolean);
 
+/** Any https host under cropgenapp.com (app, server, staging, etc.) — avoids CORS misses when new subdomains deploy. */
+function isTrustedCropgenOrigin(origin) {
+  if (!origin || typeof origin !== "string") return false;
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const u = new URL(origin);
+    const host = u.hostname.toLowerCase();
+    if (u.protocol === "https:" && (host === "cropgenapp.com" || host.endsWith(".cropgenapp.com"))) {
+      return true;
+    }
+    if (u.protocol === "http:" && (host === "localhost" || host === "127.0.0.1" || host === "10.0.2.2")) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function applyCorsHeadersForRequest(req, res) {
+  const origin = req.headers.origin;
+  if (origin && isTrustedCropgenOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Vary", "Origin");
+  }
+}
+
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    if (isTrustedCropgenOrigin(origin)) {
       return callback(null, origin);
     }
     console.warn("Blocked CORS origin:", origin);
@@ -79,12 +107,18 @@ const corsOptions = {
   allowedHeaders: [
     "Content-Type",
     "Authorization",
+    "authorization",
     "x-api-key",
     "X-Requested-With",
     "X-Client-Brand",
+    "Accept",
+    "Accept-Language",
+    "Cache-Control",
+    "Pragma",
   ],
   exposedHeaders: ["Set-Cookie"],
   optionsSuccessStatus: 204,
+  maxAge: 86400,
 };
 
 app.use(cors(corsOptions));
@@ -141,6 +175,26 @@ app.use("/v3/api/chats", chatRoutes);
 
 app.get("/health", (req, res) => {
   return res.status(200).json({ status: true, message: "Server is running" });
+});
+
+// 404 — ensures JSON + CORS headers still apply for unknown paths (avoids opaque "no CORS" in DevTools)
+app.use((req, res) => {
+  applyCorsHeadersForRequest(req, res);
+  res.status(404).json({ success: false, message: "Not found" });
+});
+
+// Unhandled errors (sync throws / next(err)) — keep CORS so browsers show the real error body
+app.use((err, req, res, _next) => {
+  console.error("Unhandled error:", err);
+  applyCorsHeadersForRequest(req, res);
+  if (res.headersSent) {
+    return;
+  }
+  const status = Number(err.status || err.statusCode) || 500;
+  res.status(status).json({
+    success: false,
+    message: err.message || "Internal server error",
+  });
 });
 
 // Start server with Socket.IO
