@@ -13,13 +13,11 @@ const FarmCarbonProfileSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
     },
     farmFieldId: {
       type: Schema.Types.ObjectId,
       ref: "FarmField",
       required: true,
-      index: true,
     },
     cumulativeEmissionKgCO2: {
       type: Number,

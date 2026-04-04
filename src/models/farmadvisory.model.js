@@ -48,7 +48,6 @@ const FarmAdvisorySchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "FarmField",
       required: true,
-      index: true,
     },
 
     activitiesToDo: {

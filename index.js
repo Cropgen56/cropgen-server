@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import http from "http";
-import { Server as SocketIOServer } from "socket.io";
 import { connectToDatabase } from "./src/config/db.js";
 
 // Core routes
@@ -97,7 +96,16 @@ app.post(
   handleRazorpayWebhook,
 );
 
-app.use(express.json({ limit: "10mb" }));
+const jsonMiddleware = express.json({ limit: "10mb" });
+app.use((req, res, next) => {
+  // Engine.IO handles these before Express when the URL matches setupSocket `path`.
+  // If nginx rewrites `/v3/socket.io` → `/socket.io`, the request falls through to
+  // Express; parsing this POST as JSON returns 400 ("xhr post error" in the client).
+  if (req.path.includes("socket.io")) {
+    return next();
+  }
+  return jsonMiddleware(req, res, next);
+});
 app.use(cookieParser());
 
 // Workers
