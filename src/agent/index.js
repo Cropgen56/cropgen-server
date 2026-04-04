@@ -176,9 +176,10 @@ export function createPublicAgent() {
 
 /**
  * Create an app agent (for logged-in users with farm context).
+ * @param {object} [agentOptions] — e.g. { advisoryByFarmId: Record<string, object> }
  */
-export function createAppAgent(userName, farms) {
-  const prompt = buildAppSystemPrompt(userName, farms);
+export function createAppAgent(userName, farms, agentOptions) {
+  const prompt = buildAppSystemPrompt(userName, farms, agentOptions);
   return createAgent(prompt);
 }
 

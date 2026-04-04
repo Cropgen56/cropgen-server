@@ -1,12 +1,32 @@
 import { createAppAgent } from "../agent/index.js";
 import User from "../models/user.model.js";
 import FarmField from "../models/field.model.js";
+import FarmAdvisory from "../models/farmadvisory.model.js";
 import AppUserChat from "../models/AppUserChat.js";
 import { formatAcresTwoDecimals } from "../utils/formatAcres.js";
 
 const userAgents = new Map();
 
 const MAX_PERSISTED_MESSAGES = 100;
+
+/**
+ * Latest advisory document per farm (for agent system prompt).
+ */
+async function getLatestAdvisoryByFarmId(farms) {
+  const map = {};
+  if (!farms?.length) return map;
+  await Promise.all(
+    farms.map(async (f) => {
+      const id = f._id?.toString?.();
+      if (!id) return;
+      const doc = await FarmAdvisory.findOne({ farmFieldId: f._id })
+        .sort({ createdAt: -1 })
+        .lean();
+      if (doc) map[id] = doc;
+    }),
+  );
+  return map;
+}
 
 class AppSocketService {
   /**
@@ -19,7 +39,8 @@ class AppSocketService {
     const userName =
       [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Farmer";
 
-    const agent = createAppAgent(userName, farms);
+    const advisoryByFarmId = await getLatestAdvisoryByFarmId(farms);
+    const agent = createAppAgent(userName, farms, { advisoryByFarmId });
     userAgents.set(userId, agent);
 
     if (farms.length === 0) {
@@ -37,7 +58,9 @@ class AppSocketService {
         await this.initializeUser(userId);
         const ai2 = userAgents.get(userId);
         if (ai2) {
-          const res = await ai2.call({ input: message });
+          const todayISO = new Date().toISOString().slice(0, 10);
+          const input = `[Current date (server): ${todayISO}]\n\n${message}`;
+          const res = await ai2.call({ input });
           return res?.response ?? "Sorry, I didn't understand that.";
         }
       } catch (err) {
@@ -46,7 +69,9 @@ class AppSocketService {
       return "Session expired. Please refresh the page.";
     }
     try {
-      const res = await ai.call({ input: message });
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const input = `[Current date (server): ${todayISO}]\n\n${message}`;
+      const res = await ai.call({ input });
       return res?.response ?? "Sorry, I didn't understand that.";
     } catch (err) {
       console.error("App AI call error:", err);
@@ -106,7 +131,8 @@ class AppSocketService {
       }
     }
 
-    const agent = createAppAgent(userName, farmsForAgent);
+    const advisoryByFarmId = await getLatestAdvisoryByFarmId(farmsForAgent);
+    const agent = createAppAgent(userName, farmsForAgent, { advisoryByFarmId });
     userAgents.set(userId, agent);
 
     if (allFarms.length === 0) {
