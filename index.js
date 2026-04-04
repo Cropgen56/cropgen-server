@@ -4,7 +4,6 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import http from "http";
 import { connectToDatabase } from "./src/config/db.js";
-
 // Core routes
 import authRoutes from "./src/routes/auth.routes.js";
 import fieldRoutes from "./src/routes/field.routes.js";
@@ -19,7 +18,6 @@ import whatsappRoutes from "./src/routes/whatsapp.routes.js";
 import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
 import emailRoutes from "./src/routes/email.routes.js";
-
 // Smart advisory routes
 import advisoryRoutes from "./src/routes/advisory.routes.js";
 import carbonRoutes from "./src/routes/carbon.routes.js";
