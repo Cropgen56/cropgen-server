@@ -1,4 +1,5 @@
 import { createAppAgent } from "../agent/index.js";
+import { getAgentOrgProfile } from "../agent/systemPrompts.js";
 import User from "../models/user.model.js";
 import FarmField from "../models/field.model.js";
 import FarmAdvisory from "../models/farmadvisory.model.js";
@@ -33,18 +34,26 @@ class AppSocketService {
    * Load user profile + farms, build a personalised agent, return welcome message.
    */
   async initializeUser(userId) {
-    const user = await User.findById(userId).lean();
+    const user = await User.findById(userId)
+      .populate("organization", "organizationCode")
+      .lean();
     const farms = await FarmField.find({ user: userId }).lean();
 
     const userName =
       [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Farmer";
 
+    const orgCode = user?.organization?.organizationCode || "CROPGEN";
+    const profile = getAgentOrgProfile(orgCode);
+
     const advisoryByFarmId = await getLatestAdvisoryByFarmId(farms);
-    const agent = createAppAgent(userName, farms, { advisoryByFarmId });
+    const agent = createAppAgent(userName, farms, {
+      advisoryByFarmId,
+      organizationCode: orgCode,
+    });
     userAgents.set(userId, agent);
 
     if (farms.length === 0) {
-      return `Hi ${userName}! I'm your CropGen AI assistant. You haven't added any farms yet — add one from the dashboard to get personalised crop advice. In the meantime, feel free to ask me anything about farming!`;
+      return `Hi ${userName}! I'm your ${profile.assistantTitle}. You haven't added any farms yet — add one from the dashboard to get personalised crop advice. In the meantime, feel free to ask me anything about farming!`;
     }
 
     const farmNames = farms.map((f) => f.fieldName).join(", ");
@@ -113,7 +122,9 @@ class AppSocketService {
    * Call from socket event `set_active_farm` after the client loads farm list.
    */
   async setActiveFarm(userId, fieldId) {
-    const user = await User.findById(userId).lean();
+    const user = await User.findById(userId)
+      .populate("organization", "organizationCode")
+      .lean();
     if (!user) {
       return "Could not load your profile. Please try again.";
     }
@@ -121,6 +132,8 @@ class AppSocketService {
     const allFarms = await FarmField.find({ user: userId }).lean();
     const userName =
       [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Farmer";
+
+    const orgCode = user?.organization?.organizationCode || "CROPGEN";
 
     let farmsForAgent = allFarms;
     if (fieldId) {
@@ -132,7 +145,10 @@ class AppSocketService {
     }
 
     const advisoryByFarmId = await getLatestAdvisoryByFarmId(farmsForAgent);
-    const agent = createAppAgent(userName, farmsForAgent, { advisoryByFarmId });
+    const agent = createAppAgent(userName, farmsForAgent, {
+      advisoryByFarmId,
+      organizationCode: orgCode,
+    });
     userAgents.set(userId, agent);
 
     if (allFarms.length === 0) {

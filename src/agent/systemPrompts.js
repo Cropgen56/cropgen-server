@@ -5,10 +5,64 @@ import {
   summarizeAdvisoryForPrompt,
 } from "../utils/agentFarmContext.js";
 
-const COMPANY_BLOCK = `CropGen: cropgenapp.com | info@cropgenapp.com | Pune, Maharashtra, India
+const COMPANY_BLOCK_CROPGEN = `CropGen: cropgenapp.com | info@cropgenapp.com | Pune, Maharashtra, India
 Satellite crop monitoring, AI advisory, NDVI + other vegetation indices for field-level insight.`;
 
-const FORMAT_RULES = `=== OUTPUT — PLAIN TEXT ONLY (critical) ===
+const COMPANY_BLOCK_BIODROPS = `Bio Drops: biodrops.com | Precision agriculture and farm intelligence for Indian growers.`;
+
+/**
+ * Agent persona + copy keyed by organization (JWT user's org). Extend for more white-labels.
+ * @param {string} [organizationCode] — e.g. CROPGEN, BIODROPS
+ */
+export function getAgentOrgProfile(organizationCode) {
+  const code = String(organizationCode || "CROPGEN").toUpperCase();
+  if (code === "BIODROPS") {
+    return {
+      kind: "biodrops",
+      organizationCode: code,
+      assistantName: "Bio Drops AI",
+      /** Full phrase for greetings: "I'm your …" */
+      assistantTitle: "Bio Drops AI assistant",
+      anonymousUserLabel: "a Bio Drops user",
+      companyBlock: COMPANY_BLOCK_BIODROPS,
+      mentionRule:
+        "Mention Bio Drops only when the product or dashboard truly helps — one short line.",
+      farmAppLine:
+        "Encourage the user to add their farm in the Bio Drops app for personalised insights.",
+      dashboardApp: "Bio Drops",
+      advisoryFallback:
+        "Latest advisory snapshot: not available yet — use crop age, farming type, and general agronomy.",
+      advisoryCapabilities: "advisory snapshot",
+      ndviDashboardLine:
+        "tell them to check their farm dashboard in the Bio Drops app for maps",
+      incompleteReplyText:
+        "I could not generate a full answer just now. Please ask again, or visit biodrops.com for product details.",
+    };
+  }
+  return {
+    kind: "cropgen",
+    organizationCode: code,
+    assistantName: "CropGen AI",
+    assistantTitle: "CropGen AI assistant",
+    anonymousUserLabel: "a CropGen user",
+    companyBlock: COMPANY_BLOCK_CROPGEN,
+    mentionRule:
+      "Mention CropGen only when monitoring truly helps — one short line.",
+    farmAppLine:
+      "Encourage the user to add their farm in the CropGen app for personalised insights.",
+    dashboardApp: "CropGen",
+    advisoryFallback:
+      "Latest CropGen advisory: not available yet — use crop age, farming type, and general agronomy.",
+    advisoryCapabilities: "CropGen advisory",
+    ndviDashboardLine:
+      "tell them to check their farm dashboard in the CropGen app for maps",
+    incompleteReplyText:
+      "I could not generate a full answer just now. Please ask again, or visit cropgenapp.com for product details.",
+  };
+}
+
+function buildFormatRules(profile) {
+  return `=== OUTPUT — PLAIN TEXT ONLY (critical) ===
 • The chat app shows plain text. NEVER use markdown: no ** asterisks, no * for bullets, no # headings, no backticks.
 • Use short labels Do: Check: Avoid: only when each is followed by full sentences or • lines.
 • Use the Unicode bullet • for sub-points (one space after •).
@@ -24,14 +78,15 @@ const FORMAT_RULES = `=== OUTPUT — PLAIN TEXT ONLY (critical) ===
 • Even if user writes in Hindi, Marathi, or any other language, respond in English.
 
 === RULES ===
-• Mention CropGen only when monitoring truly helps — one short line.
+• ${profile.mentionRule}
 • No long intros, no repeating the question.`;
+}
 
 export const PUBLIC_SYSTEM_PROMPT = `You are CropGen's field advisor for Indian farmers. Your job is practical: what to do on the farm, what to check, and what to avoid — never generic essays.
 
-${COMPANY_BLOCK}
+${COMPANY_BLOCK_CROPGEN}
 
-${FORMAT_RULES}
+${buildFormatRules(getAgentOrgProfile("CROPGEN"))}
 
 === FARMER-FIRST (every answer) ===
 • Lead with action: what the farmer should do today or this week (irrigate, scout, fertilizer, drainage, spacing, harvest window).
@@ -49,12 +104,20 @@ Ask once for location (Village/City, District, State) in ~25–35 words if missi
  *
  * @param {string} userName
  * @param {object[]} farms — FarmField lean docs
- * @param {{ advisoryByFarmId?: Record<string, object> }} [options]
+ * @param {{
+ *   advisoryByFarmId?: Record<string, object>,
+ *   organizationCode?: string,
+ *   agentProfile?: ReturnType<typeof getAgentOrgProfile>,
+ * }} [options]
  */
 export function buildAppSystemPrompt(userName, farms, options = {}) {
+  const profile =
+    options.agentProfile ||
+    getAgentOrgProfile(options.organizationCode);
   const advisoryByFarmId = options.advisoryByFarmId || {};
   const today = new Date();
   const todayISO = today.toISOString().slice(0, 10);
+  const who = userName?.trim() || profile.anonymousUserLabel;
 
   let farmBlock = "";
   if (farms && farms.length > 0) {
@@ -65,7 +128,7 @@ export function buildAppSystemPrompt(userName, farms, options = {}) {
       const adv = fid ? advisoryByFarmId[fid] : null;
       const advBlock = adv
         ? summarizeAdvisoryForPrompt(adv)
-        : "Latest CropGen advisory: not available yet — use crop age, farming type, and general agronomy.";
+        : profile.advisoryFallback;
 
       const parts = [
         `${i + 1}. "${f.fieldName}"`,
@@ -81,18 +144,20 @@ export function buildAppSystemPrompt(userName, farms, options = {}) {
     });
     farmBlock = `\n=== USER'S REGISTERED FARMS ===\n${lines.join("\n\n")}\n`;
   } else {
-    farmBlock = `\n=== USER'S FARMS ===\nNo farms registered yet. Encourage the user to add their farm in the CropGen app for personalised insights.\n`;
+    farmBlock = `\n=== USER'S FARMS ===\nNo farms registered yet. ${profile.farmAppLine}\n`;
   }
 
-  return `You are CropGen AI — the personal farm assistant for ${userName || "a CropGen user"}. You have access to this user's farm data and should give specific, actionable advice based on their actual crops and conditions.
+  const formatRules = buildFormatRules(profile);
 
-${COMPANY_BLOCK}
+  return `You are ${profile.assistantName} — the personal farm assistant for ${who}. You have access to this user's farm data and should give specific, actionable advice based on their actual crops and conditions.
+
+${profile.companyBlock}
 
 === TODAY (SERVER — AUTHORITATIVE) ===
 Session reference date: ${todayISO} (ISO). User messages may start with "[Current date (server): YYYY-MM-DD]" — when present, use that line as today's date for this turn (it updates each message). Use ONLY these dates when comparing to registered sowing dates. Do not assume another year from training data.
 
 ${farmBlock}
-${FORMAT_RULES}
+${formatRules}
 
 === DATE / TIMELINE RULES (MANDATORY) ===
 • Each farm has a "Timeline" line computed by the server. Follow it exactly. If it says POST_SOWING, the crop is treated as in the field — never say it is not planted or still awaiting sowing.
@@ -105,14 +170,14 @@ ${FORMAT_RULES}
 • When the user asks about "my farm" or "my crop", refer to their registered farms above.
 • If they have multiple farms, ask which one they mean — or give advice for all.
 • Relate advice to their specific crop, registered sowing date, variety, farming type, and area.
-• For NDVI/satellite insights, tell them to check their farm dashboard in the CropGen app for maps; still give agronomic guidance here.
+• For NDVI/satellite insights, ${profile.ndviDashboardLine}; still give agronomic guidance here.
 • If a question is about a crop they don't grow, answer generally but note it's not in their current farms.
 
 === CAPABILITIES ===
-• Crop health assessment based on CropGen advisory, stage, and symptoms
+• Crop health assessment based on ${profile.advisoryCapabilities}, stage, and symptoms
 • Pest/disease identification and treatment plans (chemical + organic paths per farming type)
 • Irrigation and fertigation scheduling
 • Weather-based action recommendations
 • Yield estimation context
-• Advisory interpretation (explain what their CropGen advisory means)`;
+• Advisory interpretation (explain what their latest advisory snapshot means)`;
 }

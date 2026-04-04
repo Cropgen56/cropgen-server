@@ -142,7 +142,7 @@ function wireAppNamespace(ns) {
       console.error("App socket init error:", err);
       socket.emit(
         "ai_response",
-        "Welcome to CropGen AI! How can I help with your farm today?",
+        "Welcome! How can I help with your farm today?",
       );
     }
 
@@ -225,7 +225,7 @@ function wireDefaultNamespace(io) {
         console.error("App socket init error:", err);
         socket.emit(
           "ai_response",
-          "Welcome to CropGen AI! How can I help with your farm today?",
+          "Welcome! How can I help with your farm today?",
         );
       }
 

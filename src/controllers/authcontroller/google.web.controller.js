@@ -8,7 +8,12 @@ import {
   resolveOrganizationByCode,
 } from "../../utils/authUtils.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
-import { htmlWelcomeBack, htmlWelcome } from "../../utils/emailTemplate.js";
+import {
+  getEmailBrand,
+  htmlWelcomeBack,
+  htmlWelcome,
+  resolveAuthEmailPreset,
+} from "../../utils/emailTemplate.js";
 import mongoose from "mongoose";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -48,14 +53,15 @@ export const loginWithGoogleWeb = async (req, res) => {
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    // Resolve organization
+    // Resolve organization (BioDrops web app default)
     const { org: organization, orgCode } = await resolveOrganizationByCode(
-      "CROPGEN"
+      "BIODROPS"
     );
 
     // Check if user exists
     let user = await User.findOne({ email }).populate("organization");
-    const isExisting = !!user && !!user.organization && user.terms === true;
+    const wasFullyRegistered =
+      !!user && !!user.organization && user.terms === true;
 
    // Backfill clientSource for existing users if missing or invalid
     if (
@@ -65,20 +71,22 @@ export const loginWithGoogleWeb = async (req, res) => {
   user.clientSource = "web";
 }
 
+    const preset = resolveAuthEmailPreset(req);
+    const brand = getEmailBrand(preset);
     // Prepare email details based on user status
-    const emailDetails = isExisting
+    const emailDetails = wasFullyRegistered
       ? {
           to: email,
-          subject: "Signed in to CropGen",
-          html: htmlWelcomeBack(user.firstName || user.email),
-          text: "You're signed in to CropGen.",
+          subject: `Signed in to ${brand.name}`,
+          html: htmlWelcomeBack(user.firstName || user.email, preset),
+          text: `You're signed in to ${brand.name}.`,
           errorMessage: "Welcome back email error:",
         }
       : {
           to: email,
-          subject: "Welcome to CropGen",
-          html: htmlWelcome(firstName || "Farmer"),
-          text: "Thank you for registering with CropGen!",
+          subject: `Welcome to ${brand.name}`,
+          html: htmlWelcome(firstName || "Farmer", "", preset),
+          text: `Thank you for registering with ${brand.name}!`,
           errorMessage: "Welcome email error:",
         };
 
@@ -110,7 +118,7 @@ export const loginWithGoogleWeb = async (req, res) => {
     // Generate refreshId and update user
     const refreshId = generateRefreshId();
     user.refreshTokenId = refreshId;
-    if (isExisting) user.lastLoginAt = new Date();
+    if (wasFullyRegistered) user.lastLoginAt = new Date();
     await user.save();
 
     // Minimal payload for access token
@@ -120,7 +128,9 @@ export const loginWithGoogleWeb = async (req, res) => {
       organization: user.organization,
     };
 
-    const onboardingRequired = !isExisting;
+    const profileComplete =
+      !!user.organization && user.terms === true;
+    const onboardingRequired = !profileComplete;
     const accessToken = signAccessToken({
       ...tokenPayload,
       onboardingRequired,
@@ -132,12 +142,12 @@ export const loginWithGoogleWeb = async (req, res) => {
 
     return res.json({
       success: true,
-      message: isExisting
+      message: wasFullyRegistered
         ? "Signed in successfully"
         : "Google login successful",
       accessToken,
       role: user.role,
-      user: isExisting
+      user: profileComplete
         ? {
             id: user._id,
             email: user.email,

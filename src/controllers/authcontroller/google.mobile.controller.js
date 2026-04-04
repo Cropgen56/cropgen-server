@@ -2,7 +2,12 @@ import { OAuth2Client } from "google-auth-library";
 import User from "../../models/user.model.js";
 import Organization from "../../models/organization.model.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
-import { htmlWelcomeBack, htmlWelcome } from "../../utils/emailTemplate.js";
+import {
+  getEmailBrand,
+  htmlWelcomeBack,
+  htmlWelcome,
+  resolveAuthEmailPreset,
+} from "../../utils/emailTemplate.js";
 import jwt from "jsonwebtoken";
 
 const clientMobile = new OAuth2Client(process.env.MOBILE_GOOGLE_CLIENT_ID);
@@ -46,20 +51,22 @@ if (user && (!user.clientSource || user.clientSource === "unknown")) {
       });
     }
 
+    const preset = resolveAuthEmailPreset(req);
+    const brand = getEmailBrand(preset);
     // Prepare email details based on user status
     const emailDetails = isExisting
       ? {
           to: email,
-          subject: "Signed in to CropGen",
-          html: htmlWelcomeBack(user.firstName || user.email),
-          text: "You're signed in to CropGen.",
+          subject: `Signed in to ${brand.name}`,
+          html: htmlWelcomeBack(user.firstName || user.email, preset),
+          text: `You're signed in to ${brand.name}.`,
           errorMessage: "Welcome back email error:",
         }
       : {
           to: email,
-          subject: "Welcome to CropGen",
-          html: htmlWelcome(firstName || "Farmer"),
-          text: "Thank you for registering with CropGen!",
+          subject: `Welcome to ${brand.name}`,
+          html: htmlWelcome(firstName || "Farmer", "", preset),
+          text: `Thank you for registering with ${brand.name}!`,
           errorMessage: "Welcome email error:",
         };
 

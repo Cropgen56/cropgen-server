@@ -6,7 +6,12 @@ import {
   setRefreshCookie,
   compare,
 } from "../../utils/authUtils.js";
-import { htmlWelcomeBack } from "../../utils/emailTemplate.js";
+import { sendBasicEmail } from "../../config/sesClient.js";
+import {
+  getEmailBrand,
+  htmlWelcomeBack,
+  resolveAuthEmailPreset,
+} from "../../utils/emailTemplate.js";
 
 export const verifyOtp = async (req, res) => {
   try {
@@ -86,11 +91,13 @@ export const verifyOtp = async (req, res) => {
     // welcome back (non-critical)
     if (isExisting) {
       try {
+        const preset = resolveAuthEmailPreset(req);
+        const brand = getEmailBrand(preset);
         await sendBasicEmail({
           to: email,
-          subject: "Signed in to CropGen",
-          html: htmlWelcomeBack(user.firstName || user.email),
-          text: "You're signed in to CropGen.",
+          subject: `Signed in to ${brand.name}`,
+          html: htmlWelcomeBack(user.firstName || user.email, preset),
+          text: `You're signed in to ${brand.name}.`,
         });
       } catch (e) {
         // ignore email errors

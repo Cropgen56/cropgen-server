@@ -70,7 +70,7 @@ export function summarizeAdvisoryForPrompt(advisory) {
         ? ch.recommendation.slice(0, MAX_REC)
         : "";
     lines.push(
-      `Crop health (CropGen): ${ch.category ?? "n/a"}${ch.score != null ? `, score ${ch.score}` : ""}${ch.percentage != null ? ` (${ch.percentage}%)` : ""}${rec ? `. ${rec}` : ""}`,
+      `Crop health: ${ch.category ?? "n/a"}${ch.score != null ? `, score ${ch.score}` : ""}${ch.percentage != null ? ` (${ch.percentage}%)` : ""}${rec ? `. ${rec}` : ""}`,
     );
   }
 

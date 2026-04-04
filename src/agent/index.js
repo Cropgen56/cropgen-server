@@ -5,7 +5,11 @@ import {
 } from "@langchain/core/prompts";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatMessageHistory } from "langchain/stores/message/in_memory";
-import { PUBLIC_SYSTEM_PROMPT, buildAppSystemPrompt } from "./systemPrompts.js";
+import {
+  PUBLIC_SYSTEM_PROMPT,
+  buildAppSystemPrompt,
+  getAgentOrgProfile,
+} from "./systemPrompts.js";
 
 const MAX_STORED_MESSAGES = 24;
 const MAX_CONTEXT_MESSAGES = 16;
@@ -27,7 +31,7 @@ function extractText(message) {
   return "";
 }
 
-const INCOMPLETE_REPLY =
+const DEFAULT_INCOMPLETE_REPLY =
   "I could not generate a full answer just now. Please ask again, or visit cropgenapp.com for product details.";
 
 function isIncompleteReply(s) {
@@ -45,7 +49,7 @@ function looksTruncated(s) {
   if (/[.!?…]["']?\s*$/.test(t)) return false;
   if (t.length < 22) return true;
   if (t.length >= 220) return false;
-  return /\b(make|makes|making|helps?|better|more|less|the|a|an|to|for|and|or|with|is|are|was|were|be|been|being|have|has|had|your|our|their|that|this|what|when|how|which|if|as|so|like|such|CropGen\s+helps)\s*$/i.test(t);
+  return /\b(make|makes|making|helps?|better|more|less|the|a|an|to|for|and|or|with|is|are|was|were|be|been|being|have|has|had|your|our|their|that|this|what|when|how|which|if|as|so|like|such|CropGen\s+helps|Bio\s+Drops\s+helps)\s*$/i.test(t);
 }
 
 function needsRecoveryReply(s) {
@@ -110,7 +114,9 @@ function buildChain(systemPrompt) {
   return { chain: prompt.pipe(chatModel), chatModel, systemPrompt };
 }
 
-function createAgent(systemPrompt) {
+function createAgent(systemPrompt, agentOptions = {}) {
+  const incompleteReply =
+    agentOptions.incompleteReply || DEFAULT_INCOMPLETE_REPLY;
   const built = buildChain(systemPrompt);
 
   if (!built) {
@@ -149,7 +155,7 @@ function createAgent(systemPrompt) {
         }
 
         if (needsRecoveryReply(response)) {
-          response = INCOMPLETE_REPLY;
+          response = incompleteReply;
         } else if (!response) {
           response = "Sorry, I didn't understand that.";
         }
@@ -178,9 +184,13 @@ export function createPublicAgent() {
  * Create an app agent (for logged-in users with farm context).
  * @param {object} [agentOptions] — e.g. { advisoryByFarmId: Record<string, object> }
  */
-export function createAppAgent(userName, farms, agentOptions) {
-  const prompt = buildAppSystemPrompt(userName, farms, agentOptions);
-  return createAgent(prompt);
+export function createAppAgent(userName, farms, agentOptions = {}) {
+  const profile = getAgentOrgProfile(agentOptions.organizationCode);
+  const prompt = buildAppSystemPrompt(userName, farms, {
+    ...agentOptions,
+    agentProfile: profile,
+  });
+  return createAgent(prompt, { incompleteReply: profile.incompleteReplyText });
 }
 
 export { createPublicAgent as createAgentForUser };

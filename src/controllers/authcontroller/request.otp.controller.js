@@ -1,11 +1,15 @@
 import User from "../../models/user.model.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
 import { genOtp, hash } from "../../utils/authUtils.js";
-import { htmlOtp } from "../../utils/emailTemplate.js";
+import {
+  htmlOtp,
+  getEmailBrand,
+  resolveAuthEmailPreset,
+} from "../../utils/emailTemplate.js";
 
 export const requestOtp = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, signupIntent } = req.body;
     if (!email)
       return res
         .status(400)
@@ -13,9 +17,21 @@ export const requestOtp = async (req, res) => {
 
     let user = await User.findOne({ email });
 
-    
-// create placeholder if missing (no org yet)
-if (!user) {
+    // Sign-up flow only: block OTP if this email already has a completed account
+    if (signupIntent === true && user) {
+      const fullyRegistered =
+        !!user.organization && user.terms === true;
+      if (fullyRegistered) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This email is already registered. Try logging in or use a different email.",
+        });
+      }
+    }
+
+    // create placeholder if missing (no org yet)
+    if (!user) {
   user = await User.create({
     email,
     terms: false,
@@ -46,11 +62,13 @@ if (!user) {
     user.lastOtpSentAt = new Date(now);
     await user.save();
 
+    const preset = resolveAuthEmailPreset(req);
+    const brand = getEmailBrand(preset);
     await sendBasicEmail({
       to: email,
-      subject: "Your CropGen OTP",
-      html: htmlOtp(code),
-      text: `Your CropGen OTP is ${code}. It expires in 10 minutes.`,
+      subject: `Your ${brand.name} verification code`,
+      html: htmlOtp(code, preset),
+      text: `Your ${brand.name} verification code is ${code}. It expires in 10 minutes. If you didn’t request this, ignore this email.`,
     });
 
     return res.json({ success: true, message: "OTP sent to email." });

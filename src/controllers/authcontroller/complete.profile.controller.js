@@ -7,7 +7,11 @@ import {
   resolveOrganizationByCode,
 } from "../../utils/authUtils.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
-import { htmlWelcome } from "../../utils/emailTemplate.js";
+import {
+  getEmailBrand,
+  htmlWelcome,
+  resolveAuthEmailPreset,
+} from "../../utils/emailTemplate.js";
 
 export const completeProfile = async (req, res) => {
   try {
@@ -89,11 +93,13 @@ export const completeProfile = async (req, res) => {
 
     // Send welcome email (non-critical)
     try {
+      const preset = resolveAuthEmailPreset(req);
+      const brand = getEmailBrand(preset);
       await sendBasicEmail({
         to: user.email,
-        subject: "Welcome to CropGen",
-        html: htmlWelcome(user.firstName, orgCode),
-        text: `Welcome to CropGen! You're now part of ${orgCode}.`,
+        subject: `Welcome to ${brand.name}`,
+        html: htmlWelcome(user.firstName, orgCode, preset),
+        text: `Welcome to ${brand.name}! You're now part of ${orgCode}.`,
       });
     } catch (e) {
       // ignore email errors
