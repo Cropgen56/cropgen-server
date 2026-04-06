@@ -3,11 +3,20 @@ import jwt from "jsonwebtoken";
 import socketService from "../services/socketService.js";
 import appSocketService from "../services/appSocketService.js";
 
+function resolveOrgCodeFromSocket(socket) {
+  const fromQuery = String(socket.handshake.query?.clientBrand || "").toLowerCase();
+  const fromHeader = String(socket.handshake.headers?.["x-client-brand"] || "").toLowerCase();
+  const brand = fromQuery || fromHeader;
+  if (brand === "biodrops" || brand === "satagro") return "BIODROPS";
+  return "CROPGEN";
+}
+
 /** @param {import("socket.io").Namespace} ns */
 function wirePublicNamespace(ns) {
   ns.on("connection", (socket) => {
     const userId = socket.id;
-    socketService.initializeUser(userId);
+    const orgCode = resolveOrgCodeFromSocket(socket);
+    socketService.initializeUser(userId, orgCode);
 
     const welcomeMsg =
       "Welcome! To help you better, could you tell me who you are?";
@@ -270,7 +279,8 @@ function wireDefaultNamespace(io) {
     }
 
     const userId = socket.id;
-    socketService.initializeUser(userId);
+    const orgCode = resolveOrgCodeFromSocket(socket);
+    socketService.initializeUser(userId, orgCode);
 
     const welcomeMsg =
       "Welcome! To help you better, could you tell me who you are?";

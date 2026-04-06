@@ -16,16 +16,30 @@ import {
 } from "../../utils/emailTemplate.js";
 import mongoose from "mongoose";
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+function resolveGoogleClientIdByBrand(preset) {
+  if (preset === "biodrops") {
+    return process.env.BIODROPS_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+  }
+  return process.env.GOOGLE_CLIENT_ID;
+}
 
 export const loginWithGoogleWeb = async (req, res) => {
   try {
     const { token } = req.body;
+    const preset = resolveAuthEmailPreset(req);
+    const googleClientId = resolveGoogleClientIdByBrand(preset);
+    const client = new OAuth2Client(googleClientId);
 
     if (!token) {
       return res
         .status(400)
         .json({ success: false, message: "Google token is required." });
+    }
+    if (!googleClientId) {
+      return res.status(500).json({
+        success: false,
+        message: "Google login is not configured for this brand.",
+      });
     }
 
     // Verify MongoDB connection
@@ -42,7 +56,7 @@ export const loginWithGoogleWeb = async (req, res) => {
     // Verify token with Google
     const ticket = await client.verifyIdToken({
       idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: googleClientId,
     });
 
     const payload = ticket.getPayload();
@@ -71,7 +85,6 @@ export const loginWithGoogleWeb = async (req, res) => {
   user.clientSource = "web";
 }
 
-    const preset = resolveAuthEmailPreset(req);
     const brand = getEmailBrand(preset);
     // Prepare email details based on user status
     const emailDetails = wasFullyRegistered

@@ -1,4 +1,5 @@
 import { createAgentForUser } from "../agent/index.js";
+import { getAgentOrgProfile } from "../agent/systemPrompts.js";
 import { validateOrganization } from "../validations/organizationValidation.js";
 import { validateFarmer } from "../validations/farmerValidation.js";
 import farmerService from "./farmerService.js";
@@ -34,12 +35,17 @@ class SocketService {
       history: [],
       userObject: null,
       userType: null,
+      organizationCode: "CROPGEN",
+      agentProfile: getAgentOrgProfile("CROPGEN"),
     };
   }
 
-  initializeUser(userId) {
-    userStates.set(userId, this.createEmptyState());
-    userAgents.set(userId, createAgentForUser(userId));
+  initializeUser(userId, organizationCode = "CROPGEN") {
+    const state = this.createEmptyState();
+    state.organizationCode = organizationCode;
+    state.agentProfile = getAgentOrgProfile(organizationCode);
+    userStates.set(userId, state);
+    userAgents.set(userId, createAgentForUser(organizationCode));
     userHistories.set(userId, []);
   }
 
@@ -94,8 +100,15 @@ class SocketService {
         break;
       case "3":
         state.type = "general";
-        reply =
-          "Cropgen is a satellite-based crop monitoring platform that helps farmers and organizations optimize agricultural outcomes. How can I assist you further?";
+        {
+          const appName = state.agentProfile?.dashboardApp || "CropGen";
+          const appNameLower = appName.toLowerCase();
+          reply = `${appName} is a satellite-based crop monitoring platform that helps farmers and organizations optimize agricultural outcomes. How can I assist you further?`;
+          if (appNameLower === "satagro") {
+            reply =
+              "Satagro is a satellite-based crop monitoring platform that helps farmers and organizations optimize agricultural outcomes. How can I assist you further?";
+          }
+        }
         break;
       default:
         reply = "Invalid choice. Please reply with 1, 2, or 3.";
@@ -168,8 +181,8 @@ class SocketService {
       histories.push(state.history);
       userHistories.set(userId, histories);
     }
-    userStates.set(userId, this.createEmptyState());
-    userAgents.set(userId, createAgentForUser(userId));
+    const orgCode = state?.organizationCode || "CROPGEN";
+    this.initializeUser(userId, orgCode);
   }
 
   async getChatHistory(userId) {

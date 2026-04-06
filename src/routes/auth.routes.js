@@ -36,6 +36,12 @@ import { updateUserActivity } from "../middleware/update.user.activity.middlewar
 
 const router = express.Router();
 
+const forceBiodropsBrand = (req, _res, next) => {
+  req.headers["x-client-brand"] = "biodrops";
+  req.body = { ...(req.body || {}), clientBrand: "biodrops" };
+  next();
+};
+
 router.get(
   "/users",
   isAuthenticated,
@@ -88,6 +94,19 @@ router.post("/complete-profile", requireAuth, completeProfile);
 router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
 router.post("/google", loginWithGoogleWeb);
+
+// biodrops web application dedicated auth routes
+router.post("/biodrops/signup/otp", forceBiodropsBrand, requestOtp);
+router.post("/biodrops/signup/verify", forceBiodropsBrand, verifyOtp);
+router.post(
+  "/biodrops/signup/complete-profile",
+  forceBiodropsBrand,
+  requireAuth,
+  completeProfile,
+);
+router.post("/biodrops/login/otp", forceBiodropsBrand, requestOtp);
+router.post("/biodrops/login/verify", forceBiodropsBrand, verifyOtp);
+router.post("/biodrops/login/google", forceBiodropsBrand, loginWithGoogleWeb);
 
 // request admin otp
 router.post("/admin-otp", requestAdminOtp);

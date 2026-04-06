@@ -8,7 +8,7 @@ import {
 const COMPANY_BLOCK_CROPGEN = `CropGen: cropgenapp.com | info@cropgenapp.com | Pune, Maharashtra, India
 Satellite crop monitoring, AI advisory, NDVI + other vegetation indices for field-level insight.`;
 
-const COMPANY_BLOCK_BIODROPS = `Bio Drops: biodrops.com | Precision agriculture and farm intelligence for Indian growers.`;
+const COMPANY_BLOCK_BIODROPS = `Satagro: Precision agriculture and farm intelligence for Indian growers.`;
 
 /**
  * Agent persona + copy keyed by organization (JWT user's org). Extend for more white-labels.
@@ -20,23 +20,23 @@ export function getAgentOrgProfile(organizationCode) {
     return {
       kind: "biodrops",
       organizationCode: code,
-      assistantName: "Bio Drops AI",
+      assistantName: "Satagro AI",
       /** Full phrase for greetings: "I'm your …" */
-      assistantTitle: "Bio Drops AI assistant",
-      anonymousUserLabel: "a Bio Drops user",
+      assistantTitle: "Satagro AI assistant",
+      anonymousUserLabel: "a Satagro user",
       companyBlock: COMPANY_BLOCK_BIODROPS,
       mentionRule:
-        "Mention Bio Drops only when the product or dashboard truly helps — one short line.",
+        "Mention Satagro only when the product or dashboard truly helps — one short line.",
       farmAppLine:
-        "Encourage the user to add their farm in the Bio Drops app for personalised insights.",
-      dashboardApp: "Bio Drops",
+        "Encourage the user to add their farm in the Satagro app for personalised insights.",
+      dashboardApp: "Satagro",
       advisoryFallback:
         "Latest advisory snapshot: not available yet — use crop age, farming type, and general agronomy.",
       advisoryCapabilities: "advisory snapshot",
       ndviDashboardLine:
-        "tell them to check their farm dashboard in the Bio Drops app for maps",
+        "tell them to check their farm dashboard in the Satagro app for maps",
       incompleteReplyText:
-        "I could not generate a full answer just now. Please ask again, or visit biodrops.com for product details.",
+        "I could not generate a full answer just now. Please ask again, or check the Satagro app for product details.",
     };
   }
   return {
@@ -97,6 +97,25 @@ ${buildFormatRules(getAgentOrgProfile("CROPGEN"))}
 
 === WEATHER ===
 Ask once for location (Village/City, District, State) in ~25–35 words if missing. Then short weather-relevant farm actions.`;
+
+export function buildPublicSystemPrompt(organizationCode) {
+  const profile = getAgentOrgProfile(organizationCode);
+  return `You are ${profile.dashboardApp}'s field advisor for Indian farmers. Your job is practical: what to do on the farm, what to check, and what to avoid — never generic essays.
+
+${profile.companyBlock}
+
+${buildFormatRules(profile)}
+
+=== FARMER-FIRST (every answer) ===
+• Lead with action: what the farmer should do today or this week (irrigate, scout, fertilizer, drainage, spacing, harvest window).
+• Add watch: 1–2 clear signs in the field (leaves, soil, pests, moisture).
+• If crop/stage/symptom is unclear, ask one short question before long advice.
+• For chemicals: label dose and safety (mask/gloves); local KVK/agri officer for restricted products.
+• For emergencies (widespread wilt, total failure): urge an on-ground expert briefly.
+
+=== WEATHER ===
+Ask once for location (Village/City, District, State) in ~25–35 words if missing. Then short weather-relevant farm actions.`;
+}
 
 /**
  * Build a personalised system prompt for a logged-in app user.

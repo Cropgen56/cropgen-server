@@ -26,13 +26,28 @@ export const completeProfile = async (req, res) => {
       role = "farmer",
       organizationCode,
       terms,
+      country = "",
+      state = "",
+      city = "",
+      village = "",
     } = req.body;
+    const preset = resolveAuthEmailPreset(req);
 
     if (terms !== true)
       return res.status(400).json({
         success: false,
         message: "Terms must be accepted for signup.",
       });
+
+    if (
+      preset === "biodrops" &&
+      (!country || !state || !city)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Country, state and city are required.",
+      });
+    }
 
     const user = await User.findById(userId);
     if (!user)
@@ -64,6 +79,10 @@ export const completeProfile = async (req, res) => {
     user.lastName = lastName;
     user.phone = phone;
     user.role = role || "farmer";
+    user.country = country ? String(country).trim().toUpperCase() : user.country;
+    user.state = state ? String(state).trim().toUpperCase() : user.state;
+    user.city = city ? String(city).trim() : user.city;
+    user.village = village ? String(village).trim() : user.village;
     user.terms = true;
     user.organization = org._id;
     user.lastLoginAt = new Date();
@@ -93,7 +112,6 @@ export const completeProfile = async (req, res) => {
 
     // Send welcome email (non-critical)
     try {
-      const preset = resolveAuthEmailPreset(req);
       const brand = getEmailBrand(preset);
       await sendBasicEmail({
         to: user.email,
@@ -115,6 +133,10 @@ export const completeProfile = async (req, res) => {
         email: user.email,
         role: user.role,
         organizationCode: orgCode,
+        country: user.country,
+        state: user.state,
+        city: user.city,
+        village: user.village,
       },
       onboardingRequired: false,
     });

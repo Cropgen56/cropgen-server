@@ -40,6 +40,33 @@ const userSchema = new Schema(
       },
     },
 
+    country: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxlength: 3,
+      default: null,
+    },
+    state: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxlength: 10,
+      default: null,
+    },
+    city: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: null,
+    },
+    village: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: null,
+    },
+
     role: {
       type: String,
       enum: ["farmer", "admin", "developer", "client"],

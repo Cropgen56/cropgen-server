@@ -7,6 +7,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { ChatMessageHistory } from "langchain/stores/message/in_memory";
 import {
   PUBLIC_SYSTEM_PROMPT,
+  buildPublicSystemPrompt,
   buildAppSystemPrompt,
   getAgentOrgProfile,
 } from "./systemPrompts.js";
@@ -49,7 +50,7 @@ function looksTruncated(s) {
   if (/[.!?…]["']?\s*$/.test(t)) return false;
   if (t.length < 22) return true;
   if (t.length >= 220) return false;
-  return /\b(make|makes|making|helps?|better|more|less|the|a|an|to|for|and|or|with|is|are|was|were|be|been|being|have|has|had|your|our|their|that|this|what|when|how|which|if|as|so|like|such|CropGen\s+helps|Bio\s+Drops\s+helps)\s*$/i.test(t);
+  return /\b(make|makes|making|helps?|better|more|less|the|a|an|to|for|and|or|with|is|are|was|were|be|been|being|have|has|had|your|our|their|that|this|what|when|how|which|if|as|so|like|such|CropGen\s+helps|Bio\s+Drops\s+helps|Satagro\s+helps)\s*$/i.test(t);
 }
 
 function needsRecoveryReply(s) {
@@ -180,6 +181,10 @@ export function createPublicAgent() {
   return createAgent(PUBLIC_SYSTEM_PROMPT);
 }
 
+export function createPublicAgentByOrg(organizationCode = "CROPGEN") {
+  return createAgent(buildPublicSystemPrompt(organizationCode));
+}
+
 /**
  * Create an app agent (for logged-in users with farm context).
  * @param {object} [agentOptions] — e.g. { advisoryByFarmId: Record<string, object> }
@@ -193,4 +198,6 @@ export function createAppAgent(userName, farms, agentOptions = {}) {
   return createAgent(prompt, { incompleteReply: profile.incompleteReplyText });
 }
 
-export { createPublicAgent as createAgentForUser };
+export function createAgentForUser(organizationCode = "CROPGEN") {
+  return createPublicAgentByOrg(organizationCode);
+}
