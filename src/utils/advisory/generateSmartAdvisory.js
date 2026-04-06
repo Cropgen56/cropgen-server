@@ -348,7 +348,10 @@ export async function generateSmartAdvisory({
   const response = await callOpenAI(prompt);
 
   if (!response || !Array.isArray(response.activitiesToDo)) {
-    throw new Error("Invalid advisory response from LLM");
+    console.warn(
+      "Advisory LLM returned no usable JSON (check OPENAI_API_KEY and logs above); skipping AI activities",
+    );
+    return null;
   }
 
   /* Post-process: deterministic overrides on top of LLM text.
