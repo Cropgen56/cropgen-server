@@ -42,6 +42,15 @@ import { setupSocket } from "./src/socket/setupSocket.js";
 
 dotenv.config();
 
+// Log crashes that often surface in production as nginx 502 (upstream connection refused / reset)
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  process.exit(1);
+});
+
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 7070;
 
