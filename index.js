@@ -71,6 +71,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://10.0.2.2:7070",
   "http://localhost:5176",
+  "https://satagro.ai",
   ...envAllowedOrigins,
 ].filter(Boolean);
 
@@ -81,10 +82,16 @@ function isTrustedCropgenOrigin(origin) {
   try {
     const u = new URL(origin);
     const host = u.hostname.toLowerCase();
-    if (u.protocol === "https:" && (host === "cropgenapp.com" || host.endsWith(".cropgenapp.com"))) {
+    if (
+      u.protocol === "https:" &&
+      (host === "cropgenapp.com" || host.endsWith(".cropgenapp.com"))
+    ) {
       return true;
     }
-    if (u.protocol === "http:" && (host === "localhost" || host === "127.0.0.1" || host === "10.0.2.2")) {
+    if (
+      u.protocol === "http:" &&
+      (host === "localhost" || host === "127.0.0.1" || host === "10.0.2.2")
+    ) {
       return true;
     }
   } catch {
