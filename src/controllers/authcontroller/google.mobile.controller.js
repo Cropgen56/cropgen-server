@@ -91,6 +91,7 @@ if (user && (!user.clientSource || user.clientSource === "unknown")) {
         subject: emailDetails.subject,
         html: emailDetails.html,
         text: emailDetails.text,
+        preset,
       });
     } catch (e) {
       console.error(emailDetails.errorMessage, e);

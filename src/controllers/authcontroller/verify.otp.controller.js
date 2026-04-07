@@ -16,6 +16,10 @@ import {
 export const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
+    const clientBrand = String(
+      req.headers?.["x-client-brand"] || req.headers?.["X-Client-Brand"] || "",
+    ).toLowerCase();
+    const isBiodropsBrand = clientBrand === "biodrops";
 
     if (!email || !otp)
       return res
@@ -59,6 +63,23 @@ export const verifyOtp = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid OTP." });
     }
 
+    // Biodrops restriction: only BIODROPS organization users can log in
+    if (isBiodropsBrand) {
+      const orgCode = String(user.organization?.organizationCode || "").toUpperCase();
+      if (orgCode !== "BIODROPS") {
+        // Clear OTP metadata so the same code can't be replayed after rejection
+        user.otp = null;
+        user.otpExpires = null;
+        user.otpAttemptCount = 0;
+        await user.save();
+        return res.status(403).json({
+          success: false,
+          message:
+            "Access denied. Only BIODROPS organization users can sign in here.",
+        });
+      }
+    }
+
     // success → clear OTP meta
     user.otp = null;
     user.otpExpires = null;
@@ -98,6 +119,7 @@ export const verifyOtp = async (req, res) => {
           subject: `Signed in to ${brand.name}`,
           html: htmlWelcomeBack(user.firstName || user.email, preset),
           text: `You're signed in to ${brand.name}.`,
+          preset,
         });
       } catch (e) {
         // ignore email errors

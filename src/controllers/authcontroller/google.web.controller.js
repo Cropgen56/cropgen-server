@@ -27,6 +27,10 @@ export const loginWithGoogleWeb = async (req, res) => {
   try {
     const { token } = req.body;
     const preset = resolveAuthEmailPreset(req);
+    const clientBrand = String(
+      req.headers?.["x-client-brand"] || req.headers?.["X-Client-Brand"] || "",
+    ).toLowerCase();
+    const isBiodropsBrand = clientBrand === "biodrops" || preset === "biodrops";
     const googleClientId = resolveGoogleClientIdByBrand(preset);
     const client = new OAuth2Client(googleClientId);
 
@@ -77,6 +81,21 @@ export const loginWithGoogleWeb = async (req, res) => {
     const wasFullyRegistered =
       !!user && !!user.organization && user.terms === true;
 
+    // Biodrops restriction: only BIODROPS organization users can log in
+    // (New users created through this flow are assigned to BIODROPS below.)
+    if (isBiodropsBrand && user) {
+      const existingOrgCode = String(
+        user.organization?.organizationCode || "",
+      ).toUpperCase();
+      if (existingOrgCode !== "BIODROPS") {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Access denied. Only BIODROPS organization users can sign in here.",
+        });
+      }
+    }
+
    // Backfill clientSource for existing users if missing or invalid
     if (
      user &&
@@ -123,6 +142,7 @@ export const loginWithGoogleWeb = async (req, res) => {
         subject: emailDetails.subject,
         html: emailDetails.html,
         text: emailDetails.text,
+        preset,
       });
     } catch (e) {
       console.error(emailDetails.errorMessage, e);

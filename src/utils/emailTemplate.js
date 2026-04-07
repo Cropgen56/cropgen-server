@@ -1,7 +1,7 @@
 /**
  * Auth / transactional email presets:
  * - `cropgen` — CropGen product (logo, classic green, CropGen URLs)
- * - `biodrops` — Bio Drops white-label (no CropGen logo by default; “email service by CropGen” in footer)
+ * - `biodrops` — White-label (Satagro.ai branding + URLs)
  *
  * Server default: `EMAIL_WHITELABEL=cropgen` (or `AUTH_EMAIL_BRAND`). Per-request: `X-Client-Brand: biodrops`
  * or JSON `clientBrand: "biodrops"` on auth routes. SES still sends via your CropGen-verified identity.
@@ -15,7 +15,8 @@ export function normalizeEnvPreset() {
   const v = String(
     process.env.EMAIL_WHITELABEL || process.env.AUTH_EMAIL_BRAND || "cropgen"
   ).toLowerCase();
-  return v === "biodrops" ? "biodrops" : "cropgen";
+  if (v === "biodrops") return "biodrops";
+  return "cropgen";
 }
 
 /** Resolve `cropgen` vs `biodrops` for auth emails (header, body.clientBrand, then env). */
@@ -32,11 +33,12 @@ export function resolveAuthEmailPreset(req) {
 
 function buildCropgenBrand() {
   const appBase = (
-    process.env.FRONTEND_URL ||
+    process.env.EMAIL_APP_BASE_URL_CROPGEN ||
     process.env.EMAIL_APP_BASE_URL ||
     "https://app.cropgenapp.com"
   ).replace(/\/$/, "");
   const marketingBase = (
+    process.env.EMAIL_MARKETING_BASE_URL_CROPGEN ||
     process.env.EMAIL_MARKETING_BASE_URL ||
     "https://www.cropgenapp.com"
   ).replace(/\/$/, "");
@@ -74,19 +76,23 @@ function buildCropgenBrand() {
 }
 
 function buildBiodropsBrand() {
+  // NOTE: For white-label emails we do NOT use FRONTEND_URL (local dev),
+  // because emails must always point to the public Satagro.ai URLs.
   const appBase = (
-    process.env.FRONTEND_URL ||
+    process.env.EMAIL_APP_BASE_URL_BIODROPS ||
     process.env.EMAIL_APP_BASE_URL ||
-    "https://www.biodrops.com"
+    "https://satagro.ai"
   ).replace(/\/$/, "");
   const marketingBase = (
+    process.env.EMAIL_MARKETING_BASE_URL_BIODROPS ||
     process.env.EMAIL_MARKETING_BASE_URL ||
-    "https://www.biodrops.com"
+    "https://satagro.ai"
   ).replace(/\/$/, "");
-  const logoFromEnv = process.env.EMAIL_BRAND_LOGO_URL;
+  const logoFromEnv =
+    process.env.EMAIL_BRAND_LOGO_URL_BIODROPS || process.env.EMAIL_BRAND_LOGO_URL;
   return {
     preset: "biodrops",
-    name: process.env.EMAIL_BRAND_NAME || "Bio Drops",
+    name: process.env.EMAIL_BRAND_NAME_BIODROPS || "Satagro.ai",
     logoUrl: logoFromEnv ? String(logoFromEnv).trim() : "",
     accent: process.env.EMAIL_BRAND_ACCENT || "#0B5D3D",
     footerBg: process.env.EMAIL_BRAND_FOOTER_BG || "#093A27",
@@ -111,7 +117,7 @@ function buildBiodropsBrand() {
     otpIllustrationUrl: process.env.EMAIL_OTP_ILLUSTRATION_URL
       ? String(process.env.EMAIL_OTP_ILLUSTRATION_URL).trim()
       : "",
-    whiteLabelParent: "CropGen",
+    whiteLabelParent: null,
     cardShadowRgba: "11,93,61,0.12",
   };
 }

@@ -1,10 +1,13 @@
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 
-export const sesClient = new SESClient({
-  region: process.env.AWS_REGION,
+const sesClient = new SESClient({
+  region: process.env.AWS_REGION_CROPGEN || process.env.AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId:
+      process.env.AWS_ACCESS_KEY_ID_CROPGEN || process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey:
+      process.env.AWS_SECRET_ACCESS_KEY_CROPGEN ||
+      process.env.AWS_SECRET_ACCESS_KEY,
   },
 });
 
@@ -106,6 +109,7 @@ export const sendBasicEmail = async ({
   subject,
   html,
   text,
+  preset,
   from,
   fromEmail = process.env.SES_FROM_EMAIL,
   fromName = process.env.SES_FROM_NAME || "CropGen",
@@ -113,6 +117,13 @@ export const sendBasicEmail = async ({
   configurationSet,
   tags,
 }) => {
+  // Use Satagro sender for Biodrops white-label mails
+  if (!from && String(preset || "").toLowerCase() === "biodrops") {
+    fromEmail = process.env.SES_FROM_EMAIL_BIODROPS || fromEmail;
+    fromName = process.env.SES_FROM_NAME_BIODROPS || fromName;
+    replyTo = process.env.SES_REPLY_TO_BIODROPS || replyTo;
+  }
+
   // Resolve sender
   const resolved = from ? parseFromAddress(from) : { fromEmail, fromName };
   if (!resolved.fromEmail) {

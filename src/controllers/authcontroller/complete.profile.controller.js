@@ -118,6 +118,7 @@ export const completeProfile = async (req, res) => {
         subject: `Welcome to ${brand.name}`,
         html: htmlWelcome(user.firstName, orgCode, preset),
         text: `Welcome to ${brand.name}! You're now part of ${orgCode}.`,
+        preset,
       });
     } catch (e) {
       // ignore email errors

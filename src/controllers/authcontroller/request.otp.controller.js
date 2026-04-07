@@ -69,6 +69,7 @@ export const requestOtp = async (req, res) => {
       subject: `Your ${brand.name} verification code`,
       html: htmlOtp(code, preset),
       text: `Your ${brand.name} verification code is ${code}. It expires in 10 minutes. If you didn’t request this, ignore this email.`,
+      preset,
     });
 
     return res.json({ success: true, message: "OTP sent to email." });
