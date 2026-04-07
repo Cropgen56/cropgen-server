@@ -63,7 +63,11 @@ export const completeProfile = async (req, res) => {
 
     let org, orgCode;
     try {
-      ({ org, orgCode } = await resolveOrganizationByCode(organizationCode));
+      if (preset === "biodrops") {
+        ({ org, orgCode } = await resolveOrganizationByCode("BIODROPS"));
+      } else {
+        ({ org, orgCode } = await resolveOrganizationByCode(organizationCode));
+      }
     } catch (err) {
       if (err.status === 404) {
         return res.status(404).json({
