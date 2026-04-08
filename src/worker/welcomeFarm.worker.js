@@ -1,14 +1,11 @@
 import cron from "node-cron";
-import { connectToDatabase } from "../config/db.js";
 
 import User from "../models/user.model.js";
 import FarmField from "../models/field.model.js";
 import Notification from "../models/notification.model.js";
 import { createWelcomeFarmNotification } from "../services/notification.service.js";
 
-export const startWelcomeFarmReminderWorker = async () => {
-  await connectToDatabase();
-
+export const startWelcomeFarmReminderWorker = () => {
   console.log("🌾 Welcome Farm Reminder Worker Started");
 
   // Run every day at 12:00 PM

@@ -78,8 +78,7 @@ const SubscriptionPlanSchema = new Schema(
   { timestamps: true },
 );
 
-// Indexes
-SubscriptionPlanSchema.index({ slug: 1 });
+// Indexes (slug unique index comes from field definition)
 SubscriptionPlanSchema.index({ platform: 1, active: 1 });
 
 // Prevent OverwriteModelError

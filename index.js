@@ -159,12 +159,6 @@ app.use((req, res, next) => {
 });
 app.use(cookieParser());
 
-// Workers
-startNotificationWorker();
-startSubscriptionExpiryJob();
-startWelcomeFarmReminderWorker();
-runAdvisoryJob();
-
 // Core API routes
 app.use("/v1/api/auth", authRoutes);
 app.use("/v1/api/field", fieldRoutes);
@@ -218,6 +212,12 @@ app.use((err, req, res, _next) => {
 const startServer = async () => {
   try {
     await connectToDatabase();
+
+    // After DB is ready so cron jobs do not run against a buffering connection
+    startNotificationWorker();
+    startSubscriptionExpiryJob();
+    startWelcomeFarmReminderWorker();
+    runAdvisoryJob();
 
     const httpServer = http.createServer(app);
 
