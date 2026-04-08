@@ -21,4 +21,10 @@ export { updateUserById } from "./update.user.controller.js";
 
 export { sendWhatsappOtp, verifyWhatsappOtp, resendWhatsappOtp } from "./phoneauth.controller.js";
 
+export {
+  biodropsSendWhatsappOtp,
+  biodropsVerifyWhatsappOtp,
+  biodropsResendWhatsappOtp,
+} from "./biodrops.whatsapp.controller.js";
+
 export { getProfile } from "./profile.controller.js";

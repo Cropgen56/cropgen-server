@@ -13,6 +13,18 @@ const OTP_RESEND_COOLDOWN = 60 * 1000;
 const ALLOWED_LANGUAGES = ["en", "hi", "mr"];
 const DEFAULT_LANGUAGE = "en";
 
+async function createUserByPhoneSafe(payload) {
+  try {
+    return await User.create(payload);
+  } catch (error) {
+    if (error?.code === 11000 && payload?.phone) {
+      const existing = await User.findOne({ phone: payload.phone });
+      if (existing) return existing;
+    }
+    throw error;
+  }
+}
+
 /* ================= SEND OTP ================= */
 
 export const sendWhatsappOtp = async (req, res) => {
@@ -50,7 +62,7 @@ export const sendWhatsappOtp = async (req, res) => {
         });
       }
 
-      user = await User.create({
+      user = await createUserByPhoneSafe({
         phone,
         firstName: "User",
         role: "farmer",

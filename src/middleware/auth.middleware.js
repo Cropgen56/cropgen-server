@@ -1,4 +1,8 @@
 import jwt from "jsonwebtoken";
+import {
+  verifyRefreshToken,
+  getRefreshTokenFromRequest,
+} from "../utils/authUtils.js";
 
 const JWT_SECRET = process.env.JWT_ACCESS_SECRET;
 
@@ -48,11 +52,20 @@ const checkApiKey = (req, res, next) => {
 const requireAuth = (req, res, next) => {
   try {
     const hdr = req.headers.authorization || "";
-    const token = hdr.startsWith("Bearer ") ? hdr.slice(7) : null;
+    const accessToken = hdr.startsWith("Bearer ") ? hdr.slice(7) : null;
+    const refreshToken = getRefreshTokenFromRequest(req);
 
-    if (!token)
+    if (!accessToken && !refreshToken) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
-    const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    }
+
+    // Preferred: short-lived access token from Authorization header.
+    // Fallback: refresh token cookie for onboarding/profile completion paths
+    // when frontend token state is temporarily unavailable.
+    const payload = accessToken
+      ? jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET)
+      : verifyRefreshToken(refreshToken);
+
     req.auth = payload;
     next();
   } catch {

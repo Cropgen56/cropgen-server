@@ -105,7 +105,7 @@ export const verifyOtp = async (req, res) => {
     const refreshToken = signRefreshToken(payload, refreshId);
 
     // set HttpOnly refresh cookie
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(res, refreshToken, req);
 
     const orgCode = user.organization?.organizationCode || "CROPGEN";
 

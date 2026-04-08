@@ -127,6 +127,7 @@ const corsOptions = {
     "x-api-key",
     "X-Requested-With",
     "X-Client-Brand",
+    "X-Client-App",
     "Accept",
     "Accept-Language",
     "Cache-Control",

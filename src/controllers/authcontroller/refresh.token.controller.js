@@ -6,11 +6,12 @@ import {
   generateRefreshId,
   signRefreshToken,
   setRefreshCookie,
+  getRefreshTokenFromRequest,
 } from "../../utils/authUtils.js";
 
 export const refreshTokenHandler = async (req, res) => {
   try {
-    const token = req.cookies?.refreshToken;
+    const token = getRefreshTokenFromRequest(req);
 
     if (!token) {
       return res
@@ -22,7 +23,7 @@ export const refreshTokenHandler = async (req, res) => {
     try {
       decoded = verifyRefreshToken(token);
     } catch (err) {
-      clearRefreshCookie(res);
+      clearRefreshCookie(res, req);
       return res
         .status(403)
         .json({ success: false, message: "Invalid refresh token" });
@@ -31,7 +32,7 @@ export const refreshTokenHandler = async (req, res) => {
     const userId = decoded.id || decoded._id || decoded.userId;
     const tokenRid = decoded.rid;
     if (!userId || !tokenRid) {
-      clearRefreshCookie(res);
+      clearRefreshCookie(res, req);
       return res
         .status(403)
         .json({ success: false, message: "Invalid refresh token payload" });
@@ -39,7 +40,7 @@ export const refreshTokenHandler = async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user || !user.refreshTokenId) {
-      clearRefreshCookie(res);
+      clearRefreshCookie(res, req);
       return res
         .status(403)
         .json({ success: false, message: "Refresh token not recognized" });
@@ -49,7 +50,7 @@ export const refreshTokenHandler = async (req, res) => {
       // token replay or revoked - revoke server-side
       user.refreshTokenId = null;
       await user.save();
-      clearRefreshCookie(res);
+      clearRefreshCookie(res, req);
       return res
         .status(403)
         .json({ success: false, message: "Refresh token revoked" });
@@ -68,7 +69,7 @@ export const refreshTokenHandler = async (req, res) => {
     const newAccessToken = signAccessToken(payload);
     const newRefreshToken = signRefreshToken(payload, newRefreshId);
 
-    setRefreshCookie(res, newRefreshToken);
+    setRefreshCookie(res, newRefreshToken, req);
 
     // Send consistent key expected by the client
     return res.json({
@@ -78,7 +79,7 @@ export const refreshTokenHandler = async (req, res) => {
     });
   } catch (err) {
     console.error("refreshToken error:", err);
-    clearRefreshCookie(res);
+    clearRefreshCookie(res, req);
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });

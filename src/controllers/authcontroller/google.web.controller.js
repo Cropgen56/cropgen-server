@@ -171,7 +171,7 @@ export const loginWithGoogleWeb = async (req, res) => {
     const refreshToken = signRefreshToken(tokenPayload, refreshId);
 
     // Set HttpOnly refresh cookie
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(res, refreshToken, req);
 
     return res.json({
       success: true,

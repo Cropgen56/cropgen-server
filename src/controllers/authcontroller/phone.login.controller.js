@@ -2,6 +2,18 @@ import jwt from "jsonwebtoken";
 import User from "../../models/user.model.js"
 import Organization from "../../models/organization.model.js";
 
+async function createUserByPhoneSafe(payload) {
+  try {
+    return await User.create(payload);
+  } catch (error) {
+    if (error?.code === 11000 && payload?.phone) {
+      const existing = await User.findOne({ phone: payload.phone });
+      if (existing) return existing;
+    }
+    throw error;
+  }
+}
+
 export const loginWithPhone = async (req, res) => {
   const { phone } = req.body;
 
@@ -41,7 +53,7 @@ export const loginWithPhone = async (req, res) => {
       }
 
       // Create new user with default values
-      user = await User.create({
+      user = await createUserByPhoneSafe({
         firstName: "User",
         lastName: "",
         phone,

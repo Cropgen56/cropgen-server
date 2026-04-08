@@ -7,7 +7,27 @@ const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET + "_r";
 const ACCESS_EXPIRES = "1h";
 const REFRESH_EXPIRES = "7d";
-const REFRESH_COOKIE_NAME = "refreshToken";
+
+/** Legacy single cookie — kept for backward compatibility until all clients send X-Client-App */
+export const LEGACY_REFRESH_COOKIE_NAME = "refreshToken";
+
+/**
+ * Per-browser-tab / per-app refresh cookies so admin, cropgen web, and biodrops
+ * do not overwrite each other on the same API host (e.g. localhost:7070).
+ */
+const CLIENT_APP_COOKIE_NAMES = {
+  cropgen_web: "refreshToken_cropgen_web",
+  admin: "refreshToken_admin",
+  biodrops_web: "refreshToken_biodrops_web",
+};
+
+/** Production Origins → client app key (no header required) */
+const PRODUCTION_ORIGIN_TO_CLIENT_APP = {
+  "https://admin.cropgenapp.com": "admin",
+  "https://app.cropgenapp.com": "cropgen_web",
+  "https://biodrops.cropgenapp.com": "biodrops_web",
+  "https://test.cropgenapp.com": "cropgen_web",
+};
 
 const CROPYDEALS_ACCESS_EXPIRES = "15d";
 
@@ -52,27 +72,78 @@ export function signCropydealsAccessToken(payload) {
 export function generateRefreshId() {
   return crypto.randomBytes(32).toString("hex");
 }
-export function setRefreshCookie(res, refreshToken) {
-  const cookieOptions = {
+
+function cookieBaseOptions() {
+  return {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   };
-
-  res.cookie(REFRESH_COOKIE_NAME, refreshToken, cookieOptions);
 }
 
-export function clearRefreshCookie(res) {
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    path: "/",
+function cookieClearOptions() {
+  return {
+    ...cookieBaseOptions(),
     maxAge: 0,
   };
-  res.clearCookie(REFRESH_COOKIE_NAME, cookieOptions);
+}
+
+/**
+ * Resolves which client app is calling (from X-Client-App or production Origin).
+ * @returns {string|null} key in CLIENT_APP_COOKIE_NAMES or null
+ */
+export function resolveClientAppKey(req) {
+  const raw = String(req.headers["x-client-app"] || "").trim().toLowerCase();
+  if (raw && CLIENT_APP_COOKIE_NAMES[raw]) {
+    return raw;
+  }
+  const origin = req.headers.origin;
+  if (origin && PRODUCTION_ORIGIN_TO_CLIENT_APP[origin]) {
+    return PRODUCTION_ORIGIN_TO_CLIENT_APP[origin];
+  }
+  return null;
+}
+
+export function getRefreshCookieNameForRequest(req) {
+  const key = resolveClientAppKey(req);
+  if (key && CLIENT_APP_COOKIE_NAMES[key]) {
+    return CLIENT_APP_COOKIE_NAMES[key];
+  }
+  return LEGACY_REFRESH_COOKIE_NAME;
+}
+
+export function getRefreshTokenFromRequest(req) {
+  const key = resolveClientAppKey(req);
+  if (key && CLIENT_APP_COOKIE_NAMES[key]) {
+    const name = CLIENT_APP_COOKIE_NAMES[key];
+    if (req.cookies?.[name]) {
+      return req.cookies[name];
+    }
+  }
+  return req.cookies?.[LEGACY_REFRESH_COOKIE_NAME] || null;
+}
+
+export function setRefreshCookie(res, refreshToken, req) {
+  const opts = {
+    ...cookieBaseOptions(),
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  };
+  const name = getRefreshCookieNameForRequest(req);
+  res.cookie(name, refreshToken, opts);
+  // Avoid two valid refresh tokens: drop legacy when issuing a scoped cookie
+  if (name !== LEGACY_REFRESH_COOKIE_NAME) {
+    res.clearCookie(LEGACY_REFRESH_COOKIE_NAME, cookieClearOptions());
+  }
+}
+
+export function clearRefreshCookie(res, req) {
+  const clearOpts = cookieClearOptions();
+  const name = getRefreshCookieNameForRequest(req);
+  res.clearCookie(name, clearOpts);
+  if (name !== LEGACY_REFRESH_COOKIE_NAME) {
+    res.clearCookie(LEGACY_REFRESH_COOKIE_NAME, clearOpts);
+  }
 }
 
 export function verifyRefreshToken(token) {

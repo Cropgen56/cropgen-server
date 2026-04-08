@@ -129,6 +129,14 @@ const userSchema = new Schema(
 userSchema.index({ createdAt: 1 });
 userSchema.index({ lastActiveAt: 1 });
 userSchema.index({ role: 1 });
+userSchema.index(
+  { phone: 1 },
+  {
+    unique: true,
+    sparse: true,
+    partialFilterExpression: { phone: { $type: "string", $ne: "" } },
+  },
+);
 
 const User = mongoose.model("User", userSchema);
 

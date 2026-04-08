@@ -24,6 +24,9 @@ import {
   sendWhatsappOtp,
   verifyWhatsappOtp,
   resendWhatsappOtp,
+  biodropsSendWhatsappOtp,
+  biodropsVerifyWhatsappOtp,
+  biodropsResendWhatsappOtp,
 } from "../controllers/authcontroller/index.js";
 
 import {
@@ -107,6 +110,23 @@ router.post(
 router.post("/biodrops/login/otp", forceBiodropsBrand, requestOtp);
 router.post("/biodrops/login/verify", forceBiodropsBrand, verifyOtp);
 router.post("/biodrops/login/google", forceBiodropsBrand, loginWithGoogleWeb);
+
+// biodrops web application — WhatsApp OTP (phone login)
+router.post(
+  "/biodrops/whatsapp/otp",
+  forceBiodropsBrand,
+  biodropsSendWhatsappOtp,
+);
+router.post(
+  "/biodrops/whatsapp/verify",
+  forceBiodropsBrand,
+  biodropsVerifyWhatsappOtp,
+);
+router.post(
+  "/biodrops/whatsapp/resend",
+  forceBiodropsBrand,
+  biodropsResendWhatsappOtp,
+);
 
 // request admin otp
 router.post("/admin-otp", requestAdminOtp);

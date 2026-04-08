@@ -23,6 +23,7 @@ export const completeProfile = async (req, res) => {
       firstName = "",
       lastName = "",
       phone = "",
+      language,
       role = "farmer",
       organizationCode,
       terms,
@@ -41,11 +42,11 @@ export const completeProfile = async (req, res) => {
 
     if (
       preset === "biodrops" &&
-      (!country || !state || !city)
+      !country
     ) {
       return res.status(400).json({
         success: false,
-        message: "Country, state and city are required.",
+        message: "Country is required.",
       });
     }
 
@@ -82,6 +83,9 @@ export const completeProfile = async (req, res) => {
     user.firstName = firstName;
     user.lastName = lastName;
     user.phone = phone;
+    if (language) {
+      user.language = String(language).toLowerCase();
+    }
     user.role = role || "farmer";
     user.country = country ? String(country).trim().toUpperCase() : user.country;
     user.state = state ? String(state).trim().toUpperCase() : user.state;
@@ -112,7 +116,7 @@ export const completeProfile = async (req, res) => {
     const refreshToken = signRefreshToken(payload, refreshId);
 
     // Set HttpOnly refresh cookie
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(res, refreshToken, req);
 
     // Send welcome email (non-critical)
     try {

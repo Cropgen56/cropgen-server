@@ -2,11 +2,12 @@ import User from "../../models/user.model.js";
 import {
   verifyRefreshToken,
   clearRefreshCookie,
+  getRefreshTokenFromRequest,
 } from "../../utils/authUtils.js";
 
 export const logoutHandler = async (req, res) => {
   try {
-    const token = req.cookies?.refreshToken;
+    const token = getRefreshTokenFromRequest(req);
     if (token) {
       try {
         const decoded = verifyRefreshToken(token);
@@ -21,11 +22,11 @@ export const logoutHandler = async (req, res) => {
       } catch (e) {}
     }
 
-    clearRefreshCookie(res);
+    clearRefreshCookie(res, req);
     return res.json({ success: true, message: "Logged out" });
   } catch (err) {
     console.error("logout error:", err);
-    clearRefreshCookie(res);
+    clearRefreshCookie(res, req);
     return res
       .status(500)
       .json({ success: false, message: "Failed to logout" });
