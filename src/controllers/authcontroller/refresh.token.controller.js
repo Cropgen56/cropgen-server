@@ -71,10 +71,11 @@ export const refreshTokenHandler = async (req, res) => {
 
     setRefreshCookie(res, newRefreshToken, req);
 
-    // Send consistent key expected by the client
+    // Include refresh JWT in JSON for cross-site clients (e.g. Safari) where cookies are not sent.
     return res.json({
       success: true,
       accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
       user: { id: user._id, role: user.role, organization: user.organization },
     });
   } catch (err) {

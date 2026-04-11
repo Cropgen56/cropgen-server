@@ -121,7 +121,14 @@ export function getRefreshTokenFromRequest(req) {
       return req.cookies[name];
     }
   }
-  return req.cookies?.[LEGACY_REFRESH_COOKIE_NAME] || null;
+  const legacy = req.cookies?.[LEGACY_REFRESH_COOKIE_NAME] || null;
+  if (legacy) return legacy;
+
+  const bodyTok =
+    typeof req.body?.refreshToken === "string"
+      ? req.body.refreshToken.trim()
+      : "";
+  return bodyTok || null;
 }
 
 export function setRefreshCookie(res, refreshToken, req) {

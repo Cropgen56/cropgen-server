@@ -260,13 +260,14 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
     };
 
     const accessToken = signAccessToken({ ...payload, onboardingRequired });
-    const refreshToken = signRefreshToken(payload, refreshId);
-    setRefreshCookie(res, refreshToken, req);
+    const refreshTokenJwt = signRefreshToken(payload, refreshId);
+    setRefreshCookie(res, refreshTokenJwt, req);
 
     return res.status(200).json({
       success: true,
       message: "Login successful",
       accessToken,
+      refreshToken: refreshTokenJwt,
       role: user.role,
       user: {
         id: user._id,
