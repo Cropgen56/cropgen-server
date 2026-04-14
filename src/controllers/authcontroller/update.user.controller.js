@@ -6,21 +6,6 @@ export const updateUserById = async (req, res) => {
   let updateData = { ...req.body };
 
   try {
-    /* ================= EMAIL UNIQUE CHECK ================= */
-    if (updateData.email) {
-      const existingUser = await User.findOne({
-        email: updateData.email,
-        _id: { $ne: id }, // exclude current user
-      });
-
-      if (existingUser) {
-        return res.status(409).json({
-          success: false,
-          message: "Email is already in use by another account",
-        });
-      }
-    }
-
     /* ================= PHONE UNIQUE CHECK (OPTIONAL) ================= */
     if (updateData.phone) {
       const existingPhone = await User.findOne({
