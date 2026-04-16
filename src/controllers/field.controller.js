@@ -18,6 +18,7 @@ export const addField = async (req, res) => {
       farmName,
       acre,
       typeOfFarming,
+      isBarrenLand,
     } = req.body;
 
     /* ---------- Validation ---------- */
@@ -54,6 +55,7 @@ export const addField = async (req, res) => {
       fieldName: farmName,
       acre,
       typeOfFarming,
+      isBarrenLand: Boolean(isBarrenLand),
     });
 
     const savedFarmField = await newFarmField.save();

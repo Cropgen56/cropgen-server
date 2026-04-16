@@ -27,6 +27,8 @@ const farmFieldSchema = new mongoose.Schema(
       enum: ["Organic", "Inorganic", "Integrated"],
       required: true,
     },
+    /** True when the plot has no standing crop; sowingDate stores expected sowing date. */
+    isBarrenLand: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
