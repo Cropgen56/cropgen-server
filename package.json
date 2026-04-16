@@ -10,7 +10,8 @@
     "worker": "node src/worker/emailWorker.js",
     "seed:web-plans": "node scripts/seed-web-plans.mjs",
     "seed:mobile-plans": "node scripts/seed-mobile-plans.mjs",
-    "test:subscription-pricing": "node scripts/test-subscription-pricing.mjs"
+    "test:subscription-pricing": "node scripts/test-subscription-pricing.mjs",
+    "db:drop-email-index": "node scripts/drop-email-index.mjs"
   },
   "author": "crop gen team",
   "license": "ISC",
