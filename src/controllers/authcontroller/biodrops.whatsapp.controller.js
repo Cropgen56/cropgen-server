@@ -24,8 +24,8 @@ function normalizeLanguage(lang) {
 
 function assertPhone(phone) {
   const v = String(phone || "").trim();
-  // Keep consistent with user.model (+10-12 digits after +). Most of your WA flow is +91.
-  if (!/^\+\d{10,12}$/.test(v)) {
+  // Keep consistent with E.164 (+ and up to 15 digits).
+  if (!/^\+\d{8,15}$/.test(v)) {
     const err = new Error("Phone must be in +<countrycode><number> format");
     err.status = 400;
     throw err;

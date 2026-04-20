@@ -19,11 +19,11 @@ export const loginWithPhone = async (req, res) => {
 
   try {
     // Validate phone format
-    const phoneRegex = /^\+91\d{10}$/;
+    const phoneRegex = /^\+\d{8,15}$/;
     if (!phone || !phoneRegex.test(phone)) {
       return res.status(400).json({
         success: false,
-        message: "Phone number must be in +91XXXXXXXXXX format",
+        message: "Phone number must be in +<countrycode><number> format",
         data: null,
       });
     }

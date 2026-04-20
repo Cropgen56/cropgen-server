@@ -17,7 +17,7 @@ export const cropydealsRegisterLogin = async (req, res) => {
       });
     }
 
-    if (!/^\+\d{10,12}$/.test(phone)) {
+    if (!/^\+\d{8,15}$/.test(phone)) {
       return res.status(400).json({ error: "Invalid phone number format" });
     }
 

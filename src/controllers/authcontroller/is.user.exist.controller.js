@@ -15,12 +15,12 @@ export const isUserExist = async (req, res) => {
       });
     }
 
-    // Check if phone starts with +91 and has 13 characters (+91 followed by 10 digits)
-    const phoneRegex = /^\+91\d{10}$/;
+    // E.164-like phone format (+ and 8-15 digits)
+    const phoneRegex = /^\+\d{8,15}$/;
     if (!phoneRegex.test(phone)) {
       return res.status(400).json({
         success: false,
-        message: "Phone number must be in +91XXXXXXXXXX format",
+        message: "Phone number must be in +<countrycode><number> format",
         data: null,
       });
     }

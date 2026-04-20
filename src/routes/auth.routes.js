@@ -45,6 +45,11 @@ const forceBiodropsBrand = (req, _res, next) => {
   next();
 };
 
+const forceLfpOrganization = (req, _res, next) => {
+  req.body = { ...(req.body || {}), organizationCode: "LFP" };
+  next();
+};
+
 router.get(
   "/users",
   isAuthenticated,
@@ -127,6 +132,12 @@ router.post(
   forceBiodropsBrand,
   biodropsResendWhatsappOtp,
 );
+
+// lfp app dedicated auth routes (separate API surface)
+router.post("/lfp/signup/check-user", forceLfpOrganization, checkUser);
+router.post("/lfp/whatsapp/otp", forceLfpOrganization, sendWhatsappOtp);
+router.post("/lfp/whatsapp/verify", forceLfpOrganization, verifyWhatsappOtp);
+router.post("/lfp/whatsapp/resend", forceLfpOrganization, resendWhatsappOtp);
 
 // request admin otp
 router.post("/admin-otp", requestAdminOtp);

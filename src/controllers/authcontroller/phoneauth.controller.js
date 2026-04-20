@@ -29,14 +29,14 @@ async function createUserByPhoneSafe(payload) {
 
 export const sendWhatsappOtp = async (req, res) => {
   try {
-    const { phone, language } = req.body;
+    const { phone, language, organizationCode } = req.body;
 
     /* -------- Phone validation -------- */
-    const phoneRegex = /^\+91\d{10}$/;
+    const phoneRegex = /^\+\d{8,15}$/;
     if (!phoneRegex.test(phone)) {
       return res.status(400).json({
         success: false,
-        message: "Phone must be in +91XXXXXXXXXX format",
+        message: "Phone must be in +<countrycode><number> format",
       });
     }
 
@@ -49,16 +49,19 @@ export const sendWhatsappOtp = async (req, res) => {
 
     /* -------- Find or create user -------- */
     let user = await User.findOne({ phone });
+    const requestedOrgCode = (organizationCode || "CROPGEN")
+      .trim()
+      .toUpperCase();
 
     if (!user) {
       const organization = await Organization.findOne({
-        organizationCode: "CROPGEN",
+        organizationCode: requestedOrgCode,
       });
 
       if (!organization) {
         return res.status(404).json({
           success: false,
-          message: "Default organization not found",
+          message: `Organization '${requestedOrgCode}' not found`,
         });
       }
 
@@ -242,11 +245,11 @@ export const resendWhatsappOtp = async (req, res) => {
   try {
     const { phone } = req.body;
 
-    const phoneRegex = /^\+91\d{10}$/;
+    const phoneRegex = /^\+\d{8,15}$/;
     if (!phoneRegex.test(phone)) {
       return res.status(400).json({
         success: false,
-        message: "Phone must be in +91XXXXXXXXXX format",
+        message: "Phone must be in +<countrycode><number> format",
       });
     }
 
