@@ -1,0 +1,459 @@
+{
+  "meta": {
+    "startedAt": "2026-04-18T05:47:32.756Z",
+    "farmFieldId": "69dcd01227d93497df72278a",
+    "geometryId": "cce81188-34f2-4e5f-a51d-d3d94632468d",
+    "language": "en",
+    "platform": "whatsapp",
+    "finishedAt": "2026-04-18T05:48:04.588Z"
+  },
+  "steps": [
+    {
+      "at": "2026-04-18T05:47:32.760Z",
+      "step": "load_field",
+      "service": "mongoose",
+      "apiOrFn": "FarmField.findById",
+      "inputs": {
+        "farmFieldId": "69dcd01227d93497df72278a"
+      },
+      "output": {
+        "cropName": "soybean",
+        "fieldName": "Karanji Farm",
+        "acre": 6.906817747595341,
+        "sowingDate": "2026-02-28",
+        "boundaryPointCount": 11
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:32.762Z",
+      "step": "build_geometry",
+      "service": "advisory/utils/shared/helpers",
+      "apiOrFn": "buildGeometryFromFarmField",
+      "inputs": {
+        "boundaryPointCount": 11
+      },
+      "calculated": "GeoJSON Polygon from field vertices (convex hull when applicable)",
+      "output": {
+        "type": "Polygon",
+        "exteriorRingPointCount": 7,
+        "firstCoord": [
+          77.88230379688436,
+          19.54740021933389
+        ]
+      },
+      "notes": "Polygon is sent to CropGen satellite APIs; Observearth uses geometryId separately"
+    },
+    {
+      "at": "2026-04-18T05:47:34.005Z",
+      "step": "fetch_weather",
+      "service": "observearth",
+      "apiOrFn": "GET /current + /forecast + /historical",
+      "inputs": {
+        "geometryId": "cce81188-34f2-4e5f-a51d-d3d94632468d",
+        "sowingDateISO": "2026-02-28",
+        "nowISO": "2026-04-18"
+      },
+      "rawResponseSummary": {
+        "currentTopKeys": [
+          "timezone",
+          "elevation",
+          "current",
+          "units"
+        ],
+        "forecastTopKeys": [
+          "current",
+          "forecast",
+          "units"
+        ],
+        "historicalTopKeys": [
+          "elevation",
+          "timezone",
+          "daily",
+          "units"
+        ]
+      },
+      "calculated": "Normalized weatherSummary (current + next7Days forecast slices)"
+    },
+    {
+      "at": "2026-04-18T05:47:34.005Z",
+      "step": "assemble_weather_summary",
+      "service": "advisory.service",
+      "apiOrFn": "weatherSummary",
+      "output": {
+        "current": {
+          "temp": 38.7,
+          "humidity": 25,
+          "rainfall": 0,
+          "windSpeed": 10.5,
+          "et0": 5.6,
+          "soilMoisture_5cm": 0.182,
+          "soilMoisture_15cm": 0.195
+        },
+        "next7DaysLengths": {
+          "dates": 7,
+          "rainfall": 7,
+          "et0": 7
+        }
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:34.005Z",
+      "step": "satellite_date_window",
+      "service": "advisory.service",
+      "apiOrFn": "limitSatelliteRange",
+      "inputs": {
+        "sowingDateISO": "2026-02-28",
+        "nowISO": "2026-04-18",
+        "maxDays": 90
+      },
+      "output": {
+        "start": "2026-02-28",
+        "end": "2026-04-18"
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:36.673Z",
+      "step": "vegetation_timeseries",
+      "service": "cropgen_satellite",
+      "apiOrFn": "POST /timeseries/vegetation/vegetation (NDVI)",
+      "inputs": {
+        "geometry": {
+          "type": "Polygon",
+          "exteriorRingPointCount": 7,
+          "firstCoord": [
+            77.88230379688436,
+            19.54740021933389
+          ]
+        },
+        "start_date": "2026-02-28",
+        "end_date": "2026-04-18",
+        "index": "ndvi",
+        "provider": "aws",
+        "satellite": "s2"
+      },
+      "rawResponseSummary": {
+        "seriesLength": 0,
+        "firstDates": [],
+        "lastDates": []
+      },
+      "calculated": "parseNDVIMetrics, getLatestVegetationTimeseriesDate",
+      "output": {
+        "ndvi": {
+          "ndviLatest": null,
+          "ndviMean": null,
+          "trend": 0,
+          "ndviTrend": 0,
+          "values": []
+        },
+        "latestVegDate": "2026-04-18"
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:37.742Z",
+      "step": "image_availability",
+      "service": "cropgen_satellite",
+      "apiOrFn": "POST /availability/",
+      "inputs": {
+        "geometry": {
+          "type": "Polygon",
+          "exteriorRingPointCount": 7,
+          "firstCoord": [
+            77.88230379688436,
+            19.54740021933389
+          ]
+        },
+        "start_date": "2026-02-28",
+        "end_date": "2026-04-18",
+        "provider": "sentinel",
+        "satellite": "s2"
+      },
+      "rawResponseSummary": {
+        "itemsCount": 12
+      },
+      "calculated": "pickLowCloudDate (prefer cloud<=20%, else min cloud)",
+      "output": {
+        "snapshotDate": "2026-04-15",
+        "latestVegDate": "2026-04-18"
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:53.068Z",
+      "step": "optical_index_snapshots",
+      "service": "cropgen_satellite",
+      "apiOrFn": "POST /calculate/index (per index)",
+      "inputs": {
+        "geometry": {
+          "type": "Polygon",
+          "exteriorRingPointCount": 7,
+          "firstCoord": [
+            77.88230379688436,
+            19.54740021933389
+          ]
+        },
+        "date": "2026-04-15",
+        "indexNames": [
+          "NDVI",
+          "EVI",
+          "EVI2",
+          "SAVI",
+          "MSAVI",
+          "NDMI",
+          "NDWI",
+          "SMI",
+          "CCC",
+          "NITROGEN",
+          "SOC",
+          "NDRE",
+          "RECI",
+          "TRUE_COLOR"
+        ]
+      },
+      "rawResponseSummary": {
+        "rowCount": 14,
+        "okCount": 13,
+        "failCount": 1
+      },
+      "calculated": "buildOpticalIndicesSummary (legend stats; no image_base64 in summary)",
+      "output": {
+        "snapshotDate": "2026-04-15",
+        "compositeVegetationScore": 50,
+        "successfulIndexCount": 12,
+        "vegetationIndexCount": 7,
+        "indexKeys": [
+          "NDVI",
+          "EVI",
+          "EVI2",
+          "SAVI",
+          "MSAVI",
+          "NDMI",
+          "NDWI",
+          "SMI",
+          "CCC",
+          "NITROGEN",
+          "SOC",
+          "NDRE",
+          "RECI",
+          "TRUE_COLOR"
+        ]
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:55.150Z",
+      "step": "water_timeseries",
+      "service": "cropgen_satellite",
+      "apiOrFn": "POST /timeseries/water/water (NDMI)",
+      "inputs": {
+        "geometry": {
+          "type": "Polygon",
+          "exteriorRingPointCount": 7,
+          "firstCoord": [
+            77.88230379688436,
+            19.54740021933389
+          ]
+        },
+        "start_date": "2026-02-28",
+        "end_date": "2026-04-18",
+        "index": "ndmi"
+      },
+      "rawResponseSummary": {
+        "seriesLength": 0,
+        "firstDates": [],
+        "lastDates": []
+      },
+      "calculated": "parseWaterMetrics",
+      "output": {
+        "waterLatest": null,
+        "waterMean": null
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:55.151Z",
+      "step": "gdd_crop_growth",
+      "service": "src/utils/cropgrowth/gddCalculator",
+      "apiOrFn": "calculateCumulativeGDD + getCropGrowthStage",
+      "inputs": {
+        "cropName": "soybean",
+        "baseTemp": 10
+      },
+      "rawResponseSummary": {
+        "gddSeriesLength": 50
+      },
+      "calculated": "cumulativeGDD, plantGrowthActivity (BBCH, progress, stage name)",
+      "output": {
+        "cumulativeGDD": 944.7,
+        "plantGrowthActivity": {
+          "bbchStage": 60,
+          "stageName": "Flowering",
+          "cumulativeGDD": 944.7,
+          "description": "Flower emergence",
+          "overallProgress": 47.2,
+          "stageProgress": 36.2
+        }
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:55.152Z",
+      "step": "npk_management",
+      "service": "src/utils/npk/npkCalculator",
+      "apiOrFn": "calculateNPKFromfarmField",
+      "inputs": {
+        "ndviLatest": null,
+        "waterLatest": null,
+        "language": "en"
+      },
+      "output": {
+        "topKeys": [
+          "available",
+          "required",
+          "hsi",
+          "recommendation"
+        ]
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:55.152Z",
+      "step": "crop_health",
+      "service": "src/utils/crophealth/cropHealth",
+      "apiOrFn": "calcCropHealth",
+      "output": {
+        "score": 0.61,
+        "percentage": 61,
+        "category": "Moderate"
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:55.153Z",
+      "step": "yield_estimate",
+      "service": "advisory/utils/yield/yieldCalculator",
+      "apiOrFn": "calculateYieldPrecise",
+      "calculated": "standard vs AI yield, gap, limiting factor",
+      "output": {
+        "standardYield": 69.88,
+        "aiYield": 32.67,
+        "unit": "quintal",
+        "explanation": "Standard = crop profile benchmark × farm area. AI adjusts using growth, health, temperature, water, and soil fertility.",
+        "yieldGap": {
+          "targetYield": 69.88,
+          "aiYield": 32.67,
+          "gap": 37.2,
+          "gapPercent": 53.2,
+          "unit": "quintal",
+          "limitingFactor": "Temperature stress",
+          "confidence": 74,
+          "recommendation": "Monitor weather; consider microclimate management (mulching, shade nets).",
+          "soilFertility": "medium",
+          "factorBreakdown": {
+            "growth": 0.89,
+            "health": 0.994,
+            "ndvi": 1,
+            "water": 0.9,
+            "temperature": 0.6,
+            "soil": 1
+          }
+        }
+      }
+    },
+    {
+      "at": "2026-04-18T05:47:55.155Z",
+      "step": "evidence_and_decision_hints",
+      "service": "advisory/utils/evidence/evidenceBuilder",
+      "apiOrFn": "buildEvidence + runDecisionEngine",
+      "calculated": "irrigationRequirement, fertilizerSchedule, stressZones, carbonData, decisionHints",
+      "output": {
+        "evidenceKeys": [
+          "cropType",
+          "cropGrowthStage",
+          "cropHealth",
+          "soilMoisture",
+          "irrigationType",
+          "weatherForecast",
+          "npkManagement",
+          "regionProfile",
+          "stressZones",
+          "irrigationRequirement",
+          "nutrientDeficit",
+          "fertilizerSchedule",
+          "carbonData",
+          "yieldGap",
+          "acre",
+          "variety",
+          "typeOfFarming",
+          "bbchStage",
+          "satelliteOpticalIndices",
+          "decisionHints",
+          "isHarvestStage"
+        ],
+        "decisionHintKeys": [
+          "spray",
+          "fertigation",
+          "pgr",
+          "irrigation",
+          "monitoring",
+          "harvestPlanning"
+        ],
+        "irrigationShouldIrrigate": true,
+        "carbonSummary": {
+          "emissionKgCO2": 0.7,
+          "capturedKgCO2": 11.1,
+          "netBalanceKgCO2": 10.4
+        }
+      }
+    },
+    {
+      "at": "2026-04-18T05:48:04.549Z",
+      "step": "llm_advisory",
+      "service": "openai",
+      "apiOrFn": "generateSmartAdvisory",
+      "inputs": {
+        "language": "en",
+        "evidenceKeyCount": 21
+      },
+      "output": {
+        "activityTypes": [
+          "SPRAY",
+          "FERTIGATION",
+          "IRRIGATION",
+          "WEATHER",
+          "CROP_RISK",
+          "MONITORING",
+          "CARBON_TRACKING"
+        ]
+      }
+    },
+    {
+      "at": "2026-04-18T05:48:04.570Z",
+      "step": "persist_advisory",
+      "service": "mongoose",
+      "apiOrFn": "FarmAdvisory.create",
+      "output": {
+        "advisoryId": "69e31b1419a43b48f6718a90",
+        "activitiesCount": 7
+      }
+    },
+    {
+      "at": "2026-04-18T05:48:04.584Z",
+      "step": "carbon_tracking",
+      "service": "carbonTracking.service",
+      "apiOrFn": "saveCarbonFromAdvisory",
+      "output": {
+        "saved": true
+      }
+    },
+    {
+      "at": "2026-04-18T05:48:04.588Z",
+      "step": "notification",
+      "service": "notificationCreator.service",
+      "apiOrFn": "createNotification",
+      "output": {
+        "templateName": "farm_advisory",
+        "referenceId": "69e31b1419a43b48f6718a90"
+      }
+    }
+  ],
+  "outcome": {
+    "status": "complete",
+    "advisoryId": "69e31b1419a43b48f6718a90",
+    "notified": true
+  },
+  "error": null
+}

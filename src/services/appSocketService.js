@@ -2,7 +2,7 @@ import { createAppAgent } from "../agent/index.js";
 import { getAgentOrgProfile } from "../agent/systemPrompts.js";
 import User from "../models/user.model.js";
 import FarmField from "../models/field.model.js";
-import FarmAdvisory from "../models/farmadvisory.model.js";
+import FarmAdvisory from "../features/advisory/models/farmAdvisory.model.js";
 import AppUserChat from "../models/AppUserChat.js";
 import { formatAcresTwoDecimals } from "../utils/formatAcres.js";
 

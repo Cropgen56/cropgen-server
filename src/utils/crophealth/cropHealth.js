@@ -288,6 +288,7 @@ export function calcCropHealth({
   npkManagement,
   farmField,
   language = "en",
+  opticalIndicesSummary = null,
 }) {
   const cropKey = normalizeCropName(farmField?.cropName);
   const cropCategory = CROP_CATEGORY_MAP[cropKey] || "vegetable";
@@ -311,8 +312,13 @@ export function calcCropHealth({
   const nutrientS = nutrientScore(npkManagement);
 
   /* ---------- Weighted Health ---------- */
-  const percentage =
+  let percentage =
     ndviS * 0.35 + waterS * 0.25 + weatherS * 0.2 + nutrientS * 0.2;
+
+  const compositeOptical = opticalIndicesSummary?.compositeVegetationScore;
+  if (Number.isFinite(compositeOptical)) {
+    percentage = percentage * 0.82 + compositeOptical * 0.18;
+  }
 
   const rounded = Math.round(percentage);
   const category = getHealthCategory(rounded);

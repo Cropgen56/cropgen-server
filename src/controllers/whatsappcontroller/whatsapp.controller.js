@@ -1,4 +1,4 @@
-import FarmAdviosryModel from "../../models/farmadvisory.model.js";
+import FarmAdviosryModel from "../../features/advisory/models/farmAdvisory.model.js";
 import WhatsAppMessage from "../../models/whatsappmessage.model.js"
 import { sendCustomWhatsAppMessage } from "../../services/whatsappService.js"
 import { formatFarmAdvisoryMessage , formatFarmAdvisoryMessageHindi} from "../../utils/whatsapp.utils.js";

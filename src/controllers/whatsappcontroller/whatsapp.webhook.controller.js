@@ -1,5 +1,5 @@
 import User from "../../models/user.model.js";
-import FarmAdvisory from "../../models/farmadvisory.model.js";
+import FarmAdvisory from "../../features/advisory/models/farmAdvisory.model.js";
 import WhatsAppMessage from "../../models/whatsappmessage.model.js";
 import { sendWhatsAppReply } from "../../services/whatsappService.js";
 

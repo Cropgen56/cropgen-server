@@ -19,7 +19,7 @@ import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
 import emailRoutes from "./src/routes/email.routes.js";
 // Smart advisory routes
-import advisoryRoutes from "./src/routes/advisory.routes.js";
+import advisoryRoutes from "./src/features/advisory/routes/advisory.routes.js";
 import carbonRoutes from "./src/routes/carbon.routes.js";
 
 // Agent chat routes
@@ -35,7 +35,7 @@ import { handleRazorpayWebhook } from "./src/controllers/subscriptioncontroller/
 import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
 import { startNotificationWorker } from "./src/worker/notification.worker.js";
 import { startWelcomeFarmReminderWorker } from "./src/worker/welcomeFarm.worker.js";
-import { runAdvisoryJob } from "./src/worker/advisory.worker.js";
+import { runAdvisoryJob } from "./src/features/advisory/workers/advisory.worker.js";
 
 // Agent socket
 import { setupSocket } from "./src/socket/setupSocket.js";
