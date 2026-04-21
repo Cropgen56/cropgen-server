@@ -4,6 +4,7 @@ import User from "../models/user.model.js";
 import UserSubscription from "../models/usersubscription.model.js";
 import { generateAdvisoryForField } from "../services/advisory.services.js";
 import { resolveAOIForFarm } from "../utils/weather/weather.utils.js";
+import MonitoringRequest from "../models/monitoringrequest.model.js";
 
 // Add a new farm field for a particular user
 export const addField = async (req, res) => {
@@ -405,6 +406,136 @@ export const updateField = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error occurred while updating the farm field.",
+      error: error.message,
+    });
+  }
+};
+
+// Request monitoring for LFP app (sends WhatsApp alert to ops number)
+export const requestFieldMonitoring = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { fieldId, clientApp } = req.body || {};
+    if (clientApp !== "lfp-app") {
+      return res.status(403).json({
+        success: false,
+        message: "This endpoint is only available for LFP app",
+      });
+    }
+
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user id",
+      });
+    }
+
+    if (!fieldId || !mongoose.Types.ObjectId.isValid(fieldId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid fieldId is required",
+      });
+    }
+
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const allFields = await FarmField.find({ user: userId }).lean();
+    const selectedField = allFields.find((f) => String(f._id) === String(fieldId));
+
+    if (!selectedField) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Selected farm field not found" });
+    }
+
+    const farmerName =
+      [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || "Unknown";
+    const farmerPhone = user.phone || "";
+    const farmerEmail = user.email || "";
+
+    const toFarmStatus = (farm) => (farm?.isBarrenLand ? "barren" : "crop_in_field");
+
+    const monitoringRequest = await MonitoringRequest.create({
+      userId,
+      fieldId,
+      clientApp: "lfp-app",
+      requestStatus: "pending",
+      requestedFieldSnapshot: {
+        fieldName: selectedField.fieldName || "",
+        cropName: selectedField.cropName || "",
+        variety: selectedField.variety || "",
+        acre: Number(selectedField.acre || 0),
+        typeOfIrrigation: selectedField.typeOfIrrigation || "",
+        typeOfFarming: selectedField.typeOfFarming || "",
+        sowingDate: selectedField.sowingDate || "",
+        isBarrenLand: Boolean(selectedField.isBarrenLand),
+        farmStatus: toFarmStatus(selectedField),
+      },
+      allFarmsSnapshot: allFields.map((farm) => ({
+        fieldId: farm._id,
+        fieldName: farm.fieldName || "",
+        cropName: farm.cropName || "",
+        acre: Number(farm.acre || 0),
+        sowingDate: farm.sowingDate || "",
+        isBarrenLand: Boolean(farm.isBarrenLand),
+        farmStatus: toFarmStatus(farm),
+      })),
+      farmerSnapshot: {
+        name: farmerName,
+        phone: farmerPhone,
+        email: farmerEmail,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Monitoring request submitted successfully",
+      data: {
+        userId,
+        fieldId,
+        requestId: monitoringRequest._id,
+        requestStatus: monitoringRequest.requestStatus,
+      },
+    });
+  } catch (error) {
+    console.error("Error requesting monitoring:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while requesting monitoring",
+      error: error.message,
+    });
+  }
+};
+
+export const getMonitoringRequests = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user id",
+      });
+    }
+
+    const requests = await MonitoringRequest.find({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      message: "Monitoring requests fetched successfully",
+      requests,
+    });
+  } catch (error) {
+    console.error("Error fetching monitoring requests:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching monitoring requests",
       error: error.message,
     });
   }
