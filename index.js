@@ -53,25 +53,43 @@ process.on("uncaughtException", (err) => {
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 7070;
+const NODE_ENV = (process.env.NODE_ENV || "development").toLowerCase();
+const isProduction = NODE_ENV === "production";
+const allowLocalOriginsInProd =
+  String(process.env.CORS_ALLOW_LOCALHOST_IN_PROD || "").toLowerCase() ===
+  "true";
 
 const envAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-const allowedOrigins = [
+const defaultProductionOrigins = [
   "https://admin.cropgenapp.com",
   "https://www.cropgenapp.com",
   "https://app.cropgenapp.com",
   "https://cropydeals.cropgenapp.com",
   "https://test.cropgenapp.com",
   "https://biodrops.cropgenapp.com",
+  "https://satagro.ai",
+  "https://app.satagro.ai",
+  "https://www.app.satagro.ai",
+  "https://www.satagro.ai",
+];
+
+const defaultDevelopmentOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:5173",
   "http://10.0.2.2:7070",
   "http://localhost:5176",
-  "https://satagro.ai",
+];
+
+const allowedOrigins = [
+  ...defaultProductionOrigins,
+  ...(isProduction && !allowLocalOriginsInProd
+    ? []
+    : defaultDevelopmentOrigins),
   ...envAllowedOrigins,
 ].filter(Boolean);
 
@@ -92,6 +110,9 @@ function isTrustedCropgenOrigin(origin) {
       u.protocol === "http:" &&
       (host === "localhost" || host === "127.0.0.1" || host === "10.0.2.2")
     ) {
+      if (isProduction && !allowLocalOriginsInProd) {
+        return false;
+      }
       return true;
     }
   } catch {
