@@ -1,4 +1,4 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatOpenAI } from "@langchain/openai";
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -90,16 +90,18 @@ function trimStoredHistory(chatHistory) {
 }
 
 function buildChain(systemPrompt) {
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey = String(process.env.OPENAI_API_KEY ?? "").trim();
   if (!apiKey) return null;
 
-  const envTemp = process.env.GOOGLE_TEMPERATURE;
-  const envMaxOut = process.env.GOOGLE_MAX_OUTPUT_TOKENS;
+  const envTemp = process.env.OPENAI_AGENT_TEMPERATURE ?? process.env.OPENAI_TEMPERATURE;
+  const envMaxOut =
+    process.env.OPENAI_AGENT_MAX_TOKENS ?? process.env.OPENAI_MAX_TOKENS;
+  const model = process.env.OPENAI_AGENT_MODEL || "gpt-4o-mini";
 
-  const chatModel = new ChatGoogleGenerativeAI({
-    model: process.env.GOOGLE_MODEL || "gemini-2.5-flash",
+  const chatModel = new ChatOpenAI({
+    model,
     temperature: envTemp !== undefined && envTemp !== "" ? Number(envTemp) : 0.42,
-    maxOutputTokens: envMaxOut !== undefined && envMaxOut !== "" ? Number(envMaxOut) : 1024,
+    maxTokens: envMaxOut !== undefined && envMaxOut !== "" ? Number(envMaxOut) : 1024,
     topP: 0.9,
     maxRetries: 2,
     streaming: false,

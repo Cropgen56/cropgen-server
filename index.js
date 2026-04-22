@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
 import { connectToDatabase } from "./src/config/db.js";
 // Core routes
 import authRoutes from "./src/routes/auth.routes.js";
@@ -40,6 +42,9 @@ import { runAdvisoryJob } from "./src/worker/advisory.worker.js";
 // Agent socket
 import { setupSocket } from "./src/socket/setupSocket.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
 
 // Log crashes that often surface in production as nginx 502 (upstream connection refused / reset)
@@ -52,6 +57,8 @@ process.on("uncaughtException", (err) => {
 });
 
 const app = express();
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 const PORT = process.env.PORT ? Number(process.env.PORT) : 7070;
 const NODE_ENV = (process.env.NODE_ENV || "development").toLowerCase();
 const isProduction = NODE_ENV === "production";
@@ -208,6 +215,16 @@ app.use("/v3/api/chats", chatRoutes);
 app.get("/health", (req, res) => {
   return res.status(200).json({ status: true, message: "Server is running" });
 });
+
+const agentTestPageEnabled =
+  !isProduction ||
+  String(process.env.ENABLE_AGENT_TEST_PAGE || "").toLowerCase() === "true";
+
+if (agentTestPageEnabled) {
+  app.get("/dev/agent-test", (req, res) => {
+    res.render("agent-test", { socketPath: "/v3/socket.io" });
+  });
+}
 
 // 404 — ensures JSON + CORS headers still apply for unknown paths (avoids opaque "no CORS" in DevTools)
 app.use((req, res) => {

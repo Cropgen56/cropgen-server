@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent chat</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
+    <style>
+      :root {
+        font-family: system-ui, sans-serif;
+        color: #1a1a1a;
+        line-height: 1.45;
+      }
+      body {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 1rem;
+      }
+      h1 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        margin: 0 0 0.35rem;
+      }
+      .sub {
+        font-size: 0.8rem;
+        color: #555;
+        margin: 0 0 1rem;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+      }
+      button,
+      input[type="text"] {
+        font: inherit;
+        padding: 0.4rem 0.65rem;
+      }
+      button {
+        cursor: pointer;
+      }
+      #status {
+        color: #c00;
+      }
+      #status.ok {
+        color: #080;
+      }
+      #log {
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        min-height: 16rem;
+        max-height: 55vh;
+        overflow: auto;
+        padding: 0.75rem;
+        background: #f8f8f8;
+        margin-bottom: 0.75rem;
+        font-size: 0.9rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .you {
+        color: #0a7;
+      }
+      .ai {
+        color: #14c;
+      }
+      .sys {
+        color: #666;
+        font-size: 0.85rem;
+      }
+      #compose {
+        display: flex;
+        gap: 0.5rem;
+      }
+      #compose input {
+        flex: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Agent chat</h1>
+    <p class="sub">Reply to the prompts first; then you can ask anything about farming.</p>
+
+    <div class="toolbar">
+      <span id="status">Connecting…</span>
+      <button type="button" id="btnReconnect" hidden>Reconnect</button>
+      <button type="button" id="btnReset">Start over</button>
+    </div>
+
+    <div id="log" aria-live="polite"></div>
+
+    <div id="compose">
+      <input type="text" id="input" placeholder="Type a message…" autocomplete="off" />
+      <button type="button" id="btnSend">Send</button>
+    </div>
+
+    <script>
+      const SOCKET_PATH = "<%= socketPath %>";
+      const logEl = document.getElementById("log");
+      const statusEl = document.getElementById("status");
+      const inputEl = document.getElementById("input");
+      const btnSend = document.getElementById("btnSend");
+      const btnReconnect = document.getElementById("btnReconnect");
+      const btnReset = document.getElementById("btnReset");
+
+      let socket = null;
+
+      function setReady(connected) {
+        statusEl.textContent = connected ? "Connected" : "Disconnected";
+        statusEl.className = connected ? "ok" : "";
+        btnSend.disabled = !connected;
+        btnReconnect.hidden = connected;
+        if (connected) inputEl.focus();
+      }
+
+      function append(cls, prefix, text) {
+        const div = document.createElement("div");
+        div.className = cls;
+        div.textContent = prefix + text;
+        logEl.appendChild(div);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function connect() {
+        if (socket) {
+          socket.removeAllListeners();
+          socket.disconnect();
+        }
+        statusEl.textContent = "Connecting…";
+        statusEl.className = "";
+        btnSend.disabled = true;
+
+        socket = io("/public", {
+          path: SOCKET_PATH,
+          transports: ["websocket", "polling"],
+        });
+
+        socket.on("connect", () => setReady(true));
+
+        socket.on("connect_error", (err) => {
+          append("sys", "", "Could not connect: " + (err && err.message ? err.message : String(err)));
+          setReady(false);
+        });
+
+        socket.on("disconnect", () => {
+          append("sys", "", "Disconnected.");
+          setReady(false);
+        });
+
+        socket.on("ai_response", (text) => {
+          append("ai", "", String(text));
+        });
+      }
+
+      function send() {
+        const text = inputEl.value.trim();
+        if (!text || !socket || !socket.connected) return;
+        append("you", "You: ", text);
+        socket.emit("user_message", text);
+        inputEl.value = "";
+      }
+
+      btnSend.addEventListener("click", send);
+      inputEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") send();
+      });
+      btnReconnect.addEventListener("click", connect);
+      btnReset.addEventListener("click", () => {
+        if (socket && socket.connected) socket.emit("reset_conversation");
+      });
+
+      connect();
+    </script>
+  </body>
+</html>
