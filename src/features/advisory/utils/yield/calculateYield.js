@@ -6,7 +6,7 @@ const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const normalizeCropName = (name) =>
   name?.toLowerCase().replace(/[^a-z]/g, "");
 
-/** NPK model: available ≈ required × stress factors — ratio reflects fulfillment vs stage need (not “more N required = worse”). */
+/** NPK model: available ~= required x stress factors - ratio reflects fulfillment vs stage need (not "more N required = worse"). */
 function nutrientBalanceFactor(npkManagement) {
   const req = npkManagement?.required;
   if (!req) return 1;
@@ -40,10 +40,10 @@ const NDVI_CATEGORY_RANGES = {
 /* ---------- Explanation i18n ---------- */
 function getYieldExplanation(language = "en") {
   if (language === "mr")
-    return "मानक: पिक प्रोफाइलनुसार हेक्टर दर × शेत क्षेत्र. AI: वाढ, आरोग्य, हिरवळ, पाणी, पोषक तत्वे नुसार दुरुस्ती.";
+    return "मानक: पिक प्रोफाइलनुसार हेक्टर दर x शेत क्षेत्र. AI: वाढ, आरोग्य, हिरवळ, पाणी, पोषक तत्वे नुसार दुरुस्ती.";
   if (language === "hi")
-    return "मानक: फसल प्रोफ़ाइल के अनुसार प्रति हेक्टर × खेत क्षेत्र। AI: वृद्धि, स्वास्थ्य, हरियाली, पानी, पोषक तत्वों से समायोजन।";
-  return "Standard yield = crop profile benchmark (per hectare) × farm area. AI yield adjusts that using growth, health, greenness, water, and nutrients.";
+    return "मानक: फसल प्रोफाइल के अनुसार प्रति हेक्टेयर x खेत क्षेत्र। AI: वृद्धि, स्वास्थ्य, हरियाली, पानी, पोषक तत्वों से समायोजन।";
+  return "Standard yield = crop profile benchmark (per hectare) x farm area. AI yield adjusts that using growth, health, greenness, water, and nutrients.";
 }
 
 /* ---------- MAIN ---------- */
@@ -90,10 +90,10 @@ export function calculateYield({
   /* ---------- 5. Nutrition: use estimated fulfillment (available vs required), not raw requirement size ---------- */
   const nutrientFactor = nutrientBalanceFactor(npkManagement);
 
-  /* ---------- 6. Standard yield: profile benchmark × farm area only (hectares) ---------- */
+  /* ---------- 6. Standard yield: profile benchmark x farm area only (hectares) ---------- */
   const standardYield = profile.baseYieldPerHa * areaHa;
 
-  /* ---------- 7. AI yield: standard × field signals + narrow confidence band ---------- */
+  /* ---------- 7. AI yield: standard x field signals + narrow confidence band ---------- */
   const fieldFactor =
     growthFactor * healthFactor * ndviFactor * waterFactor * nutrientFactor;
 

@@ -54,9 +54,11 @@ export function calculateIrrigationRequirement({
   soilType = "loamy",
   soilMoisturePercent = 50,
   rainfallForecast7d = 0,
+  rainfallForecast3d = 0,
   rainfallNext24h = 0,
   irrigationType = "drip",
   areaAcre = 1,
+  hasObservedSoilMoisture = true,
 } = {}) {
   const phase = bbchToPhase(bbchStage);
   const kcTable = KC_MAP[cropCategory] || KC_MAP.default;
@@ -70,9 +72,10 @@ export function calculateIrrigationRequirement({
 
   const demandDays = 3;
   const grossCropDemand_mm = cropET * demandDays;
+  const rainfallOffset3d = Math.min(rainfallForecast3d ?? 0, grossCropDemand_mm);
   const netIrr_mm = Math.max(
     0,
-    Math.max(grossCropDemand_mm - (rainfallForecast7d ?? 0), soilDeficit_mm) -
+    Math.max(grossCropDemand_mm - rainfallOffset3d, soilDeficit_mm) -
       allowableDepletion_mm * 0.2,
   );
 
@@ -89,11 +92,14 @@ export function calculateIrrigationRequirement({
   const HECTARE_DISCHARGE_LMIN = itype === "drip" ? 250 : itype === "sprinkler" ? 400 : 600;
   const totalDischarge_lmin = Math.round(HECTARE_DISCHARGE_LMIN * areaHa);
   const totalWater_m3 = Math.round(grossIrr_mm * areaHa * 10);
-  const shouldIrrigate = grossIrr_mm > 2 && (rainfallNext24h ?? 0) < 10;
+  const shouldIrrigate = hasObservedSoilMoisture && grossIrr_mm > 2 && (rainfallNext24h ?? 0) < 10;
   const criticality = computeIrrigationUrgency(soilMoisturePercent, et0, rainfallNext24h);
 
   let recommendation;
-  if (!shouldIrrigate) {
+  if (!hasObservedSoilMoisture) {
+    recommendation =
+      "Soil moisture sensor/readings unavailable. Measure field moisture before scheduling irrigation duration.";
+  } else if (!shouldIrrigate) {
     recommendation =
       (rainfallNext24h ?? 0) >= 10
         ? "Rain expected (>10 mm). Skip irrigation today."
@@ -120,12 +126,13 @@ export function calculateIrrigationRequirement({
     phase,
     soilMoisturePercent: Math.round(soilMoisturePercent),
     soilDeficit_mm: Math.round(soilDeficit_mm),
-    rainfallOffset_mm: Math.round(rainfallForecast7d ?? 0),
+    rainfallOffset_mm: Math.round(rainfallOffset3d),
     recommendation,
     needsIrrigation: shouldIrrigate,
     amountHours: durationHours,
     amountMinutes: durationMinutes,
     reason: recommendation,
+    dataConfidence: hasObservedSoilMoisture ? "high" : "low",
     soilMoistureLevel:
       soilMoisturePercent < 35 ? "low" : soilMoisturePercent > 70 ? "high" : "adequate",
   };

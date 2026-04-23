@@ -117,6 +117,7 @@ export function buildEvidence({
     weatherSummary?.current?.soilMoisture_5cm ??
     null;
 
+  const hasObservedSoilMoisture = soilMoistureRaw != null && Number.isFinite(soilMoistureRaw);
   const soilMoisturePercent = soilMoistureToPercent(soilMoistureRaw);
 
   const rainfallNext24h = Array.isArray(weatherSummary?.next7Days?.rainfall)
@@ -124,6 +125,9 @@ export function buildEvidence({
     : 0;
   const rainfallForecast7d = Array.isArray(weatherSummary?.next7Days?.rainfall)
     ? weatherSummary.next7Days.rainfall.reduce((s, v) => s + (v || 0), 0)
+    : 0;
+  const rainfallForecast3d = Array.isArray(weatherSummary?.next7Days?.rainfall)
+    ? weatherSummary.next7Days.rainfall.slice(0, 3).reduce((s, v) => s + (v || 0), 0)
     : 0;
   const et0Today = Array.isArray(weatherSummary?.next7Days?.et0)
     ? (weatherSummary.next7Days.et0[0] ?? weatherSummary?.current?.et0 ?? 4)
@@ -140,14 +144,17 @@ export function buildEvidence({
     soilType: "loamy",
     soilMoisturePercent,
     rainfallForecast7d,
+    rainfallForecast3d,
     rainfallNext24h,
     irrigationType: farmField?.typeOfIrrigation,
     areaAcre: farmField?.acre ?? 1,
+    hasObservedSoilMoisture,
   });
 
   const soilMoistureInfo = {
     rawVolumetric: soilMoistureRaw,
     currentPercent: soilMoisturePercent,
+    observed: hasObservedSoilMoisture,
     thresholdPermanentWilting: 20,
     thresholdFieldCapacity: 80,
     status:
@@ -200,6 +207,8 @@ export function buildEvidence({
       current: weatherSummary?.current,
       next7Days: weatherSummary?.next7Days,
       rainProbabilityToday: rainfallNext24h > 0 ? "likely" : "low",
+      rainfallForecast3d,
+      rainfallForecast7d,
       windSpeedToday:
         weatherSummary?.next7Days?.windSpeed?.[0] ?? weatherSummary?.current?.windSpeed,
     },
@@ -220,6 +229,10 @@ export function buildEvidence({
     typeOfFarming: farmField?.typeOfFarming ?? "Integrated",
     bbchStage,
     satelliteOpticalIndices: opticalIndicesSummary,
+    dataQuality: {
+      hasObservedSoilMoisture,
+      irrigationConfidence: irrigationRequirement?.dataConfidence || "high",
+    },
   };
 
   const decisionHints = runDecisionEngine(rawEvidence, isHarvestStage);

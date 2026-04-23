@@ -16,12 +16,45 @@ export function getFertigationDecision(evidence) {
   const irrigationType = evidence?.irrigationType ?? "";
   const isDrip = irrigationType?.toLowerCase?.().includes("drip");
   const acre = evidence?.acre ?? 1;
+  const bbchStage = evidence?.bbchStage ?? 0;
+  const currentApplication = evidence?.fertilizerSchedule?.currentApplication ?? null;
 
   const nDeficit = nutrientDeficit.nitrogenKgPerHa ?? 0;
   const pDeficit = nutrientDeficit.phosphorousKgPerHa ?? 0;
   const kDeficit = nutrientDeficit.potassiumKgPerHa ?? 0;
   const totalDeficit = nDeficit + pDeficit + kDeficit;
   const typeOfFarming = normalizeTypeOfFarming(evidence?.typeOfFarming);
+  const hasNutrientData = evidence?.npkManagement?.required && evidence?.npkManagement?.available;
+
+  if (!hasNutrientData) {
+    return {
+      shouldFertigate: false,
+      reason: "NPK baseline missing. Check soil/fertilizer records before fertigation.",
+      products: [],
+      hint: {
+        fertilizer: "",
+        quantity: "",
+        method: isDrip ? "Drip fertigation after validation" : "Broadcast with irrigation after validation",
+        time: "After nutrient verification",
+        nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
+      },
+    };
+  }
+
+  if (!currentApplication) {
+    return {
+      shouldFertigate: false,
+      reason: "No fertigation window for current BBCH stage.",
+      products: [],
+      hint: {
+        fertilizer: "",
+        quantity: "",
+        method: isDrip ? "Drip fertigation" : "Broadcast with irrigation",
+        time: `Current BBCH stage ${bbchStage}. Follow next scheduled stage.`,
+        nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
+      },
+    };
+  }
 
   if (totalDeficit <= 0) {
     return {
@@ -48,7 +81,7 @@ export function getFertigationDecision(evidence) {
         fertilizer: "Vermicompost",
         quantity: `~${kgPerHaToKgPerAcre(vcKgPerHa)} kg/acre (≈${totalKgForFarmFromKgPerHa(vcKgPerHa, acre)} kg total)`,
         method: isDrip ? "Soil drench or drip application" : "Top-dress with irrigation",
-        time: "Morning irrigation preferred (before 10 AM)",
+        time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning irrigation preferred (before 10 AM)`,
         nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
       },
     };
@@ -72,7 +105,7 @@ export function getFertigationDecision(evidence) {
       fertilizer: "NPK 19:19:19",
       quantity: `~${kgPerHaToKgPerAcre(npkDoseKgPerHa)} kg/acre (≈${totalKgForFarmFromKgPerHa(npkDoseKgPerHa, acre)} kg total)`,
       method: isDrip ? "Apply through drip system" : "Broadcast with irrigation",
-      time: "Morning (6–10 AM)",
+      time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning (6-10 AM)`,
       nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
       farmerSteps: [
         "Apply in split doses",

@@ -10,7 +10,7 @@ const REQUIRED_TYPES = [
   "CARBON_TRACKING",
 ];
 
-const WHATSAPP_MAX = 155;
+const WHATSAPP_MAX = 220;
 
 function truncate(text, max = WHATSAPP_MAX) {
   if (!text || typeof text !== "string") return text || "";
@@ -60,8 +60,18 @@ function buildIrrigationActivity(evidence, language) {
     message: truncate(message),
     details: {
       quantity: req.waterRequirement_mm ? `${req.waterRequirement_mm} mm` : "—",
-      method: req.durationHours != null ? `~${req.durationHours} hrs` : "—",
+      method: shouldIrrigate
+        ? isOpen
+          ? req.durationHours != null
+            ? `~${req.durationHours} hrs`
+            : "Open/Flood irrigation"
+          : req.durationMinutes != null
+            ? `~${req.durationMinutes} min`
+            : "Drip/Sprinkler irrigation"
+        : "No irrigation today",
       time: "Morning (6–10 AM)",
+      frequency: req.frequencyDays ? `Every ${req.frequencyDays} days` : "—",
+      confidence: req.dataConfidence || "high",
     },
   };
 }

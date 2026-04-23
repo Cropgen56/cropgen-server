@@ -1,4 +1,4 @@
-import { CROP_YIELD_PROFILE } from "../../../../utils/cropyield/cropYieldProfile.js";
+import { CROP_YIELD_PROFILE } from "./cropYieldProfile.js";
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -19,11 +19,31 @@ function computeTemperatureStress(tMin, tMax, cropCategory) {
   const effectiveMax = tMax ?? range.max;
 
   const coldPenalty =
-    effectiveMin < range.min ? clamp(1 - (range.min - effectiveMin) / 10, 0.6, 1) : 1;
+    effectiveMin < range.min ? clamp(1 - (range.min - effectiveMin) / 18, 0.75, 1) : 1;
   const heatPenalty =
-    effectiveMax > range.max ? clamp(1 - (effectiveMax - range.max) / 10, 0.6, 1) : 1;
+    effectiveMax > range.max ? clamp(1 - (effectiveMax - range.max) / 18, 0.75, 1) : 1;
 
   return Number((coldPenalty * heatPenalty).toFixed(3));
+}
+
+function normalizeCurrentTemp(currentTemp) {
+  if (typeof currentTemp === "number") {
+    return { min: currentTemp, max: currentTemp };
+  }
+  if (currentTemp && typeof currentTemp === "object") {
+    const min = Number.isFinite(currentTemp.min) ? currentTemp.min : null;
+    const max = Number.isFinite(currentTemp.max) ? currentTemp.max : null;
+    const val = Number.isFinite(currentTemp.value)
+      ? currentTemp.value
+      : Number.isFinite(currentTemp.mean)
+        ? currentTemp.mean
+        : null;
+    return {
+      min: min ?? val,
+      max: max ?? val,
+    };
+  }
+  return { min: null, max: null };
 }
 
 function inferSoilFertility(npkManagement) {
@@ -109,7 +129,7 @@ export function calculateYieldPrecise({
   const profile = CROP_YIELD_PROFILE[cropKey] ?? CROP_YIELD_PROFILE.default ?? { baseYieldPerHa: 40, unit: "quintal", category: "default" };
   const category = profile.category || "default";
 
-  const areaHa = (farmField.acre || 1) / 2.471;
+  const areaHa = Number(farmField?.acre || 0) / 2.471;
   const progress = (plantGrowthActivity?.overallProgress ?? 0) / 100;
   const growthFactor = clamp(0.65 + 0.35 * Math.sqrt(Math.max(progress, 0.02)), 0.65, 1.0);
   const healthScore = cropHealth?.score ?? 0.7;
@@ -117,8 +137,9 @@ export function calculateYieldPrecise({
   const ndviFactor = computeNdviFactor(ndvi?.ndviLatest, category);
   const waterFactor = computeWaterStressFactor(water?.waterLatest);
 
-  const tMin = weatherSummary?.current?.temp?.min ?? weatherSummary?.next7Days?.tempMin?.[0] ?? null;
-  const tMax = weatherSummary?.current?.temp?.max ?? weatherSummary?.next7Days?.tempMax?.[0] ?? null;
+  const currentTemp = normalizeCurrentTemp(weatherSummary?.current?.temp);
+  const tMin = currentTemp.min ?? weatherSummary?.next7Days?.tempMin?.[0] ?? null;
+  const tMax = currentTemp.max ?? weatherSummary?.next7Days?.tempMax?.[0] ?? null;
   const tempFactor = computeTemperatureStress(tMin, tMax, category);
 
   const soilFertility = inferSoilFertility(npkManagement);
