@@ -1,5 +1,5 @@
 import { sendBasicEmail } from "../config/sesClient.js";
-import { advisoryEmailTemplateFromNotification } from "../templates/advisoryEmail.template.js";
+import { advisoryEmailTemplateFromNotification } from "../features/advisory/templates/advisoryEmail.template.js";
 import { planActivationEmailTemplate } from "../templates/planActivationEmail.template.js";
 import { planExpiryReminderEmailTemplate } from "../templates/planExpiryReminderEmail.template.js";
 import { welcomeFarmEmailTemplate } from "../templates/welcomeFarmEmail.template.js";

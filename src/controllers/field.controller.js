@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import FarmField from "../models/field.model.js";
 import User from "../models/user.model.js";
 import UserSubscription from "../models/usersubscription.model.js";
-import { generateAdvisoryForField } from "../services/advisory.services.js";
+import { generateAdvisoryForField } from "../features/advisory/services/advisory.service.js";
 import { resolveAOIForFarm } from "../utils/weather/weather.utils.js";
 import MonitoringRequest from "../models/monitoringrequest.model.js";
 
