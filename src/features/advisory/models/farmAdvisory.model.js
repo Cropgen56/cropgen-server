@@ -25,11 +25,8 @@ const ActivitySchema = new Schema(
       required: true,
     },
     details: {
-      chemical: String,
-      fertilizer: String,
-      quantity: String,
-      method: String,
-      time: String,
+      type: Schema.Types.Mixed,
+      default: {},
     },
   },
   { _id: false },

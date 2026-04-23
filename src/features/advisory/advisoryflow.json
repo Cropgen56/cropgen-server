@@ -1,15 +1,15 @@
 {
   "meta": {
-    "startedAt": "2026-04-23T07:17:15.800Z",
+    "startedAt": "2026-04-23T08:01:00.017Z",
     "farmFieldId": "69e9c34153ef5e227ea12924",
     "geometryId": "eccf2a84-a9ac-4ec1-95cd-f369f90fde08",
     "language": "en",
     "platform": "whatsapp",
-    "finishedAt": "2026-04-23T07:17:42.911Z"
+    "finishedAt": "2026-04-23T08:01:39.509Z"
   },
   "steps": [
     {
-      "at": "2026-04-23T07:17:15.804Z",
+      "at": "2026-04-23T08:01:00.022Z",
       "step": "load_field",
       "service": "mongoose",
       "apiOrFn": "FarmField.findById",
@@ -62,7 +62,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:15.806Z",
+      "at": "2026-04-23T08:01:00.024Z",
       "step": "build_geometry",
       "service": "advisory/utils/shared/helpers",
       "apiOrFn": "buildGeometryFromFarmField",
@@ -108,7 +108,7 @@
       "notes": "Polygon is sent to CropGen satellite APIs; Observearth uses geometryId separately"
     },
     {
-      "at": "2026-04-23T07:17:18.185Z",
+      "at": "2026-04-23T08:01:02.337Z",
       "step": "fetch_weather",
       "service": "observearth",
       "apiOrFn": "GET /current + /forecast + /historical",
@@ -141,29 +141,29 @@
           "timezone": "GMT",
           "elevation": 249,
           "current": {
-            "time": "2026-04-23T07:15",
+            "time": "2026-04-23T08:00",
             "interval": 900,
-            "apparent_temperature": 40.3,
+            "apparent_temperature": 40.7,
             "precipitation": 0,
             "rain": 0,
             "cloud_cover": 100,
-            "surface_pressure": 979.1,
-            "temp": 40.7,
-            "relative_humidity": 16,
-            "wind_speed": 16.8,
-            "wind_gusts": 37.4,
+            "surface_pressure": 978.4,
+            "temp": 41.1,
+            "relative_humidity": 15,
+            "wind_speed": 14.8,
+            "wind_gusts": 35.3,
             "apparent_temperature_max": 41,
             "apparent_temperature_min": 31.7,
             "sunrise": "2026-04-23T00:19",
             "sunset": "2026-04-23T13:05",
             "uv_index_max": 8.95,
             "et0_fao_evapotranspiration": 6.96,
-            "soil_temperature_surface": 46.2,
-            "soil_temperature_5cm": 39.1,
-            "soil_temperature_15cm": 32.6,
+            "soil_temperature_surface": 46.6,
+            "soil_temperature_5cm": 40,
+            "soil_temperature_15cm": 32.9,
             "soil_temperature_60cm": 30.9,
-            "soil_moisture_surface": 0.259,
-            "soil_moisture_2cm": 0.268,
+            "soil_moisture_surface": 0.258,
+            "soil_moisture_2cm": 0.266,
             "soil_moisture_5cm": 0.276,
             "soil_moisture_15cm": 0.299,
             "soil_moisture_50cm": 0.333
@@ -198,29 +198,29 @@
         },
         "forecastWeather": {
           "current": {
-            "time": "2026-04-23T07:15",
+            "time": "2026-04-23T08:00",
             "interval": 900,
-            "apparent_temperature": 40.3,
+            "apparent_temperature": 40.7,
             "precipitation": 0,
             "rain": 0,
             "cloud_cover": 100,
-            "surface_pressure": 979.1,
-            "temp": 40.7,
-            "relative_humidity": 16,
-            "wind_speed": 16.8,
-            "wind_gusts": 37.4,
+            "surface_pressure": 978.4,
+            "temp": 41.1,
+            "relative_humidity": 15,
+            "wind_speed": 14.8,
+            "wind_gusts": 35.3,
             "apparent_temperature_max": 41,
             "apparent_temperature_min": 31.7,
             "sunrise": "2026-04-23T00:19",
             "sunset": "2026-04-23T13:05",
             "uv_index_max": 8.95,
             "et0_fao_evapotranspiration": 6.96,
-            "soil_temperature_surface": 46.2,
-            "soil_temperature_5cm": 39.1,
-            "soil_temperature_15cm": 32.6,
+            "soil_temperature_surface": 46.6,
+            "soil_temperature_5cm": 40,
+            "soil_temperature_15cm": 32.9,
             "soil_temperature_60cm": 30.9,
-            "soil_moisture_surface": 0.259,
-            "soil_moisture_2cm": 0.268,
+            "soil_moisture_surface": 0.258,
+            "soil_moisture_2cm": 0.266,
             "soil_moisture_5cm": 0.276,
             "soil_moisture_15cm": 0.299,
             "soil_moisture_50cm": 0.333
@@ -6445,16 +6445,16 @@
       "calculated": "Normalized weatherSummary (current + next7Days forecast slices)"
     },
     {
-      "at": "2026-04-23T07:17:18.185Z",
+      "at": "2026-04-23T08:01:02.337Z",
       "step": "assemble_weather_summary",
       "service": "advisory.service",
       "apiOrFn": "weatherSummary",
       "output": {
         "current": {
-          "temp": 40.7,
-          "humidity": 16,
+          "temp": 41.1,
+          "humidity": 15,
           "rainfall": 0,
-          "windSpeed": 16.8,
+          "windSpeed": 14.8,
           "et0": 6.96,
           "soilMoisture_5cm": 0.276,
           "soilMoisture_15cm": 0.299
@@ -6467,10 +6467,10 @@
       },
       "outputFull": {
         "current": {
-          "temp": 40.7,
-          "humidity": 16,
+          "temp": 41.1,
+          "humidity": 15,
           "rainfall": 0,
-          "windSpeed": 16.8,
+          "windSpeed": 14.8,
           "et0": 6.96,
           "soilMoisture_5cm": 0.276,
           "soilMoisture_15cm": 0.299
@@ -6570,7 +6570,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:18.186Z",
+      "at": "2026-04-23T08:01:02.337Z",
       "step": "satellite_date_window",
       "service": "advisory.service",
       "apiOrFn": "limitSatelliteRange",
@@ -6589,7 +6589,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:20.571Z",
+      "at": "2026-04-23T08:01:04.737Z",
       "step": "vegetation_timeseries",
       "service": "cropgen_satellite",
       "apiOrFn": "POST /timeseries/vegetation/vegetation (NDVI)",
@@ -6645,7 +6645,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:21.324Z",
+      "at": "2026-04-23T08:01:05.734Z",
       "step": "image_availability",
       "service": "cropgen_satellite",
       "apiOrFn": "POST /availability/",
@@ -6867,7 +6867,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:30.699Z",
+      "at": "2026-04-23T08:01:16.994Z",
       "step": "optical_index_snapshots",
       "service": "cropgen_satellite",
       "apiOrFn": "POST /calculate/index (per index)",
@@ -8350,7 +8350,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:32.745Z",
+      "at": "2026-04-23T08:01:19.037Z",
       "step": "water_timeseries",
       "service": "cropgen_satellite",
       "apiOrFn": "POST /timeseries/water/water (NDMI)",
@@ -8392,7 +8392,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:32.747Z",
+      "at": "2026-04-23T08:01:19.040Z",
       "step": "gdd_crop_growth",
       "service": "src/utils/cropgrowth/gddCalculator",
       "apiOrFn": "calculateCumulativeGDD + getCropGrowthStage",
@@ -16043,7 +16043,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:32.747Z",
+      "at": "2026-04-23T08:01:19.040Z",
       "step": "advisory_stage_gate",
       "service": "advisory.service",
       "apiOrFn": "maturity/harvest gate",
@@ -16054,7 +16054,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:32.747Z",
+      "at": "2026-04-23T08:01:19.041Z",
       "step": "npk_management",
       "service": "src/utils/npk/npkCalculator",
       "apiOrFn": "calculateNPKFromfarmField",
@@ -16078,10 +16078,10 @@
         },
         "weatherSummary": {
           "current": {
-            "temp": 40.7,
-            "humidity": 16,
+            "temp": 41.1,
+            "humidity": 15,
             "rainfall": 0,
-            "windSpeed": 16.8,
+            "windSpeed": 14.8,
             "et0": 6.96,
             "soilMoisture_5cm": 0.276,
             "soilMoisture_15cm": 0.299
@@ -16203,7 +16203,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:32.747Z",
+      "at": "2026-04-23T08:01:19.041Z",
       "step": "crop_health",
       "service": "src/utils/crophealth/cropHealth",
       "apiOrFn": "calcCropHealth",
@@ -16362,7 +16362,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:32.748Z",
+      "at": "2026-04-23T08:01:19.042Z",
       "step": "yield_estimate",
       "service": "advisory/utils/yield/yieldCalculator",
       "apiOrFn": "calculateYieldPrecise",
@@ -16410,10 +16410,10 @@
         },
         "weatherSummary": {
           "current": {
-            "temp": 40.7,
-            "humidity": 16,
+            "temp": 41.1,
+            "humidity": 15,
             "rainfall": 0,
-            "windSpeed": 16.8,
+            "windSpeed": 14.8,
             "et0": 6.96,
             "soilMoisture_5cm": 0.276,
             "soilMoisture_15cm": 0.299
@@ -16568,7 +16568,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:32.748Z",
+      "at": "2026-04-23T08:01:19.044Z",
       "step": "evidence_and_decision_hints",
       "service": "advisory/utils/evidence/evidenceBuilder",
       "apiOrFn": "buildEvidence + runDecisionEngine",
@@ -16632,10 +16632,10 @@
         "irrigationType": "sprinkler",
         "weatherForecast": {
           "current": {
-            "temp": 40.7,
-            "humidity": 16,
+            "temp": 41.1,
+            "humidity": 15,
             "rainfall": 0,
-            "windSpeed": 16.8,
+            "windSpeed": 14.8,
             "et0": 6.96,
             "soilMoisture_5cm": 0.276,
             "soilMoisture_15cm": 0.299
@@ -17128,7 +17128,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:42.889Z",
+      "at": "2026-04-23T08:01:39.481Z",
       "step": "llm_advisory",
       "service": "openai",
       "apiOrFn": "generateSmartAdvisory",
@@ -17178,8 +17178,8 @@
         "activitiesToDo": [
           {
             "type": "SPRAY",
-            "title": "No Spray Needed",
-            "message": "The crop is at harvest stage, no spraying is required.",
+            "title": "SPRAY",
+            "message": "No advisory update.",
             "details": {}
           },
           {
@@ -17187,10 +17187,10 @@
             "title": "Integrated fertilizer",
             "message": "No fertigation needed today.",
             "details": {
-              "fertilizer": "",
-              "quantity": "",
-              "method": "Broadcast with irrigation",
-              "time": ""
+              "products": [],
+              "applicationMethod": "Soil application",
+              "timing": "",
+              "reason": "Harvest stage - no fertigation."
             }
           },
           {
@@ -17198,9 +17198,11 @@
             "title": "Irrigation Schedule",
             "message": "Soil moisture adequate. No irrigation needed today.",
             "details": {
-              "quantity": "1 mm",
-              "method": "No irrigation today",
-              "time": "Morning (6–10 AM)",
+              "applicationMethod": "No irrigation required",
+              "timing": "Morning (6–10 AM)",
+              "duration": "Not required",
+              "waterQuantity": "1 mm",
+              "reason": "Soil moisture adequate. No irrigation needed today.",
               "frequency": "Every 7 days",
               "confidence": "high"
             }
@@ -17208,46 +17210,50 @@
           {
             "type": "WEATHER",
             "title": "Weather Forecast",
-            "message": "Expect high temperatures around 41.3°C with low rainfall probability.",
+            "message": "High temperatures expected; monitor irrigation needs.",
             "details": {
-              "currentTemperature": 40.7,
-              "humidity": 16,
-              "windSpeed": 16.8,
-              "rainProbabilityToday": "low"
+              "temperature": "41.1°C",
+              "humidity": "15%",
+              "rainfallProbability": "low",
+              "advisory": "High temperature may increase irrigation need"
             }
           },
           {
             "type": "CROP_RISK",
-            "title": "Crop Health Monitoring",
-            "message": "The crop is under mild stress. Review irrigation and nutrient management.",
+            "title": "Crop Health Risk",
+            "message": "Moderate stress detected; review management.",
             "details": {
-              "healthCategory": "Moderate",
-              "healthPercentage": 60
+              "riskLevel": "Moderate",
+              "cause": "Mild stress observed",
+              "recommendedAction": "Review irrigation and nutrient management"
             }
           },
           {
             "type": "MONITORING",
-            "title": "Field Monitoring",
-            "message": "Check lower leaves, stem base, and new growth for any issues.",
+            "title": "Crop Monitoring",
+            "message": "Check crop health and stress levels.",
             "details": {
-              "checks": "lower leaves, stem base, new growth"
+              "focusAreas": "Lower leaves, stem base, new growth",
+              "whatToCheck": "Signs of stress or disease",
+              "frequency": "Every 3 days"
             }
           },
           {
             "type": "CARBON_TRACKING",
-            "title": "Carbon Emission and Capture",
-            "message": "Monitor carbon capture and emissions.",
+            "title": "Carbon Emission Tracking",
+            "message": "Monitor carbon capture for sustainability.",
             "details": {
-              "capturedKgCO2": 11.8,
-              "emissionKgCO2": 0,
-              "netBalanceKgCO2": 11.8
+              "emissionEstimate": "0 kg CO2",
+              "captureEstimate": "11.8 kg CO2",
+              "netBalance": "11.8 kg CO2",
+              "recommendation": "Continue practices that enhance carbon capture"
             }
           }
         ]
       }
     },
     {
-      "at": "2026-04-23T07:17:42.905Z",
+      "at": "2026-04-23T08:01:39.498Z",
       "step": "persist_advisory",
       "service": "mongoose",
       "apiOrFn": "FarmAdvisory.create",
@@ -17281,8 +17287,8 @@
         "activitiesToDo": [
           {
             "type": "SPRAY",
-            "title": "No Spray Needed",
-            "message": "The crop is at harvest stage, no spraying is required.",
+            "title": "SPRAY",
+            "message": "No advisory update.",
             "details": {}
           },
           {
@@ -17290,10 +17296,10 @@
             "title": "Integrated fertilizer",
             "message": "No fertigation needed today.",
             "details": {
-              "fertilizer": "",
-              "quantity": "",
-              "method": "Broadcast with irrigation",
-              "time": ""
+              "products": [],
+              "applicationMethod": "Soil application",
+              "timing": "",
+              "reason": "Harvest stage - no fertigation."
             }
           },
           {
@@ -17301,9 +17307,11 @@
             "title": "Irrigation Schedule",
             "message": "Soil moisture adequate. No irrigation needed today.",
             "details": {
-              "quantity": "1 mm",
-              "method": "No irrigation today",
-              "time": "Morning (6–10 AM)",
+              "applicationMethod": "No irrigation required",
+              "timing": "Morning (6–10 AM)",
+              "duration": "Not required",
+              "waterQuantity": "1 mm",
+              "reason": "Soil moisture adequate. No irrigation needed today.",
               "frequency": "Every 7 days",
               "confidence": "high"
             }
@@ -17311,39 +17319,43 @@
           {
             "type": "WEATHER",
             "title": "Weather Forecast",
-            "message": "Expect high temperatures around 41.3°C with low rainfall probability.",
+            "message": "High temperatures expected; monitor irrigation needs.",
             "details": {
-              "currentTemperature": 40.7,
-              "humidity": 16,
-              "windSpeed": 16.8,
-              "rainProbabilityToday": "low"
+              "temperature": "41.1°C",
+              "humidity": "15%",
+              "rainfallProbability": "low",
+              "advisory": "High temperature may increase irrigation need"
             }
           },
           {
             "type": "CROP_RISK",
-            "title": "Crop Health Monitoring",
-            "message": "The crop is under mild stress. Review irrigation and nutrient management.",
+            "title": "Crop Health Risk",
+            "message": "Moderate stress detected; review management.",
             "details": {
-              "healthCategory": "Moderate",
-              "healthPercentage": 60
+              "riskLevel": "Moderate",
+              "cause": "Mild stress observed",
+              "recommendedAction": "Review irrigation and nutrient management"
             }
           },
           {
             "type": "MONITORING",
-            "title": "Field Monitoring",
-            "message": "Check lower leaves, stem base, and new growth for any issues.",
+            "title": "Crop Monitoring",
+            "message": "Check crop health and stress levels.",
             "details": {
-              "checks": "lower leaves, stem base, new growth"
+              "focusAreas": "Lower leaves, stem base, new growth",
+              "whatToCheck": "Signs of stress or disease",
+              "frequency": "Every 3 days"
             }
           },
           {
             "type": "CARBON_TRACKING",
-            "title": "Carbon Emission and Capture",
-            "message": "Monitor carbon capture and emissions.",
+            "title": "Carbon Emission Tracking",
+            "message": "Monitor carbon capture for sustainability.",
             "details": {
-              "capturedKgCO2": 11.8,
-              "emissionKgCO2": 0,
-              "netBalanceKgCO2": 11.8
+              "emissionEstimate": "0 kg CO2",
+              "captureEstimate": "11.8 kg CO2",
+              "netBalance": "11.8 kg CO2",
+              "recommendation": "Continue practices that enhance carbon capture"
             }
           }
         ],
@@ -17492,7 +17504,7 @@
         }
       },
       "output": {
-        "advisoryId": "69e9c7961da0b3dc04139786",
+        "advisoryId": "69e9d1e351c4225fc4ddb1a0",
         "activitiesCount": 7
       },
       "outputFull": {
@@ -17500,18 +17512,18 @@
         "activitiesToDo": [
           {
             "type": "SPRAY",
-            "title": "No Spray Needed",
-            "message": "The crop is at harvest stage, no spraying is required."
+            "title": "SPRAY",
+            "message": "No advisory update."
           },
           {
             "type": "FERTIGATION",
             "title": "Integrated fertilizer",
             "message": "No fertigation needed today.",
             "details": {
-              "fertilizer": "",
-              "quantity": "",
-              "method": "Broadcast with irrigation",
-              "time": ""
+              "products": [],
+              "applicationMethod": "Soil application",
+              "timing": "",
+              "reason": "Harvest stage - no fertigation."
             }
           },
           {
@@ -17519,30 +17531,56 @@
             "title": "Irrigation Schedule",
             "message": "Soil moisture adequate. No irrigation needed today.",
             "details": {
-              "quantity": "1 mm",
-              "method": "No irrigation today",
-              "time": "Morning (6–10 AM)"
+              "applicationMethod": "No irrigation required",
+              "timing": "Morning (6–10 AM)",
+              "duration": "Not required",
+              "waterQuantity": "1 mm",
+              "reason": "Soil moisture adequate. No irrigation needed today.",
+              "frequency": "Every 7 days",
+              "confidence": "high"
             }
           },
           {
             "type": "WEATHER",
             "title": "Weather Forecast",
-            "message": "Expect high temperatures around 41.3°C with low rainfall probability."
+            "message": "High temperatures expected; monitor irrigation needs.",
+            "details": {
+              "temperature": "41.1°C",
+              "humidity": "15%",
+              "rainfallProbability": "low",
+              "advisory": "High temperature may increase irrigation need"
+            }
           },
           {
             "type": "CROP_RISK",
-            "title": "Crop Health Monitoring",
-            "message": "The crop is under mild stress. Review irrigation and nutrient management."
+            "title": "Crop Health Risk",
+            "message": "Moderate stress detected; review management.",
+            "details": {
+              "riskLevel": "Moderate",
+              "cause": "Mild stress observed",
+              "recommendedAction": "Review irrigation and nutrient management"
+            }
           },
           {
             "type": "MONITORING",
-            "title": "Field Monitoring",
-            "message": "Check lower leaves, stem base, and new growth for any issues."
+            "title": "Crop Monitoring",
+            "message": "Check crop health and stress levels.",
+            "details": {
+              "focusAreas": "Lower leaves, stem base, new growth",
+              "whatToCheck": "Signs of stress or disease",
+              "frequency": "Every 3 days"
+            }
           },
           {
             "type": "CARBON_TRACKING",
-            "title": "Carbon Emission and Capture",
-            "message": "Monitor carbon capture and emissions."
+            "title": "Carbon Emission Tracking",
+            "message": "Monitor carbon capture for sustainability.",
+            "details": {
+              "emissionEstimate": "0 kg CO2",
+              "captureEstimate": "11.8 kg CO2",
+              "netBalance": "11.8 kg CO2",
+              "recommendation": "Continue practices that enhance carbon capture"
+            }
           }
         ],
         "cropHealth": {
@@ -17692,21 +17730,21 @@
           "vegetationIndexCount": 7,
           "successfulIndexCount": 12
         },
-        "_id": "69e9c7961da0b3dc04139786",
-        "createdAt": "2026-04-23T07:17:42.900Z",
-        "updatedAt": "2026-04-23T07:17:42.900Z",
+        "_id": "69e9d1e351c4225fc4ddb1a0",
+        "createdAt": "2026-04-23T08:01:39.493Z",
+        "updatedAt": "2026-04-23T08:01:39.493Z",
         "__v": 0
       }
     },
     {
-      "at": "2026-04-23T07:17:42.908Z",
+      "at": "2026-04-23T08:01:39.506Z",
       "step": "carbon_tracking",
       "service": "carbonTracking.service",
       "apiOrFn": "saveCarbonFromAdvisory",
       "inputsFull": {
         "userId": "69e9c13953ef5e227ea1290d",
         "farmFieldId": "69e9c34153ef5e227ea12924",
-        "advisoryId": "69e9c7961da0b3dc04139786",
+        "advisoryId": "69e9d1e351c4225fc4ddb1a0",
         "date": "2026-04-23",
         "carbonData": {
           "emissionKgCO2": 0,
@@ -17724,7 +17762,7 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:42.909Z",
+      "at": "2026-04-23T08:01:39.507Z",
       "step": "load_notification_user",
       "service": "mongoose",
       "apiOrFn": "User.findById",
@@ -17745,13 +17783,13 @@
       }
     },
     {
-      "at": "2026-04-23T07:17:42.911Z",
+      "at": "2026-04-23T08:01:39.509Z",
       "step": "notification",
       "service": "notificationCreator.service",
       "apiOrFn": "createNotification",
       "inputsFull": {
         "type": "ADVISORY",
-        "referenceId": "69e9c7961da0b3dc04139786",
+        "referenceId": "69e9d1e351c4225fc4ddb1a0",
         "templateName": "farm_advisory",
         "parameters": [
           "Vishal",
@@ -17759,33 +17797,33 @@
           "soybean",
           "Soyabean ",
           "6.78 Acre",
-          "The crop is at harvest stage, no spraying is required.",
+          "No advisory update.",
           "No fertigation needed today.",
           "Soil moisture adequate. No irrigation needed today.",
-          "Expect high temperatures around 41.3°C with low rainfall probability.",
-          "The crop is under mild stress. Review irrigation and nutrient management.",
-          "Check lower leaves, stem base, and new growth for any issues.",
-          "Monitor carbon capture and emissions."
+          "High temperatures expected; monitor irrigation needs.",
+          "Moderate stress detected; review management.",
+          "Check crop health and stress levels.",
+          "Monitor carbon capture for sustainability."
         ]
       },
       "output": {
         "templateName": "farm_advisory",
-        "referenceId": "69e9c7961da0b3dc04139786"
+        "referenceId": "69e9d1e351c4225fc4ddb1a0"
       },
       "outputFull": {
-        "spray": "The crop is at harvest stage, no spraying is required.",
+        "spray": "No advisory update.",
         "fertigation": "No fertigation needed today.",
         "irrigation": "Soil moisture adequate. No irrigation needed today.",
-        "weather": "Expect high temperatures around 41.3°C with low rainfall probability.",
-        "cropRisk": "The crop is under mild stress. Review irrigation and nutrient management.",
-        "monitoring": "Check lower leaves, stem base, and new growth for any issues.",
-        "carbonUpdate": "Monitor carbon capture and emissions."
+        "weather": "High temperatures expected; monitor irrigation needs.",
+        "cropRisk": "Moderate stress detected; review management.",
+        "monitoring": "Check crop health and stress levels.",
+        "carbonUpdate": "Monitor carbon capture for sustainability."
       }
     }
   ],
   "outcome": {
     "status": "complete",
-    "advisoryId": "69e9c7961da0b3dc04139786",
+    "advisoryId": "69e9d1e351c4225fc4ddb1a0",
     "notified": true
   },
   "error": null

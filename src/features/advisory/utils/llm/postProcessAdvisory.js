@@ -59,18 +59,24 @@ function buildIrrigationActivity(evidence, language) {
     title: language === "mr" ? "सिंचन वेळापत्रक" : language === "hi" ? "सिंचाई अनुसूची" : "Irrigation Schedule",
     message: truncate(message),
     details: {
-      quantity: req.waterRequirement_mm ? `${req.waterRequirement_mm} mm` : "—",
-      method: shouldIrrigate
+      applicationMethod: shouldIrrigate
         ? isOpen
           ? req.durationHours != null
-            ? `~${req.durationHours} hrs`
+            ? "Flood / Open irrigation"
             : "Open/Flood irrigation"
           : req.durationMinutes != null
-            ? `~${req.durationMinutes} min`
+            ? "Drip / Sprinkler"
             : "Drip/Sprinkler irrigation"
-        : "No irrigation today",
-      time: "Morning (6–10 AM)",
-      frequency: req.frequencyDays ? `Every ${req.frequencyDays} days` : "—",
+        : "No irrigation required",
+      timing: "Morning (6–10 AM)",
+      duration: shouldIrrigate
+        ? isOpen
+          ? `${req.durationHours ?? req.amountHours ?? 0} hours`
+          : `${req.durationMinutes ?? req.amountMinutes ?? 0} minutes`
+        : "Not required",
+      waterQuantity: req.waterRequirement_mm ? `${req.waterRequirement_mm} mm` : "Not required",
+      reason: req.reason || "Soil moisture and weather based recommendation.",
+      frequency: req.frequencyDays ? `Every ${req.frequencyDays} days` : "",
       confidence: req.dataConfidence || "high",
     },
   };
@@ -99,7 +105,12 @@ export function postProcessAdvisory(llmOutput, evidence, language, buildFertigat
       activityMap.set(type, defaultActivity(type));
     } else {
       const act = activityMap.get(type);
-      activityMap.set(type, { ...act, message: truncate(act.message) });
+      activityMap.set(type, {
+        ...act,
+        title: typeof act.title === "string" ? act.title : type,
+        message: truncate(act.message),
+        details: act.details && typeof act.details === "object" ? act.details : {},
+      });
     }
   });
 
