@@ -481,102 +481,16 @@ export async function generateAdvisoryForField(
       (plantGrowthActivity?.bbchStage ?? 0) >= 85;
 
     flow.addStep({
-      step: "advisory_stage_gate",
+      step: "yield_stage_gate",
       service: "advisory.service",
-      apiOrFn: "maturity/harvest gate",
+      apiOrFn: "maturity/harvest — yield only",
       output: {
         stageName: plantGrowthActivity?.stageName,
         bbchStage: plantGrowthActivity?.bbchStage,
         isMaturityOrHarvestStage,
+        note: "Full advisory runs for all stages; standard/AI yield numbers only when maturity or harvest.",
       },
     });
-
-    if (!isMaturityOrHarvestStage) {
-      const disclaimerMessage =
-        "Smart advisory is not generated yet. It will be generated when the crop reaches maturity/harvest stage.";
-
-      const advisory = await FarmAdvisory.create({
-        farmFieldId: farmField._id,
-        activitiesToDo: [
-          {
-            type: "MONITORING",
-            title: "Advisory Pending",
-            message: disclaimerMessage,
-            details: {
-              stageName: plantGrowthActivity?.stageName || "Unknown",
-              bbchStage: plantGrowthActivity?.bbchStage ?? 0,
-            },
-          },
-        ],
-        plantGrowthActivity,
-      });
-
-      flow.addStep({
-        step: "persist_advisory_stage_disclaimer",
-        service: "mongoose",
-        apiOrFn: "FarmAdvisory.create",
-        output: {
-          advisoryId: String(advisory._id),
-          reason: "pre_maturity_or_harvest",
-        },
-      });
-
-      const user = await User.findById(farmField.user).lean();
-      flow.addStep({
-        step: "load_notification_user",
-        service: "mongoose",
-        apiOrFn: "User.findById",
-        inputs: { userId: farmField.user != null ? String(farmField.user) : null },
-        output: user
-          ? {
-              userId: String(user._id),
-              hasEmail: Boolean(user.email),
-              firstName: user.firstName,
-              language: user.language,
-            }
-          : null,
-      });
-
-      if (user) {
-        const advisoryDateObj = advisory?.createdAt
-          ? new Date(advisory.createdAt)
-          : new Date(nowISO);
-        const advisoryDateStr = advisoryDateObj
-          .toISOString()
-          .slice(0, 10)
-          .split("-")
-          .reverse()
-          .join("-");
-
-        await createNotification({
-          user,
-          type: "ADVISORY",
-          referenceId: advisory._id,
-          templateName: "farm_advisory",
-          parameters: [
-            user.firstName || "Farmer",
-            advisoryDateStr,
-            farmField.cropName || "Crop",
-            farmField.fieldName || "Field",
-            formatAreaForNotification(farmField.acre, platform),
-            "No spray advisory.",
-            "No fertigation advisory.",
-            "No irrigation advisory.",
-            "No weather update.",
-            "No crop risk alert.",
-            disclaimerMessage,
-            "No carbon update.",
-          ],
-        });
-      }
-
-      flow.setOutcome({
-        status: "stage_gated_disclaimer",
-        advisoryId: String(advisory._id),
-        notified: Boolean(user),
-      });
-      return advisory;
-    }
 
     const npkManagement = calculateNPKFromfarmField({
       farmField,
@@ -645,28 +559,47 @@ export async function generateAdvisoryForField(
       outputFull: cloneForAdvisoryFlowLog(cropHealth),
     });
 
-    const yieldInfo = calculateYieldPrecise({
-      farmField,
-      cropHealth,
-      plantGrowthActivity,
-      npkManagement,
-      ndvi,
-      water,
-      weatherSummary,
-      language,
-    });
+    let yieldInfo = null;
+    if (isMaturityOrHarvestStage) {
+      yieldInfo = calculateYieldPrecise({
+        farmField,
+        cropHealth,
+        plantGrowthActivity,
+        npkManagement,
+        ndvi,
+        water,
+        weatherSummary,
+        language,
+      });
+    }
 
-    const safeYield = {
-      standardYield: yieldInfo?.yield?.standardYield ?? null,
-      aiYield: yieldInfo?.yield?.aiYield ?? null,
-      unit: yieldInfo?.yield?.unit || "quintal",
-      explanation: yieldInfo?.yield?.explanation || "",
-      yieldGap: yieldInfo?.yieldGap ?? null,
-    };
+    const yieldSkippedExplanation =
+      language === "mr"
+        ? "उत्पादन अंदाज फक्त परिपक्वता/कापणी टप्प्यावर दाखवला जातो."
+        : language === "hi"
+          ? "उपज अनुमान केवल परिपक्वता/कटाई अवस्था में दिखाया जाता है।"
+          : "Yield estimate is shown only at maturity or harvest stage.";
+
+    const safeYield = isMaturityOrHarvestStage
+      ? {
+          standardYield: yieldInfo?.yield?.standardYield ?? null,
+          aiYield: yieldInfo?.yield?.aiYield ?? null,
+          unit: yieldInfo?.yield?.unit || "quintal",
+          explanation: yieldInfo?.yield?.explanation || "",
+          yieldGap: yieldInfo?.yieldGap ?? null,
+        }
+      : {
+          standardYield: null,
+          aiYield: null,
+          unit: "quintal",
+          explanation: yieldSkippedExplanation,
+          yieldGap: null,
+        };
+
     flow.addStep({
       step: "yield_estimate",
       service: "advisory/utils/yield/yieldCalculator",
-      apiOrFn: "calculateYieldPrecise",
+      apiOrFn: isMaturityOrHarvestStage ? "calculateYieldPrecise" : "skipped_pre_maturity",
       inputsFull: cloneForAdvisoryFlowLog({
         farmFieldId: farmField._id,
         cropName: farmField.cropName,
@@ -678,8 +611,11 @@ export async function generateAdvisoryForField(
         water,
         weatherSummary,
         language,
+        isMaturityOrHarvestStage,
       }),
-      calculated: "standard vs AI yield, gap, limiting factor",
+      calculated: isMaturityOrHarvestStage
+        ? "standard vs AI yield, gap, limiting factor"
+        : "yield numbers omitted until maturity/harvest",
       output: safeYield,
       outputFull: cloneForAdvisoryFlowLog(yieldInfo),
     });
@@ -693,7 +629,7 @@ export async function generateAdvisoryForField(
       npkManagement,
       cropHealth,
       regionProfile: farmField.regionProfile ?? {},
-      yieldGap: safeYield.yieldGap,
+      yieldGap: isMaturityOrHarvestStage ? safeYield.yieldGap : null,
       opticalIndicesSummary,
     });
     flow.addStep({

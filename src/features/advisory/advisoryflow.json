@@ -1,15 +1,15 @@
 {
   "meta": {
-    "startedAt": "2026-04-23T08:01:00.017Z",
+    "startedAt": "2026-04-27T04:48:40.503Z",
     "farmFieldId": "69e9c34153ef5e227ea12924",
     "geometryId": "eccf2a84-a9ac-4ec1-95cd-f369f90fde08",
     "language": "en",
     "platform": "whatsapp",
-    "finishedAt": "2026-04-23T08:01:39.509Z"
+    "finishedAt": "2026-04-27T04:49:34.270Z"
   },
   "steps": [
     {
-      "at": "2026-04-23T08:01:00.022Z",
+      "at": "2026-04-27T04:48:40.509Z",
       "step": "load_field",
       "service": "mongoose",
       "apiOrFn": "FarmField.findById",
@@ -62,7 +62,7 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:00.024Z",
+      "at": "2026-04-27T04:48:40.511Z",
       "step": "build_geometry",
       "service": "advisory/utils/shared/helpers",
       "apiOrFn": "buildGeometryFromFarmField",
@@ -108,14 +108,14 @@
       "notes": "Polygon is sent to CropGen satellite APIs; Observearth uses geometryId separately"
     },
     {
-      "at": "2026-04-23T08:01:02.337Z",
+      "at": "2026-04-27T04:48:43.148Z",
       "step": "fetch_weather",
       "service": "observearth",
       "apiOrFn": "GET /current + /forecast + /historical",
       "inputs": {
         "geometryId": "eccf2a84-a9ac-4ec1-95cd-f369f90fde08",
         "sowingDateISO": "2025-05-31",
-        "nowISO": "2026-04-23"
+        "nowISO": "2026-04-27"
       },
       "rawResponseSummary": {
         "currentTopKeys": [
@@ -141,32 +141,32 @@
           "timezone": "GMT",
           "elevation": 249,
           "current": {
-            "time": "2026-04-23T08:00",
+            "time": "2026-04-27T04:45",
             "interval": 900,
-            "apparent_temperature": 40.7,
+            "apparent_temperature": 40.4,
             "precipitation": 0,
             "rain": 0,
-            "cloud_cover": 100,
-            "surface_pressure": 978.4,
-            "temp": 41.1,
-            "relative_humidity": 15,
-            "wind_speed": 14.8,
-            "wind_gusts": 35.3,
-            "apparent_temperature_max": 41,
-            "apparent_temperature_min": 31.7,
-            "sunrise": "2026-04-23T00:19",
-            "sunset": "2026-04-23T13:05",
+            "cloud_cover": 1,
+            "surface_pressure": 978.2,
+            "temp": 40.1,
+            "relative_humidity": 18,
+            "wind_speed": 10,
+            "wind_gusts": 25.2,
+            "apparent_temperature_max": 44.9,
+            "apparent_temperature_min": 28,
+            "sunrise": "2026-04-27T00:16",
+            "sunset": "2026-04-27T13:06",
             "uv_index_max": 8.95,
-            "et0_fao_evapotranspiration": 6.96,
-            "soil_temperature_surface": 46.6,
-            "soil_temperature_5cm": 40,
-            "soil_temperature_15cm": 32.9,
-            "soil_temperature_60cm": 30.9,
-            "soil_moisture_surface": 0.258,
-            "soil_moisture_2cm": 0.266,
-            "soil_moisture_5cm": 0.276,
-            "soil_moisture_15cm": 0.299,
-            "soil_moisture_50cm": 0.333
+            "et0_fao_evapotranspiration": 7.91,
+            "soil_temperature_surface": 50.6,
+            "soil_temperature_5cm": 35.8,
+            "soil_temperature_15cm": 33.1,
+            "soil_temperature_60cm": 31.6,
+            "soil_moisture_surface": 0.24,
+            "soil_moisture_2cm": 0.246,
+            "soil_moisture_5cm": 0.252,
+            "soil_moisture_15cm": 0.282,
+            "soil_moisture_50cm": 0.322
           },
           "units": {
             "time": "iso8601",
@@ -198,39 +198,35 @@
         },
         "forecastWeather": {
           "current": {
-            "time": "2026-04-23T08:00",
+            "time": "2026-04-27T04:45",
             "interval": 900,
-            "apparent_temperature": 40.7,
+            "apparent_temperature": 40.4,
             "precipitation": 0,
             "rain": 0,
-            "cloud_cover": 100,
-            "surface_pressure": 978.4,
-            "temp": 41.1,
-            "relative_humidity": 15,
-            "wind_speed": 14.8,
-            "wind_gusts": 35.3,
-            "apparent_temperature_max": 41,
-            "apparent_temperature_min": 31.7,
-            "sunrise": "2026-04-23T00:19",
-            "sunset": "2026-04-23T13:05",
+            "cloud_cover": 1,
+            "surface_pressure": 978.2,
+            "temp": 40.1,
+            "relative_humidity": 18,
+            "wind_speed": 10,
+            "wind_gusts": 25.2,
+            "apparent_temperature_max": 44.9,
+            "apparent_temperature_min": 28,
+            "sunrise": "2026-04-27T00:16",
+            "sunset": "2026-04-27T13:06",
             "uv_index_max": 8.95,
-            "et0_fao_evapotranspiration": 6.96,
-            "soil_temperature_surface": 46.6,
-            "soil_temperature_5cm": 40,
-            "soil_temperature_15cm": 32.9,
-            "soil_temperature_60cm": 30.9,
-            "soil_moisture_surface": 0.258,
-            "soil_moisture_2cm": 0.266,
-            "soil_moisture_5cm": 0.276,
-            "soil_moisture_15cm": 0.299,
-            "soil_moisture_50cm": 0.333
+            "et0_fao_evapotranspiration": 7.91,
+            "soil_temperature_surface": 50.6,
+            "soil_temperature_5cm": 35.8,
+            "soil_temperature_15cm": 33.1,
+            "soil_temperature_60cm": 31.6,
+            "soil_moisture_surface": 0.24,
+            "soil_moisture_2cm": 0.246,
+            "soil_moisture_5cm": 0.252,
+            "soil_moisture_15cm": 0.282,
+            "soil_moisture_50cm": 0.322
           },
           "forecast": {
             "time": [
-              "2026-04-23",
-              "2026-04-24",
-              "2026-04-25",
-              "2026-04-26",
               "2026-04-27",
               "2026-04-28",
               "2026-04-29",
@@ -242,79 +238,83 @@
               "2026-05-05",
               "2026-05-06",
               "2026-05-07",
-              "2026-05-08"
+              "2026-05-08",
+              "2026-05-09",
+              "2026-05-10",
+              "2026-05-11",
+              "2026-05-12"
             ],
             "temp_max": [
-              41.3,
-              41.2,
-              41.8,
-              42.3,
-              42.2,
-              42.3,
-              41.6,
-              41.6,
-              41.7,
-              40.9,
-              41.6,
-              42.6,
-              43.4,
-              44,
-              43.9,
-              43.8
+              44.5,
+              43.5,
+              43.3,
+              43.2,
+              42.8,
+              43.5,
+              43,
+              42,
+              42.7,
+              42.5,
+              43,
+              43.8,
+              43.6,
+              43.8,
+              43.5,
+              null
             ],
             "temp_min": [
-              28.1,
-              27.7,
-              27.5,
-              26.4,
-              27.7,
-              27.6,
-              27.7,
+              28.7,
+              28.2,
+              28.4,
+              28.8,
+              30,
+              28.9,
+              28.6,
+              27.2,
               27.4,
-              26.9,
-              26.8,
+              27.6,
               29.5,
-              29.8,
-              30.2,
-              33,
-              33.1,
-              32.8
+              30,
+              28.8,
+              29,
+              28.9,
+              null
             ],
             "temp_mean": [
-              34.4,
-              34.1,
-              34.4,
-              34.4,
-              34.4,
-              34.5,
-              34.4,
-              34.6,
-              33.5,
-              34.6,
-              34.4,
-              36.8,
-              38,
-              38.6,
-              38.9,
-              38.5
+              36.6,
+              36.6,
+              36.5,
+              36.4,
+              36.1,
+              36.2,
+              36.4,
+              35.5,
+              35.6,
+              36.3,
+              36.9,
+              37.5,
+              37,
+              37.6,
+              35.3,
+              null
             ],
             "relative_humidity": [
-              64,
-              59,
-              61,
-              60,
-              68,
-              67,
-              58,
-              61,
-              43,
-              45,
-              41,
-              45,
-              48,
-              18,
-              20,
-              27
+              38,
+              35,
+              24,
+              33,
+              37,
+              34,
+              31,
+              26,
+              30,
+              31,
+              31,
+              28,
+              28,
+              29,
+              52,
+              null
             ],
             "precipitation": [
               0,
@@ -324,15 +324,15 @@
               0,
               0,
               0,
-              0.5,
-              0.6,
-              0.4,
-              0.6,
               0,
               0,
               0,
               0,
-              0
+              0,
+              0,
+              0,
+              0.8,
+              null
             ],
             "rain": [
               0,
@@ -350,97 +350,97 @@
               0,
               0,
               0,
-              0
+              null
             ],
             "surface_pressure": [
-              978.1,
-              978.6,
-              979,
-              976.9,
+              975.5,
+              975.9,
+              976,
+              976.5,
               975.8,
+              975.3,
+              974.8,
               976.5,
-              977.1,
-              976.8,
-              977,
-              976.5,
-              976.3,
-              976.8,
-              977,
-              975.7,
-              973.8,
-              973.7
+              977.7,
+              977.7,
+              976.1,
+              976.2,
+              976.4,
+              976.7,
+              976,
+              null
             ],
             "cloud_cover": [
-              83,
-              35,
-              41,
-              47,
-              57,
-              21,
+              24,
+              7,
+              8,
+              9,
+              13,
+              5,
+              10,
+              0,
               22,
-              27,
-              49,
-              50,
-              88,
-              38,
-              12,
-              33,
-              14,
-              56
+              6,
+              36,
+              42,
+              4,
+              39,
+              26,
+              null
             ],
             "evapotranspiration": [
-              6.96,
-              6.47,
-              6.27,
-              6.66,
-              6.37,
-              7.38,
-              7.25,
-              8.82,
-              10.11,
-              9.38,
-              8.27,
-              10.03,
-              10.17,
-              10.08,
-              10.39,
-              11.94
+              7.91,
+              8.8,
+              9.9,
+              10.56,
+              9.06,
+              8.43,
+              8.58,
+              8.63,
+              7.45,
+              8.54,
+              7.08,
+              7.6,
+              7.47,
+              8.66,
+              7.54,
+              null
             ],
             "wind_speed": [
-              18.3,
-              12.7,
-              5.5,
-              8.7,
-              6,
-              11.7,
-              13.7,
-              23.1,
-              44.6,
-              28.6,
-              21.9,
-              23.3,
               17.6,
-              22.5,
-              19.2,
-              22.2
+              19.8,
+              20.7,
+              27.3,
+              17.2,
+              20.4,
+              14.7,
+              14.3,
+              9.8,
+              17.3,
+              12.8,
+              15.7,
+              12,
+              19,
+              14.2,
+              null
             ],
             "wind_gusts": [
-              37.8,
-              27,
-              12.6,
-              19.4,
-              15.8,
-              28.8,
-              30.6,
-              29.9,
-              63,
-              34.2,
-              31,
-              39.2,
-              33.5,
+              32.8,
+              39.6,
               38.5,
-              29.2,
-              47.9
+              50.8,
+              34.6,
+              37.4,
+              32,
+              36.4,
+              35.3,
+              32,
+              25.9,
+              34.2,
+              36.4,
+              35.3,
+              30.6,
+              null
             ]
           },
           "units": {
@@ -807,7 +807,11 @@
               "2026-04-20",
               "2026-04-21",
               "2026-04-22",
-              "2026-04-23"
+              "2026-04-23",
+              "2026-04-24",
+              "2026-04-25",
+              "2026-04-26",
+              "2026-04-27"
             ],
             "temp_max": [
               37.5,
@@ -1137,7 +1141,11 @@
               42.3,
               40.8,
               43,
-              42.9
+              43.5,
+              43.5,
+              44.1,
+              44.6,
+              44.5
             ],
             "temp_min": [
               28.4,
@@ -1467,7 +1475,11 @@
               30.2,
               29.5,
               29,
-              27.9
+              27.9,
+              28.5,
+              28.7,
+              29.9,
+              28.7
             ],
             "temp_mean": [
               32.6,
@@ -1797,7 +1809,11 @@
               35.1,
               35.1,
               35.9,
-              35.5
+              35.4,
+              36.1,
+              36.6,
+              37.1,
+              36.6
             ],
             "relative_humidity": [
               66,
@@ -2127,7 +2143,11 @@
               42,
               35,
               39,
-              32
+              32,
+              39,
+              33,
+              37,
+              38
             ],
             "precipitation": [
               0,
@@ -2439,6 +2459,10 @@
               0,
               0,
               0.8,
+              0,
+              0,
+              0,
+              0,
               0,
               0,
               0,
@@ -2787,6 +2811,10 @@
               0,
               0,
               0,
+              0,
+              0,
+              0,
+              0,
               0
             ],
             "surface_pressure": [
@@ -3117,7 +3145,11 @@
               978.7,
               978.8,
               978.3,
-              978.1
+              978.3,
+              978.3,
+              978.6,
+              976.8,
+              975.5
             ],
             "cloud_cover": [
               89,
@@ -3447,7 +3479,11 @@
               68,
               68,
               58,
-              56
+              75,
+              56,
+              74,
+              15,
+              24
             ],
             "evapotranspiration": [
               8.46,
@@ -3777,7 +3813,11 @@
               8.34,
               7.89,
               7.98,
-              8.22
+              8.77,
+              8.39,
+              8.28,
+              8.63,
+              7.91
             ],
             "wind_speed": [
               23,
@@ -4107,7 +4147,11 @@
               20.8,
               17.9,
               19.9,
-              19.9
+              20.5,
+              15.8,
+              15.2,
+              18.5,
+              17.6
             ],
             "wind_gusts": [
               42.5,
@@ -4437,7 +4481,11 @@
               40.7,
               36.7,
               44.6,
-              36.4
+              40,
+              32.8,
+              25.6,
+              30.6,
+              32.8
             ],
             "soil_temp_5cm": [
               33.7,
@@ -4767,7 +4815,11 @@
               38,
               38.5,
               39.1,
-              38.3
+              37.9,
+              38.5,
+              39.6,
+              40.2,
+              39.2
             ],
             "soil_temp_15cm": [
               33.4,
@@ -5097,7 +5149,11 @@
               36.9,
               36.9,
               37.2,
-              37
+              36.8,
+              36.6,
+              37.2,
+              37.8,
+              37.9
             ],
             "soil_temp_50cm": [
               32.6,
@@ -5427,7 +5483,11 @@
               32.3,
               32.5,
               32.8,
-              33
+              32.9,
+              33.1,
+              33.2,
+              33.4,
+              33.6
             ],
             "soil_moisture_5cm": [
               0.452,
@@ -5757,6 +5817,10 @@
               0.251,
               0.25,
               0.25,
+              0.25,
+              0.25,
+              0.25,
+              0.25,
               0.25
             ],
             "soil_moisture_15cm": [
@@ -6071,6 +6135,10 @@
               0.282,
               0.279,
               0.28,
+              0.276,
+              0.276,
+              0.276,
+              0.276,
               0.276,
               0.276,
               0.276,
@@ -6417,7 +6485,11 @@
               0.3,
               0.299,
               0.298,
-              0.298
+              0.298,
+              0.298,
+              0.297,
+              0.296,
+              0.296
             ]
           },
           "units": {
@@ -6445,19 +6517,19 @@
       "calculated": "Normalized weatherSummary (current + next7Days forecast slices)"
     },
     {
-      "at": "2026-04-23T08:01:02.337Z",
+      "at": "2026-04-27T04:48:43.148Z",
       "step": "assemble_weather_summary",
       "service": "advisory.service",
       "apiOrFn": "weatherSummary",
       "output": {
         "current": {
-          "temp": 41.1,
-          "humidity": 15,
+          "temp": 40.1,
+          "humidity": 18,
           "rainfall": 0,
-          "windSpeed": 14.8,
-          "et0": 6.96,
-          "soilMoisture_5cm": 0.276,
-          "soilMoisture_15cm": 0.299
+          "windSpeed": 10,
+          "et0": 7.91,
+          "soilMoisture_5cm": 0.252,
+          "soilMoisture_15cm": 0.282
         },
         "next7DaysLengths": {
           "dates": 7,
@@ -6467,50 +6539,50 @@
       },
       "outputFull": {
         "current": {
-          "temp": 41.1,
-          "humidity": 15,
+          "temp": 40.1,
+          "humidity": 18,
           "rainfall": 0,
-          "windSpeed": 14.8,
-          "et0": 6.96,
-          "soilMoisture_5cm": 0.276,
-          "soilMoisture_15cm": 0.299
+          "windSpeed": 10,
+          "et0": 7.91,
+          "soilMoisture_5cm": 0.252,
+          "soilMoisture_15cm": 0.282
         },
         "next7Days": {
           "dates": [
-            "2026-04-23",
-            "2026-04-24",
-            "2026-04-25",
-            "2026-04-26",
             "2026-04-27",
             "2026-04-28",
-            "2026-04-29"
+            "2026-04-29",
+            "2026-04-30",
+            "2026-05-01",
+            "2026-05-02",
+            "2026-05-03"
           ],
           "tempMean": [
-            34.4,
-            34.1,
-            34.4,
-            34.4,
-            34.4,
-            34.5,
-            34.4
+            36.6,
+            36.6,
+            36.5,
+            36.4,
+            36.1,
+            36.2,
+            36.4
           ],
           "tempMax": [
-            41.3,
-            41.2,
-            41.8,
-            42.3,
-            42.2,
-            42.3,
-            41.6
+            44.5,
+            43.5,
+            43.3,
+            43.2,
+            42.8,
+            43.5,
+            43
           ],
           "tempMin": [
-            28.1,
-            27.7,
-            27.5,
-            26.4,
-            27.7,
-            27.6,
-            27.7
+            28.7,
+            28.2,
+            28.4,
+            28.8,
+            30,
+            28.9,
+            28.6
           ],
           "rainfall": [
             0,
@@ -6522,61 +6594,61 @@
             0
           ],
           "humidity": [
-            64,
-            59,
-            61,
-            60,
-            68,
-            67,
-            58
+            38,
+            35,
+            24,
+            33,
+            37,
+            34,
+            31
           ],
           "et0": [
-            6.96,
-            6.47,
-            6.27,
-            6.66,
-            6.37,
-            7.38,
-            7.25
+            7.91,
+            8.8,
+            9.9,
+            10.56,
+            9.06,
+            8.43,
+            8.58
           ],
           "windSpeed": [
-            18.3,
-            12.7,
-            5.5,
-            8.7,
-            6,
-            11.7,
-            13.7
+            17.6,
+            19.8,
+            20.7,
+            27.3,
+            17.2,
+            20.4,
+            14.7
           ],
           "windGusts": [
-            37.8,
-            27,
-            12.6,
-            19.4,
-            15.8,
-            28.8,
-            30.6
+            32.8,
+            39.6,
+            38.5,
+            50.8,
+            34.6,
+            37.4,
+            32
           ],
           "cloudCover": [
-            83,
-            35,
-            41,
-            47,
-            57,
-            21,
-            22
+            24,
+            7,
+            8,
+            9,
+            13,
+            5,
+            10
           ]
         }
       }
     },
     {
-      "at": "2026-04-23T08:01:02.337Z",
+      "at": "2026-04-27T04:48:43.148Z",
       "step": "satellite_date_window",
       "service": "advisory.service",
       "apiOrFn": "limitSatelliteRange",
       "inputs": {
         "sowingDateISO": "2025-05-31",
-        "nowISO": "2026-04-23",
+        "nowISO": "2026-04-27",
         "maxDays": 90
       },
       "output": {
@@ -6589,7 +6661,7 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:04.737Z",
+      "at": "2026-04-27T04:48:45.729Z",
       "step": "vegetation_timeseries",
       "service": "cropgen_satellite",
       "apiOrFn": "POST /timeseries/vegetation/vegetation (NDVI)",
@@ -6645,7 +6717,7 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:05.734Z",
+      "at": "2026-04-27T04:48:46.496Z",
       "step": "image_availability",
       "service": "cropgen_satellite",
       "apiOrFn": "POST /availability/",
@@ -6867,7 +6939,7 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:16.994Z",
+      "at": "2026-04-27T04:49:21.964Z",
       "step": "optical_index_snapshots",
       "service": "cropgen_satellite",
       "apiOrFn": "POST /calculate/index (per index)",
@@ -6901,8 +6973,8 @@
       },
       "rawResponseSummary": {
         "rowCount": 14,
-        "okCount": 13,
-        "failCount": 1
+        "okCount": 11,
+        "failCount": 3
       },
       "rawApiRowsMeta": [
         {
@@ -6935,17 +7007,11 @@
         },
         {
           "indexName": "EVI2",
-          "ok": true,
-          "dataTopKeys": [
-            "date",
-            "index_name",
-            "image_base64",
-            "bounds",
-            "legend",
-            "area_stats"
-          ],
-          "hasImageBase64": true,
-          "imageBase64Length": 93504
+          "ok": false,
+          "error": "Request failed with status code 500",
+          "dataTopKeys": [],
+          "hasImageBase64": false,
+          "imageBase64Length": 0
         },
         {
           "indexName": "SAVI",
@@ -7075,17 +7141,11 @@
         },
         {
           "indexName": "RECI",
-          "ok": true,
-          "dataTopKeys": [
-            "date",
-            "index_name",
-            "image_base64",
-            "bounds",
-            "legend",
-            "area_stats"
-          ],
-          "hasImageBase64": true,
-          "imageBase64Length": 119548
+          "ok": false,
+          "error": "Request failed with status code 500",
+          "dataTopKeys": [],
+          "hasImageBase64": false,
+          "imageBase64Length": 0
         },
         {
           "indexName": "TRUE_COLOR",
@@ -7101,8 +7161,8 @@
         "totals": {
           "requestedIndexNames": 14,
           "responses": 14,
-          "ok": 13,
-          "failed": 1
+          "ok": 11,
+          "failed": 3
         },
         "perIndexApi": [
           {
@@ -7281,90 +7341,8 @@
           },
           {
             "indexName": "EVI2",
-            "ok": true,
-            "apiResponseSanitized": {
-              "date": "2025-06-06",
-              "index_name": "EVI2",
-              "bounds": [
-                78.95985305644648,
-                20.590268642606468,
-                78.96169965098223,
-                20.592132315219793
-              ],
-              "legend": [
-                {
-                  "color": "#ffffff",
-                  "label": "Clouds",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#a50026",
-                  "label": "Very Low",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#d73027",
-                  "label": "Low",
-                  "hectares": 2.5897,
-                  "percent": 94.66
-                },
-                {
-                  "color": "#f46d43",
-                  "label": "Fair",
-                  "hectares": 0.1461,
-                  "percent": 5.34
-                },
-                {
-                  "color": "#fdae61",
-                  "label": "Moderate",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#d9ef8b",
-                  "label": "Good",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#d9ef8b",
-                  "label": "Very Good",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#a6d96a",
-                  "label": "Excellent",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#66bd63",
-                  "label": "Dense",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#1a9850",
-                  "label": "Very Dense",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#006837",
-                  "label": "Extreme",
-                  "hectares": 0,
-                  "percent": 0
-                }
-              ],
-              "area_stats": null,
-              "image_base64_meta": {
-                "present": true,
-                "charLength": 93504
-              }
-            }
+            "ok": false,
+            "error": "Request failed with status code 500"
           },
           {
             "indexName": "SAVI",
@@ -8145,90 +8123,8 @@
           },
           {
             "indexName": "RECI",
-            "ok": true,
-            "apiResponseSanitized": {
-              "date": "2025-06-06",
-              "index_name": "RECI",
-              "bounds": [
-                78.95985305644648,
-                20.590268642606468,
-                78.96169965098223,
-                20.592132315219793
-              ],
-              "legend": [
-                {
-                  "color": "#ffffff",
-                  "label": "Clouds",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#a50026",
-                  "label": "Very Low",
-                  "hectares": 0.0466,
-                  "percent": 1.71
-                },
-                {
-                  "color": "#d73027",
-                  "label": "Low",
-                  "hectares": 2.3236,
-                  "percent": 84.94
-                },
-                {
-                  "color": "#f46d43",
-                  "label": "Fair",
-                  "hectares": 0.3435,
-                  "percent": 12.56
-                },
-                {
-                  "color": "#fdae61",
-                  "label": "Moderate",
-                  "hectares": 0.022,
-                  "percent": 0.8
-                },
-                {
-                  "color": "#fee08b",
-                  "label": "Good",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#d9ef8b",
-                  "label": "Very Good",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#a6d96a",
-                  "label": "Excellent",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#66bd63",
-                  "label": "Rich",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#1a9850",
-                  "label": "Very Rich",
-                  "hectares": 0,
-                  "percent": 0
-                },
-                {
-                  "color": "#006837",
-                  "label": "Excessive",
-                  "hectares": 0,
-                  "percent": 0
-                }
-              ],
-              "area_stats": null,
-              "image_base64_meta": {
-                "present": true,
-                "charLength": 119548
-              }
-            }
+            "ok": false,
+            "error": "Request failed with status code 500"
           },
           {
             "indexName": "TRUE_COLOR",
@@ -8256,12 +8152,7 @@
               "areaStats": null
             },
             "EVI2": {
-              "date": "2025-06-06",
-              "healthScore": 54,
-              "dominantLabel": "Low",
-              "dominantPercent": 94.66,
-              "cloudCoverPercent": 0,
-              "areaStats": null
+              "error": "Request failed with status code 500"
             },
             "SAVI": {
               "date": "2025-06-06",
@@ -8332,25 +8223,20 @@
               "areaStats": null
             },
             "RECI": {
-              "date": "2025-06-06",
-              "healthScore": 53,
-              "dominantLabel": "Low",
-              "dominantPercent": 84.94,
-              "cloudCoverPercent": 0,
-              "areaStats": null
+              "error": "Request failed with status code 500"
             },
             "TRUE_COLOR": {
               "error": "Request failed with status code 500"
             }
           },
-          "compositeVegetationScore": 50,
-          "vegetationIndexCount": 7,
-          "successfulIndexCount": 12
+          "compositeVegetationScore": 49,
+          "vegetationIndexCount": 5,
+          "successfulIndexCount": 10
         }
       }
     },
     {
-      "at": "2026-04-23T08:01:19.037Z",
+      "at": "2026-04-27T04:49:23.084Z",
       "step": "water_timeseries",
       "service": "cropgen_satellite",
       "apiOrFn": "POST /timeseries/water/water (NDMI)",
@@ -8392,7 +8278,7 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:19.040Z",
+      "at": "2026-04-27T04:49:23.087Z",
       "step": "gdd_crop_growth",
       "service": "src/utils/cropgrowth/gddCalculator",
       "apiOrFn": "calculateCumulativeGDD + getCropGrowthStage",
@@ -8401,7 +8287,7 @@
         "baseTemp": 10
       },
       "rawResponseSummary": {
-        "gddSeriesLength": 328
+        "gddSeriesLength": 332
       },
       "rawInputHistoricalWeatherFull": {
         "elevation": 249,
@@ -8735,7 +8621,11 @@
             "2026-04-20",
             "2026-04-21",
             "2026-04-22",
-            "2026-04-23"
+            "2026-04-23",
+            "2026-04-24",
+            "2026-04-25",
+            "2026-04-26",
+            "2026-04-27"
           ],
           "temp_max": [
             37.5,
@@ -9065,7 +8955,11 @@
             42.3,
             40.8,
             43,
-            42.9
+            43.5,
+            43.5,
+            44.1,
+            44.6,
+            44.5
           ],
           "temp_min": [
             28.4,
@@ -9395,7 +9289,11 @@
             30.2,
             29.5,
             29,
-            27.9
+            27.9,
+            28.5,
+            28.7,
+            29.9,
+            28.7
           ],
           "temp_mean": [
             32.6,
@@ -9725,7 +9623,11 @@
             35.1,
             35.1,
             35.9,
-            35.5
+            35.4,
+            36.1,
+            36.6,
+            37.1,
+            36.6
           ],
           "relative_humidity": [
             66,
@@ -10055,7 +9957,11 @@
             42,
             35,
             39,
-            32
+            32,
+            39,
+            33,
+            37,
+            38
           ],
           "precipitation": [
             0,
@@ -10367,6 +10273,10 @@
             0,
             0,
             0.8,
+            0,
+            0,
+            0,
+            0,
             0,
             0,
             0,
@@ -10715,6 +10625,10 @@
             0,
             0,
             0,
+            0,
+            0,
+            0,
+            0,
             0
           ],
           "surface_pressure": [
@@ -11045,7 +10959,11 @@
             978.7,
             978.8,
             978.3,
-            978.1
+            978.3,
+            978.3,
+            978.6,
+            976.8,
+            975.5
           ],
           "cloud_cover": [
             89,
@@ -11375,7 +11293,11 @@
             68,
             68,
             58,
-            56
+            75,
+            56,
+            74,
+            15,
+            24
           ],
           "evapotranspiration": [
             8.46,
@@ -11705,7 +11627,11 @@
             8.34,
             7.89,
             7.98,
-            8.22
+            8.77,
+            8.39,
+            8.28,
+            8.63,
+            7.91
           ],
           "wind_speed": [
             23,
@@ -12035,7 +11961,11 @@
             20.8,
             17.9,
             19.9,
-            19.9
+            20.5,
+            15.8,
+            15.2,
+            18.5,
+            17.6
           ],
           "wind_gusts": [
             42.5,
@@ -12365,7 +12295,11 @@
             40.7,
             36.7,
             44.6,
-            36.4
+            40,
+            32.8,
+            25.6,
+            30.6,
+            32.8
           ],
           "soil_temp_5cm": [
             33.7,
@@ -12695,7 +12629,11 @@
             38,
             38.5,
             39.1,
-            38.3
+            37.9,
+            38.5,
+            39.6,
+            40.2,
+            39.2
           ],
           "soil_temp_15cm": [
             33.4,
@@ -13025,7 +12963,11 @@
             36.9,
             36.9,
             37.2,
-            37
+            36.8,
+            36.6,
+            37.2,
+            37.8,
+            37.9
           ],
           "soil_temp_50cm": [
             32.6,
@@ -13355,7 +13297,11 @@
             32.3,
             32.5,
             32.8,
-            33
+            32.9,
+            33.1,
+            33.2,
+            33.4,
+            33.6
           ],
           "soil_moisture_5cm": [
             0.452,
@@ -13685,6 +13631,10 @@
             0.251,
             0.25,
             0.25,
+            0.25,
+            0.25,
+            0.25,
+            0.25,
             0.25
           ],
           "soil_moisture_15cm": [
@@ -13999,6 +13949,10 @@
             0.282,
             0.279,
             0.28,
+            0.276,
+            0.276,
+            0.276,
+            0.276,
             0.276,
             0.276,
             0.276,
@@ -14345,7 +14299,11 @@
             0.3,
             0.299,
             0.298,
-            0.298
+            0.298,
+            0.298,
+            0.297,
+            0.296,
+            0.296
           ]
         },
         "units": {
@@ -16007,28 +15965,48 @@
         },
         {
           "date": "2026-04-23",
-          "dailyGDD": 25.4,
-          "cumulativeGDD": 5348.2
+          "dailyGDD": 25.7,
+          "cumulativeGDD": 5348.5
+        },
+        {
+          "date": "2026-04-24",
+          "dailyGDD": 26,
+          "cumulativeGDD": 5374.5
+        },
+        {
+          "date": "2026-04-25",
+          "dailyGDD": 26.4,
+          "cumulativeGDD": 5400.9
+        },
+        {
+          "date": "2026-04-26",
+          "dailyGDD": 27.25,
+          "cumulativeGDD": 5428.2
+        },
+        {
+          "date": "2026-04-27",
+          "dailyGDD": 26.6,
+          "cumulativeGDD": 5454.8
         }
       ],
       "calculated": "cumulativeGDD, plantGrowthActivity (BBCH, progress, stage name)",
       "output": {
-        "cumulativeGDD": 5348.2,
+        "cumulativeGDD": 5454.8,
         "plantGrowthActivity": {
           "bbchStage": 90,
           "stageName": "Maturity",
-          "cumulativeGDD": 5348.2,
+          "cumulativeGDD": 5454.8,
           "description": "Physiological maturity",
           "overallProgress": 100,
           "stageProgress": 100
         }
       },
       "outputFull": {
-        "cumulativeGDD": 5348.2,
+        "cumulativeGDD": 5454.8,
         "plantGrowthActivity": {
           "bbchStage": 90,
           "stageName": "Maturity",
-          "cumulativeGDD": 5348.2,
+          "cumulativeGDD": 5454.8,
           "description": "Physiological maturity",
           "overallProgress": 100,
           "stageProgress": 100
@@ -16043,18 +16021,19 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:19.040Z",
-      "step": "advisory_stage_gate",
+      "at": "2026-04-27T04:49:23.087Z",
+      "step": "yield_stage_gate",
       "service": "advisory.service",
-      "apiOrFn": "maturity/harvest gate",
+      "apiOrFn": "maturity/harvest — yield only",
       "output": {
         "stageName": "Maturity",
         "bbchStage": 90,
-        "isMaturityOrHarvestStage": true
+        "isMaturityOrHarvestStage": true,
+        "note": "Full advisory runs for all stages; standard/AI yield numbers only when maturity or harvest."
       }
     },
     {
-      "at": "2026-04-23T08:01:19.041Z",
+      "at": "2026-04-27T04:49:23.088Z",
       "step": "npk_management",
       "service": "src/utils/npk/npkCalculator",
       "apiOrFn": "calculateNPKFromfarmField",
@@ -16071,57 +16050,57 @@
         "plantGrowthActivity": {
           "bbchStage": 90,
           "stageName": "Maturity",
-          "cumulativeGDD": 5348.2,
+          "cumulativeGDD": 5454.8,
           "description": "Physiological maturity",
           "overallProgress": 100,
           "stageProgress": 100
         },
         "weatherSummary": {
           "current": {
-            "temp": 41.1,
-            "humidity": 15,
+            "temp": 40.1,
+            "humidity": 18,
             "rainfall": 0,
-            "windSpeed": 14.8,
-            "et0": 6.96,
-            "soilMoisture_5cm": 0.276,
-            "soilMoisture_15cm": 0.299
+            "windSpeed": 10,
+            "et0": 7.91,
+            "soilMoisture_5cm": 0.252,
+            "soilMoisture_15cm": 0.282
           },
           "next7Days": {
             "dates": [
-              "2026-04-23",
-              "2026-04-24",
-              "2026-04-25",
-              "2026-04-26",
               "2026-04-27",
               "2026-04-28",
-              "2026-04-29"
+              "2026-04-29",
+              "2026-04-30",
+              "2026-05-01",
+              "2026-05-02",
+              "2026-05-03"
             ],
             "tempMean": [
-              34.4,
-              34.1,
-              34.4,
-              34.4,
-              34.4,
-              34.5,
-              34.4
+              36.6,
+              36.6,
+              36.5,
+              36.4,
+              36.1,
+              36.2,
+              36.4
             ],
             "tempMax": [
-              41.3,
-              41.2,
-              41.8,
-              42.3,
-              42.2,
-              42.3,
-              41.6
+              44.5,
+              43.5,
+              43.3,
+              43.2,
+              42.8,
+              43.5,
+              43
             ],
             "tempMin": [
-              28.1,
-              27.7,
-              27.5,
-              26.4,
-              27.7,
-              27.6,
-              27.7
+              28.7,
+              28.2,
+              28.4,
+              28.8,
+              30,
+              28.9,
+              28.6
             ],
             "rainfall": [
               0,
@@ -16133,49 +16112,49 @@
               0
             ],
             "humidity": [
-              64,
-              59,
-              61,
-              60,
-              68,
-              67,
-              58
+              38,
+              35,
+              24,
+              33,
+              37,
+              34,
+              31
             ],
             "et0": [
-              6.96,
-              6.47,
-              6.27,
-              6.66,
-              6.37,
-              7.38,
-              7.25
+              7.91,
+              8.8,
+              9.9,
+              10.56,
+              9.06,
+              8.43,
+              8.58
             ],
             "windSpeed": [
-              18.3,
-              12.7,
-              5.5,
-              8.7,
-              6,
-              11.7,
-              13.7
+              17.6,
+              19.8,
+              20.7,
+              27.3,
+              17.2,
+              20.4,
+              14.7
             ],
             "windGusts": [
-              37.8,
-              27,
-              12.6,
-              19.4,
-              15.8,
-              28.8,
-              30.6
+              32.8,
+              39.6,
+              38.5,
+              50.8,
+              34.6,
+              37.4,
+              32
             ],
             "cloudCover": [
-              83,
-              35,
-              41,
-              47,
-              57,
-              21,
-              22
+              24,
+              7,
+              8,
+              9,
+              13,
+              5,
+              10
             ]
           }
         },
@@ -16203,7 +16182,7 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:19.041Z",
+      "at": "2026-04-27T04:49:23.089Z",
       "step": "crop_health",
       "service": "src/utils/crophealth/cropHealth",
       "apiOrFn": "calcCropHealth",
@@ -16222,7 +16201,7 @@
         "plantGrowthActivity": {
           "bbchStage": 90,
           "stageName": "Maturity",
-          "cumulativeGDD": 5348.2,
+          "cumulativeGDD": 5454.8,
           "description": "Physiological maturity",
           "overallProgress": 100,
           "stageProgress": 100
@@ -16257,12 +16236,7 @@
               "areaStats": null
             },
             "EVI2": {
-              "date": "2025-06-06",
-              "healthScore": 54,
-              "dominantLabel": "Low",
-              "dominantPercent": 94.66,
-              "cloudCoverPercent": 0,
-              "areaStats": null
+              "error": "Request failed with status code 500"
             },
             "SAVI": {
               "date": "2025-06-06",
@@ -16333,20 +16307,15 @@
               "areaStats": null
             },
             "RECI": {
-              "date": "2025-06-06",
-              "healthScore": 53,
-              "dominantLabel": "Low",
-              "dominantPercent": 84.94,
-              "cloudCoverPercent": 0,
-              "areaStats": null
+              "error": "Request failed with status code 500"
             },
             "TRUE_COLOR": {
               "error": "Request failed with status code 500"
             }
           },
-          "compositeVegetationScore": 50,
-          "vegetationIndexCount": 7,
-          "successfulIndexCount": 12
+          "compositeVegetationScore": 49,
+          "vegetationIndexCount": 5,
+          "successfulIndexCount": 10
         }
       },
       "output": {
@@ -16362,7 +16331,7 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:19.042Z",
+      "at": "2026-04-27T04:49:23.089Z",
       "step": "yield_estimate",
       "service": "advisory/utils/yield/yieldCalculator",
       "apiOrFn": "calculateYieldPrecise",
@@ -16379,7 +16348,7 @@
         "plantGrowthActivity": {
           "bbchStage": 90,
           "stageName": "Maturity",
-          "cumulativeGDD": 5348.2,
+          "cumulativeGDD": 5454.8,
           "description": "Physiological maturity",
           "overallProgress": 100,
           "stageProgress": 100
@@ -16410,50 +16379,50 @@
         },
         "weatherSummary": {
           "current": {
-            "temp": 41.1,
-            "humidity": 15,
+            "temp": 40.1,
+            "humidity": 18,
             "rainfall": 0,
-            "windSpeed": 14.8,
-            "et0": 6.96,
-            "soilMoisture_5cm": 0.276,
-            "soilMoisture_15cm": 0.299
+            "windSpeed": 10,
+            "et0": 7.91,
+            "soilMoisture_5cm": 0.252,
+            "soilMoisture_15cm": 0.282
           },
           "next7Days": {
             "dates": [
-              "2026-04-23",
-              "2026-04-24",
-              "2026-04-25",
-              "2026-04-26",
               "2026-04-27",
               "2026-04-28",
-              "2026-04-29"
+              "2026-04-29",
+              "2026-04-30",
+              "2026-05-01",
+              "2026-05-02",
+              "2026-05-03"
             ],
             "tempMean": [
-              34.4,
-              34.1,
-              34.4,
-              34.4,
-              34.4,
-              34.5,
-              34.4
+              36.6,
+              36.6,
+              36.5,
+              36.4,
+              36.1,
+              36.2,
+              36.4
             ],
             "tempMax": [
-              41.3,
-              41.2,
-              41.8,
-              42.3,
-              42.2,
-              42.3,
-              41.6
+              44.5,
+              43.5,
+              43.3,
+              43.2,
+              42.8,
+              43.5,
+              43
             ],
             "tempMin": [
-              28.1,
-              27.7,
-              27.5,
-              26.4,
-              27.7,
-              27.6,
-              27.7
+              28.7,
+              28.2,
+              28.4,
+              28.8,
+              30,
+              28.9,
+              28.6
             ],
             "rainfall": [
               0,
@@ -16465,53 +16434,54 @@
               0
             ],
             "humidity": [
-              64,
-              59,
-              61,
-              60,
-              68,
-              67,
-              58
+              38,
+              35,
+              24,
+              33,
+              37,
+              34,
+              31
             ],
             "et0": [
-              6.96,
-              6.47,
-              6.27,
-              6.66,
-              6.37,
-              7.38,
-              7.25
+              7.91,
+              8.8,
+              9.9,
+              10.56,
+              9.06,
+              8.43,
+              8.58
             ],
             "windSpeed": [
-              18.3,
-              12.7,
-              5.5,
-              8.7,
-              6,
-              11.7,
-              13.7
+              17.6,
+              19.8,
+              20.7,
+              27.3,
+              17.2,
+              20.4,
+              14.7
             ],
             "windGusts": [
-              37.8,
-              27,
-              12.6,
-              19.4,
-              15.8,
-              28.8,
-              30.6
+              32.8,
+              39.6,
+              38.5,
+              50.8,
+              34.6,
+              37.4,
+              32
             ],
             "cloudCover": [
-              83,
-              35,
-              41,
-              47,
-              57,
-              21,
-              22
+              24,
+              7,
+              8,
+              9,
+              13,
+              5,
+              10
             ]
           }
         },
-        "language": "en"
+        "language": "en",
+        "isMaturityOrHarvestStage": true
       },
       "calculated": "standard vs AI yield, gap, limiting factor",
       "output": {
@@ -16568,7 +16538,7 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:19.044Z",
+      "at": "2026-04-27T04:49:23.092Z",
       "step": "evidence_and_decision_hints",
       "service": "advisory/utils/evidence/evidenceBuilder",
       "apiOrFn": "buildEvidence + runDecisionEngine",
@@ -16606,11 +16576,11 @@
           "monitoring",
           "harvestPlanning"
         ],
-        "irrigationShouldIrrigate": false,
+        "irrigationShouldIrrigate": true,
         "carbonSummary": {
-          "emissionKgCO2": 0,
+          "emissionKgCO2": 1.3,
           "capturedKgCO2": 11.8,
-          "netBalanceKgCO2": 11.8
+          "netBalanceKgCO2": 10.5
         }
       },
       "outputFull": {
@@ -16622,8 +16592,8 @@
           "recommendation": "The crop is under mild stress. Review irrigation and nutrient management."
         },
         "soilMoisture": {
-          "rawVolumetric": 0.299,
-          "currentPercent": 90,
+          "rawVolumetric": 0.282,
+          "currentPercent": 83,
           "observed": true,
           "thresholdPermanentWilting": 20,
           "thresholdFieldCapacity": 80,
@@ -16632,50 +16602,50 @@
         "irrigationType": "sprinkler",
         "weatherForecast": {
           "current": {
-            "temp": 41.1,
-            "humidity": 15,
+            "temp": 40.1,
+            "humidity": 18,
             "rainfall": 0,
-            "windSpeed": 14.8,
-            "et0": 6.96,
-            "soilMoisture_5cm": 0.276,
-            "soilMoisture_15cm": 0.299
+            "windSpeed": 10,
+            "et0": 7.91,
+            "soilMoisture_5cm": 0.252,
+            "soilMoisture_15cm": 0.282
           },
           "next7Days": {
             "dates": [
-              "2026-04-23",
-              "2026-04-24",
-              "2026-04-25",
-              "2026-04-26",
               "2026-04-27",
               "2026-04-28",
-              "2026-04-29"
+              "2026-04-29",
+              "2026-04-30",
+              "2026-05-01",
+              "2026-05-02",
+              "2026-05-03"
             ],
             "tempMean": [
-              34.4,
-              34.1,
-              34.4,
-              34.4,
-              34.4,
-              34.5,
-              34.4
+              36.6,
+              36.6,
+              36.5,
+              36.4,
+              36.1,
+              36.2,
+              36.4
             ],
             "tempMax": [
-              41.3,
-              41.2,
-              41.8,
-              42.3,
-              42.2,
-              42.3,
-              41.6
+              44.5,
+              43.5,
+              43.3,
+              43.2,
+              42.8,
+              43.5,
+              43
             ],
             "tempMin": [
-              28.1,
-              27.7,
-              27.5,
-              26.4,
-              27.7,
-              27.6,
-              27.7
+              28.7,
+              28.2,
+              28.4,
+              28.8,
+              30,
+              28.9,
+              28.6
             ],
             "rainfall": [
               0,
@@ -16687,55 +16657,55 @@
               0
             ],
             "humidity": [
-              64,
-              59,
-              61,
-              60,
-              68,
-              67,
-              58
+              38,
+              35,
+              24,
+              33,
+              37,
+              34,
+              31
             ],
             "et0": [
-              6.96,
-              6.47,
-              6.27,
-              6.66,
-              6.37,
-              7.38,
-              7.25
+              7.91,
+              8.8,
+              9.9,
+              10.56,
+              9.06,
+              8.43,
+              8.58
             ],
             "windSpeed": [
-              18.3,
-              12.7,
-              5.5,
-              8.7,
-              6,
-              11.7,
-              13.7
+              17.6,
+              19.8,
+              20.7,
+              27.3,
+              17.2,
+              20.4,
+              14.7
             ],
             "windGusts": [
-              37.8,
-              27,
-              12.6,
-              19.4,
-              15.8,
-              28.8,
-              30.6
+              32.8,
+              39.6,
+              38.5,
+              50.8,
+              34.6,
+              37.4,
+              32
             ],
             "cloudCover": [
-              83,
-              35,
-              41,
-              47,
-              57,
-              21,
-              22
+              24,
+              7,
+              8,
+              9,
+              13,
+              5,
+              10
             ]
           },
           "rainProbabilityToday": "low",
           "rainfallForecast3d": 0,
           "rainfallForecast7d": 0,
-          "windSpeedToday": 18.3
+          "windSpeedToday": 17.6
         },
         "npkManagement": {
           "available": {
@@ -16758,25 +16728,25 @@
           "diseasePressure": "low"
         },
         "irrigationRequirement": {
-          "shouldIrrigate": false,
+          "shouldIrrigate": true,
           "criticality": "LOW",
-          "waterRequirement_mm": 1,
+          "waterRequirement_mm": 9,
           "frequencyDays": 7,
-          "durationHours": 0.1,
-          "durationMinutes": 6,
+          "durationHours": 1.1,
+          "durationMinutes": 66,
           "discharge_lmin": 1097,
-          "totalWater_m3": 27,
-          "cropET_mmPerDay": 3.13,
+          "totalWater_m3": 247,
+          "cropET_mmPerDay": 3.56,
           "kc": 0.45,
           "phase": "late",
-          "soilMoisturePercent": 90,
-          "soilDeficit_mm": 9,
+          "soilMoisturePercent": 83,
+          "soilDeficit_mm": 15,
           "rainfallOffset_mm": 0,
-          "recommendation": "Soil moisture adequate. No irrigation needed today.",
-          "needsIrrigation": false,
-          "amountHours": 0.1,
-          "amountMinutes": 6,
-          "reason": "Soil moisture adequate. No irrigation needed today.",
+          "recommendation": "Apply 9 mm every 7 days for 66 minutes (1097 L/min, ~247 m³ total).",
+          "needsIrrigation": true,
+          "amountHours": 1.1,
+          "amountMinutes": 66,
+          "reason": "Apply 9 mm every 7 days for 66 minutes (1097 L/min, ~247 m³ total).",
           "dataConfidence": "high",
           "soilMoistureLevel": "high"
         },
@@ -16941,9 +16911,9 @@
           "summary": "soybean: Total N=20, P=80, K=40 kg/ha across 3 splits. Current BBCH=90."
         },
         "carbonData": {
-          "emissionKgCO2": 0,
+          "emissionKgCO2": 1.3,
           "capturedKgCO2": 11.8,
-          "netBalanceKgCO2": 11.8
+          "netBalanceKgCO2": 10.5
         },
         "yieldGap": {
           "targetYield": 68.57,
@@ -16988,12 +16958,7 @@
               "areaStats": null
             },
             "EVI2": {
-              "date": "2025-06-06",
-              "healthScore": 54,
-              "dominantLabel": "Low",
-              "dominantPercent": 94.66,
-              "cloudCoverPercent": 0,
-              "areaStats": null
+              "error": "Request failed with status code 500"
             },
             "SAVI": {
               "date": "2025-06-06",
@@ -17064,20 +17029,15 @@
               "areaStats": null
             },
             "RECI": {
-              "date": "2025-06-06",
-              "healthScore": 53,
-              "dominantLabel": "Low",
-              "dominantPercent": 84.94,
-              "cloudCoverPercent": 0,
-              "areaStats": null
+              "error": "Request failed with status code 500"
             },
             "TRUE_COLOR": {
               "error": "Request failed with status code 500"
             }
           },
-          "compositeVegetationScore": 50,
-          "vegetationIndexCount": 7,
-          "successfulIndexCount": 12
+          "compositeVegetationScore": 49,
+          "vegetationIndexCount": 5,
+          "successfulIndexCount": 10
         },
         "dataQuality": {
           "hasObservedSoilMoisture": true,
@@ -17101,11 +17061,11 @@
             "hint": null
           },
           "irrigation": {
-            "shouldIrrigate": false,
+            "shouldIrrigate": true,
             "hint": {
-              "message": "Soil moisture adequate. No irrigation needed today.",
-              "quantity": null,
-              "unit": null
+              "message": "Run drip/sprinkler for 66 minutes.",
+              "quantity": 66,
+              "unit": "minutes"
             }
           },
           "monitoring": {
@@ -17128,7 +17088,7 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:39.481Z",
+      "at": "2026-04-27T04:49:34.241Z",
       "step": "llm_advisory",
       "service": "openai",
       "apiOrFn": "generateSmartAdvisory",
@@ -17196,13 +17156,13 @@
           {
             "type": "IRRIGATION",
             "title": "Irrigation Schedule",
-            "message": "Soil moisture adequate. No irrigation needed today.",
+            "message": "Run drip/sprinkler for ~66 min today.",
             "details": {
-              "applicationMethod": "No irrigation required",
+              "applicationMethod": "Drip / Sprinkler",
               "timing": "Morning (6–10 AM)",
-              "duration": "Not required",
-              "waterQuantity": "1 mm",
-              "reason": "Soil moisture adequate. No irrigation needed today.",
+              "duration": "66 minutes",
+              "waterQuantity": "9 mm",
+              "reason": "Apply 9 mm every 7 days for 66 minutes (1097 L/min, ~247 m³ total).",
               "frequency": "Every 7 days",
               "confidence": "high"
             }
@@ -17212,10 +17172,10 @@
             "title": "Weather Forecast",
             "message": "High temperatures expected; monitor irrigation needs.",
             "details": {
-              "temperature": "41.1°C",
-              "humidity": "15%",
-              "rainfallProbability": "low",
-              "advisory": "High temperature may increase irrigation need"
+              "temperature": "40.1°C",
+              "humidity": "18%",
+              "rainfallProbability": "0%",
+              "advisory": "High temperature may increase irrigation need."
             }
           },
           {
@@ -17224,14 +17184,14 @@
             "message": "Moderate stress detected; review management.",
             "details": {
               "riskLevel": "Moderate",
-              "cause": "Mild stress observed",
-              "recommendedAction": "Review irrigation and nutrient management"
+              "cause": "Mild stress due to high temperatures.",
+              "recommendedAction": "Monitor irrigation and nutrient management."
             }
           },
           {
             "type": "MONITORING",
             "title": "Crop Monitoring",
-            "message": "Check crop health and stress levels.",
+            "message": "Check lower leaves and stem base for stress.",
             "details": {
               "focusAreas": "Lower leaves, stem base, new growth",
               "whatToCheck": "Signs of stress or disease",
@@ -17241,19 +17201,19 @@
           {
             "type": "CARBON_TRACKING",
             "title": "Carbon Emission Tracking",
-            "message": "Monitor carbon capture for sustainability.",
+            "message": "Monitor carbon balance for sustainability.",
             "details": {
-              "emissionEstimate": "0 kg CO2",
+              "emissionEstimate": "1.3 kg CO2",
               "captureEstimate": "11.8 kg CO2",
-              "netBalance": "11.8 kg CO2",
-              "recommendation": "Continue practices that enhance carbon capture"
+              "netBalance": "10.5 kg CO2",
+              "recommendation": "Consider practices to enhance carbon capture."
             }
           }
         ]
       }
     },
     {
-      "at": "2026-04-23T08:01:39.498Z",
+      "at": "2026-04-27T04:49:34.259Z",
       "step": "persist_advisory",
       "service": "mongoose",
       "apiOrFn": "FarmAdvisory.create",
@@ -17305,13 +17265,13 @@
           {
             "type": "IRRIGATION",
             "title": "Irrigation Schedule",
-            "message": "Soil moisture adequate. No irrigation needed today.",
+            "message": "Run drip/sprinkler for ~66 min today.",
             "details": {
-              "applicationMethod": "No irrigation required",
+              "applicationMethod": "Drip / Sprinkler",
               "timing": "Morning (6–10 AM)",
-              "duration": "Not required",
-              "waterQuantity": "1 mm",
-              "reason": "Soil moisture adequate. No irrigation needed today.",
+              "duration": "66 minutes",
+              "waterQuantity": "9 mm",
+              "reason": "Apply 9 mm every 7 days for 66 minutes (1097 L/min, ~247 m³ total).",
               "frequency": "Every 7 days",
               "confidence": "high"
             }
@@ -17321,10 +17281,10 @@
             "title": "Weather Forecast",
             "message": "High temperatures expected; monitor irrigation needs.",
             "details": {
-              "temperature": "41.1°C",
-              "humidity": "15%",
-              "rainfallProbability": "low",
-              "advisory": "High temperature may increase irrigation need"
+              "temperature": "40.1°C",
+              "humidity": "18%",
+              "rainfallProbability": "0%",
+              "advisory": "High temperature may increase irrigation need."
             }
           },
           {
@@ -17333,14 +17293,14 @@
             "message": "Moderate stress detected; review management.",
             "details": {
               "riskLevel": "Moderate",
-              "cause": "Mild stress observed",
-              "recommendedAction": "Review irrigation and nutrient management"
+              "cause": "Mild stress due to high temperatures.",
+              "recommendedAction": "Monitor irrigation and nutrient management."
             }
           },
           {
             "type": "MONITORING",
             "title": "Crop Monitoring",
-            "message": "Check crop health and stress levels.",
+            "message": "Check lower leaves and stem base for stress.",
             "details": {
               "focusAreas": "Lower leaves, stem base, new growth",
               "whatToCheck": "Signs of stress or disease",
@@ -17350,12 +17310,12 @@
           {
             "type": "CARBON_TRACKING",
             "title": "Carbon Emission Tracking",
-            "message": "Monitor carbon capture for sustainability.",
+            "message": "Monitor carbon balance for sustainability.",
             "details": {
-              "emissionEstimate": "0 kg CO2",
+              "emissionEstimate": "1.3 kg CO2",
               "captureEstimate": "11.8 kg CO2",
-              "netBalance": "11.8 kg CO2",
-              "recommendation": "Continue practices that enhance carbon capture"
+              "netBalance": "10.5 kg CO2",
+              "recommendation": "Consider practices to enhance carbon capture."
             }
           }
         ],
@@ -17368,7 +17328,7 @@
         "plantGrowthActivity": {
           "bbchStage": 90,
           "stageName": "Maturity",
-          "cumulativeGDD": 5348.2,
+          "cumulativeGDD": 5454.8,
           "description": "Physiological maturity",
           "overallProgress": 100,
           "stageProgress": 100
@@ -17387,9 +17347,9 @@
           "recommendation": "Crop: soybean\nStage: Maturity\nArea: 6.78 acres\n\nThe crop is ready for harvest.\nDo not apply fertilizers at this stage.\nPlan timely harvesting and post-harvest handling."
         },
         "carbonData": {
-          "emissionKgCO2": 0,
+          "emissionKgCO2": 1.3,
           "capturedKgCO2": 11.8,
-          "netBalanceKgCO2": 11.8
+          "netBalanceKgCO2": 10.5
         },
         "opticalIndicesSummary": {
           "snapshotDate": "2025-06-06",
@@ -17411,12 +17371,7 @@
               "areaStats": null
             },
             "EVI2": {
-              "date": "2025-06-06",
-              "healthScore": 54,
-              "dominantLabel": "Low",
-              "dominantPercent": 94.66,
-              "cloudCoverPercent": 0,
-              "areaStats": null
+              "error": "Request failed with status code 500"
             },
             "SAVI": {
               "date": "2025-06-06",
@@ -17487,24 +17442,19 @@
               "areaStats": null
             },
             "RECI": {
-              "date": "2025-06-06",
-              "healthScore": 53,
-              "dominantLabel": "Low",
-              "dominantPercent": 84.94,
-              "cloudCoverPercent": 0,
-              "areaStats": null
+              "error": "Request failed with status code 500"
             },
             "TRUE_COLOR": {
               "error": "Request failed with status code 500"
             }
           },
-          "compositeVegetationScore": 50,
-          "vegetationIndexCount": 7,
-          "successfulIndexCount": 12
+          "compositeVegetationScore": 49,
+          "vegetationIndexCount": 5,
+          "successfulIndexCount": 10
         }
       },
       "output": {
-        "advisoryId": "69e9d1e351c4225fc4ddb1a0",
+        "advisoryId": "69eeeade7654419e78a96d09",
         "activitiesCount": 7
       },
       "outputFull": {
@@ -17529,13 +17479,13 @@
           {
             "type": "IRRIGATION",
             "title": "Irrigation Schedule",
-            "message": "Soil moisture adequate. No irrigation needed today.",
+            "message": "Run drip/sprinkler for ~66 min today.",
             "details": {
-              "applicationMethod": "No irrigation required",
+              "applicationMethod": "Drip / Sprinkler",
               "timing": "Morning (6–10 AM)",
-              "duration": "Not required",
-              "waterQuantity": "1 mm",
-              "reason": "Soil moisture adequate. No irrigation needed today.",
+              "duration": "66 minutes",
+              "waterQuantity": "9 mm",
+              "reason": "Apply 9 mm every 7 days for 66 minutes (1097 L/min, ~247 m³ total).",
               "frequency": "Every 7 days",
               "confidence": "high"
             }
@@ -17545,10 +17495,10 @@
             "title": "Weather Forecast",
             "message": "High temperatures expected; monitor irrigation needs.",
             "details": {
-              "temperature": "41.1°C",
-              "humidity": "15%",
-              "rainfallProbability": "low",
-              "advisory": "High temperature may increase irrigation need"
+              "temperature": "40.1°C",
+              "humidity": "18%",
+              "rainfallProbability": "0%",
+              "advisory": "High temperature may increase irrigation need."
             }
           },
           {
@@ -17557,14 +17507,14 @@
             "message": "Moderate stress detected; review management.",
             "details": {
               "riskLevel": "Moderate",
-              "cause": "Mild stress observed",
-              "recommendedAction": "Review irrigation and nutrient management"
+              "cause": "Mild stress due to high temperatures.",
+              "recommendedAction": "Monitor irrigation and nutrient management."
             }
           },
           {
             "type": "MONITORING",
             "title": "Crop Monitoring",
-            "message": "Check crop health and stress levels.",
+            "message": "Check lower leaves and stem base for stress.",
             "details": {
               "focusAreas": "Lower leaves, stem base, new growth",
               "whatToCheck": "Signs of stress or disease",
@@ -17574,12 +17524,12 @@
           {
             "type": "CARBON_TRACKING",
             "title": "Carbon Emission Tracking",
-            "message": "Monitor carbon capture for sustainability.",
+            "message": "Monitor carbon balance for sustainability.",
             "details": {
-              "emissionEstimate": "0 kg CO2",
+              "emissionEstimate": "1.3 kg CO2",
               "captureEstimate": "11.8 kg CO2",
-              "netBalance": "11.8 kg CO2",
-              "recommendation": "Continue practices that enhance carbon capture"
+              "netBalance": "10.5 kg CO2",
+              "recommendation": "Consider practices to enhance carbon capture."
             }
           }
         ],
@@ -17599,7 +17549,7 @@
           "bbchStage": 90,
           "stageName": "Maturity",
           "description": "Physiological maturity",
-          "cumulativeGDD": 5348.2
+          "cumulativeGDD": 5454.8
         },
         "npkManagement": {
           "available": {
@@ -17615,9 +17565,9 @@
           "recommendation": "Crop: soybean\nStage: Maturity\nArea: 6.78 acres\n\nThe crop is ready for harvest.\nDo not apply fertilizers at this stage.\nPlan timely harvesting and post-harvest handling."
         },
         "carbonData": {
-          "emissionKgCO2": 0,
+          "emissionKgCO2": 1.3,
           "capturedKgCO2": 11.8,
-          "netBalanceKgCO2": 11.8
+          "netBalanceKgCO2": 10.5
         },
         "opticalIndicesSummary": {
           "snapshotDate": "2025-06-06",
@@ -17639,12 +17589,7 @@
               "areaStats": null
             },
             "EVI2": {
-              "date": "2025-06-06",
-              "healthScore": 54,
-              "dominantLabel": "Low",
-              "dominantPercent": 94.66,
-              "cloudCoverPercent": 0,
-              "areaStats": null
+              "error": "Request failed with status code 500"
             },
             "SAVI": {
               "date": "2025-06-06",
@@ -17715,54 +17660,49 @@
               "areaStats": null
             },
             "RECI": {
-              "date": "2025-06-06",
-              "healthScore": 53,
-              "dominantLabel": "Low",
-              "dominantPercent": 84.94,
-              "cloudCoverPercent": 0,
-              "areaStats": null
+              "error": "Request failed with status code 500"
             },
             "TRUE_COLOR": {
               "error": "Request failed with status code 500"
             }
           },
-          "compositeVegetationScore": 50,
-          "vegetationIndexCount": 7,
-          "successfulIndexCount": 12
+          "compositeVegetationScore": 49,
+          "vegetationIndexCount": 5,
+          "successfulIndexCount": 10
         },
-        "_id": "69e9d1e351c4225fc4ddb1a0",
-        "createdAt": "2026-04-23T08:01:39.493Z",
-        "updatedAt": "2026-04-23T08:01:39.493Z",
+        "_id": "69eeeade7654419e78a96d09",
+        "createdAt": "2026-04-27T04:49:34.254Z",
+        "updatedAt": "2026-04-27T04:49:34.254Z",
         "__v": 0
       }
     },
     {
-      "at": "2026-04-23T08:01:39.506Z",
+      "at": "2026-04-27T04:49:34.266Z",
       "step": "carbon_tracking",
       "service": "carbonTracking.service",
       "apiOrFn": "saveCarbonFromAdvisory",
       "inputsFull": {
         "userId": "69e9c13953ef5e227ea1290d",
         "farmFieldId": "69e9c34153ef5e227ea12924",
-        "advisoryId": "69e9d1e351c4225fc4ddb1a0",
-        "date": "2026-04-23",
+        "advisoryId": "69eeeade7654419e78a96d09",
+        "date": "2026-04-27",
         "carbonData": {
-          "emissionKgCO2": 0,
+          "emissionKgCO2": 1.3,
           "capturedKgCO2": 11.8,
-          "netBalanceKgCO2": 11.8
+          "netBalanceKgCO2": 10.5
         }
       },
       "output": {
         "saved": true
       },
       "outputFull": {
-        "emissionKgCO2": 0,
+        "emissionKgCO2": 1.3,
         "capturedKgCO2": 11.8,
-        "netBalanceKgCO2": 11.8
+        "netBalanceKgCO2": 10.5
       }
     },
     {
-      "at": "2026-04-23T08:01:39.507Z",
+      "at": "2026-04-27T04:49:34.267Z",
       "step": "load_notification_user",
       "service": "mongoose",
       "apiOrFn": "User.findById",
@@ -17783,47 +17723,47 @@
       }
     },
     {
-      "at": "2026-04-23T08:01:39.509Z",
+      "at": "2026-04-27T04:49:34.269Z",
       "step": "notification",
       "service": "notificationCreator.service",
       "apiOrFn": "createNotification",
       "inputsFull": {
         "type": "ADVISORY",
-        "referenceId": "69e9d1e351c4225fc4ddb1a0",
+        "referenceId": "69eeeade7654419e78a96d09",
         "templateName": "farm_advisory",
         "parameters": [
           "Vishal",
-          "23-04-2026",
+          "27-04-2026",
           "soybean",
           "Soyabean ",
           "6.78 Acre",
           "No advisory update.",
           "No fertigation needed today.",
-          "Soil moisture adequate. No irrigation needed today.",
+          "Run drip/sprinkler for ~66 min today.",
           "High temperatures expected; monitor irrigation needs.",
           "Moderate stress detected; review management.",
-          "Check crop health and stress levels.",
-          "Monitor carbon capture for sustainability."
+          "Check lower leaves and stem base for stress.",
+          "Monitor carbon balance for sustainability."
         ]
       },
       "output": {
         "templateName": "farm_advisory",
-        "referenceId": "69e9d1e351c4225fc4ddb1a0"
+        "referenceId": "69eeeade7654419e78a96d09"
       },
       "outputFull": {
         "spray": "No advisory update.",
         "fertigation": "No fertigation needed today.",
-        "irrigation": "Soil moisture adequate. No irrigation needed today.",
+        "irrigation": "Run drip/sprinkler for ~66 min today.",
         "weather": "High temperatures expected; monitor irrigation needs.",
         "cropRisk": "Moderate stress detected; review management.",
-        "monitoring": "Check crop health and stress levels.",
-        "carbonUpdate": "Monitor carbon capture for sustainability."
+        "monitoring": "Check lower leaves and stem base for stress.",
+        "carbonUpdate": "Monitor carbon balance for sustainability."
       }
     }
   ],
   "outcome": {
     "status": "complete",
-    "advisoryId": "69e9d1e351c4225fc4ddb1a0",
+    "advisoryId": "69eeeade7654419e78a96d09",
     "notified": true
   },
   "error": null
