@@ -71,6 +71,20 @@ const FarmAdvisorySchema = new Schema(
       capturedKgCO2: Number,
       netBalanceKgCO2: Number,
     },
+    recommendedProducts: {
+      type: [
+        new Schema(
+          {
+            productName: { type: String, required: true },
+            productImageUrl: { type: String, required: true },
+            productSourceUrl: { type: String, default: null },
+            description: { type: String, default: null },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
     /** Compact `/calculate/index` summaries (legend stats only; no base64 images). */
     opticalIndicesSummary: { type: Schema.Types.Mixed, default: null },
   },

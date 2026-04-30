@@ -41,6 +41,12 @@ import { calcCropHealth } from "../../../utils/crophealth/cropHealth.js";
 import { calculateYieldPrecise } from "../utils/yield/yieldCalculator.js";
 
 const ACRE_TO_HA = 0.404686;
+const BIODROPS_BOKASHI_PRODUCT = {
+  productName: "BioDrops Mokashi Bokashi Bucket",
+  productImageUrl: "https://m.media-amazon.com/images/I/61HumESyvlL._SL1000_.jpg",
+  productSourceUrl: null,
+  description: "Complete indoor composting Bokashi bucket and mixture starter.",
+};
 const summarizeGeometry = () => null;
 const summarizeOpticalIndexRowsForFlow = () => [];
 const cloneForAdvisoryFlowLog = () => undefined;
@@ -616,8 +622,14 @@ export async function generateAdvisoryForField(
       outputFull: cloneForAdvisoryFlowLog(yieldInfo),
     });
 
+    const user = farmField.user
+      ? await User.findById(farmField.user).populate("organization", "organizationCode").lean()
+      : null;
+    const organizationCode = String(user?.organization?.organizationCode || "").toUpperCase();
+
     const evidence = buildEvidence({
       farmField,
+      organizationCode,
       weatherSummary,
       ndvi,
       water,
@@ -689,6 +701,9 @@ export async function generateAdvisoryForField(
 
     const carbonData = evidence?.carbonData ?? null;
 
+    const recommendedProducts =
+      organizationCode === "BIODROPS" ? [BIODROPS_BOKASHI_PRODUCT] : [];
+
     const advisory = await FarmAdvisory.create({
       farmFieldId: farmField._id,
       yield: safeYield,
@@ -697,6 +712,7 @@ export async function generateAdvisoryForField(
       plantGrowthActivity,
       npkManagement,
       carbonData,
+      recommendedProducts,
       opticalIndicesSummary,
     });
     flow.addStep({
@@ -711,6 +727,7 @@ export async function generateAdvisoryForField(
         plantGrowthActivity,
         npkManagement,
         carbonData,
+        recommendedProducts,
         opticalIndicesSummary,
       }),
       output: {
@@ -754,11 +771,10 @@ export async function generateAdvisoryForField(
       }
     }
 
-    const user = await User.findById(farmField.user).lean();
     flow.addStep({
       step: "load_notification_user",
       service: "mongoose",
-      apiOrFn: "User.findById",
+      apiOrFn: "User.findById + populate(organization.organizationCode)",
       inputs: { userId: farmField.user != null ? String(farmField.user) : null },
       output: user
         ? {
@@ -766,6 +782,7 @@ export async function generateAdvisoryForField(
             hasEmail: Boolean(user.email),
             firstName: user.firstName,
             language: user.language,
+            organizationCode: organizationCode || null,
           }
         : null,
       outputFull: user
@@ -775,6 +792,7 @@ export async function generateAdvisoryForField(
             email: user.email,
             language: user.language,
             phone: user.phone,
+            organizationCode: organizationCode || null,
           })
         : null,
     });
