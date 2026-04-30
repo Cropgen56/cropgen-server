@@ -8,18 +8,9 @@ const LANGUAGE_MAP = {
   mr: "Marathi",
 };
 
-const BIODROPS_BOKASHI_FERTIGATION_PRODUCT = {
-  name: "BioDrops Mokashi Bokashi Bucket",
-  category: "ORGANIC",
-  purpose: "Adds organic matter and beneficial microbes for soil health improvement",
-  dosage: "30 kg/acre solids; bokashi tea dilution 1:100",
-};
-
 function buildFertigationActivityFromHints(language, evidence) {
   const farmType = normalizeTypeOfFarming(evidence?.typeOfFarming);
   const fert = evidence?.decisionHints?.fertigation;
-  const organizationCode = String(evidence?.organizationCode || "").toUpperCase();
-  const isBioDrops = organizationCode === "BIODROPS";
   const irrigationType = (evidence?.irrigationType || "").toLowerCase();
   const isDrip = irrigationType.includes("drip");
   const methodFallback = isDrip ? "Drip" : "Soil application";
@@ -36,13 +27,10 @@ function buildFertigationActivityFromHints(language, evidence) {
       title: farmType === "Organic" ? "Organic fertilizer" : farmType === "Inorganic" ? "Inorganic fertilizer" : "Integrated fertilizer",
       message: "No fertigation needed today.",
       details: {
-        products: isBioDrops ? [BIODROPS_BOKASHI_FERTIGATION_PRODUCT] : [],
+        products: [],
         applicationMethod: methodFallback,
         timing: "",
         reason: fert?.reason || "Nutrients are balanced for current stage.",
-        notes: isBioDrops
-          ? "For BIODROPS farmers, Bokashi can be used as a periodic organic soil amendment."
-          : "",
       },
     };
   }
@@ -72,9 +60,6 @@ function buildFertigationActivityFromHints(language, evidence) {
   };
   addPortionProducts(hint.organicPortion, "ORGANIC");
   addPortionProducts(hint.chemicalPortion, "CHEMICAL");
-  if (isBioDrops) {
-    products.push(BIODROPS_BOKASHI_FERTIGATION_PRODUCT);
-  }
 
   return {
     type: "FERTIGATION",
@@ -87,14 +72,7 @@ function buildFertigationActivityFromHints(language, evidence) {
       applicationMethod: hint.method || methodFallback,
       timing: hint.time || "",
       reason: fert.reason || "Nutrient deficit detected for current crop stage.",
-      notes: [
-        Array.isArray(hint.farmerSteps) ? hint.farmerSteps.join("; ") : "",
-        isBioDrops
-          ? "BIODROPS recommendation: incorporate fermented Bokashi solids before planting; apply tea as diluted drench."
-          : "",
-      ]
-        .filter(Boolean)
-        .join("; "),
+      notes: Array.isArray(hint.farmerSteps) ? hint.farmerSteps.join("; ") : "",
     },
   };
 }

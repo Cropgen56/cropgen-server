@@ -102,7 +102,6 @@ function buildStressZones(ndvi, water, bbch, weatherSummary, cropCategory) {
 
 export function buildEvidence({
   farmField,
-  organizationCode = null,
   weatherSummary,
   ndvi,
   water,
@@ -228,7 +227,6 @@ export function buildEvidence({
     acre: farmField?.acre,
     variety: farmField?.variety,
     typeOfFarming: farmField?.typeOfFarming ?? "Integrated",
-    organizationCode: organizationCode ? String(organizationCode).toUpperCase() : null,
     bbchStage,
     satelliteOpticalIndices: opticalIndicesSummary,
     dataQuality: {
