@@ -82,6 +82,11 @@ const defaultProductionOrigins = [
   "https://app.satagro.ai",
   "https://www.app.satagro.ai",
   "https://www.satagro.ai",
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:5173",
+  "http://10.0.2.2:7070",
+  "http://localhost:5176",
 ];
 
 const defaultDevelopmentOrigins = [
