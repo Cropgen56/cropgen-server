@@ -40,14 +40,10 @@ import { calculateNPKFromfarmField } from "../../../utils/npk/npkCalculator.js";
 import { calcCropHealth } from "../../../utils/crophealth/cropHealth.js";
 import { calculateYieldPrecise } from "../utils/yield/yieldCalculator.js";
 
-import {
-  createAdvisoryFlowContext,
-  summarizeGeometry,
-  summarizeOpticalIndexRowsForFlow,
-  cloneForAdvisoryFlowLog,
-} from "../advisoryFlowLogger.js";
-
 const ACRE_TO_HA = 0.404686;
+const summarizeGeometry = () => null;
+const summarizeOpticalIndexRowsForFlow = () => [];
+const cloneForAdvisoryFlowLog = () => undefined;
 
 function summarizeTimeseriesPayload(payload) {
   const series =
@@ -124,12 +120,12 @@ export async function generateAdvisoryForField(
   language,
   platform = "whatsapp",
 ) {
-  const flow = createAdvisoryFlowContext({
-    farmFieldId: String(farmFieldId),
-    geometryId: geometryId != null ? String(geometryId) : null,
-    language,
-    platform,
-  });
+  const flow = {
+    addStep() {},
+    setOutcome() {},
+    setError() {},
+    async writeToDisk() {},
+  };
 
   try {
     const now = new Date();
