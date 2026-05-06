@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../../models/user.model.js"
 import Organization from "../../models/organization.model.js";
+import { resolveClientSource } from "../../utils/authUtils.js";
 
 async function createUserByPhoneSafe(payload) {
   try {
@@ -31,11 +32,25 @@ export const loginWithPhone = async (req, res) => {
     // Check if user exists
     let user = await User.findOne({ phone });
 
-    if (user && (!user.clientSource || user.clientSource === "unknown")) {
-    user.clientSource = "android";
-     await user.save();
+    const resolvedSource = resolveClientSource(req);
+    if (user) {
+      let changed = false;
+      if (resolvedSource === "web") {
+        if (user.clientSource !== "web") {
+          user.clientSource = "web";
+          changed = true;
+        }
+      } else if (resolvedSource === "android" || resolvedSource === "ios") {
+        if (user.clientSource !== resolvedSource) {
+          user.clientSource = resolvedSource;
+          changed = true;
+        }
+      } else if (!user.clientSource || user.clientSource === "unknown") {
+        user.clientSource = resolvedSource;
+        changed = true;
+      }
+      if (changed) await user.save();
     }
-
 
     if (!user) {
       // Find default organization
@@ -60,7 +75,7 @@ export const loginWithPhone = async (req, res) => {
         role: "farmer",
         terms: true,
         organization: organization?._id,
-        clientSource: "android"
+        clientSource: resolvedSource,
       });
     }
 

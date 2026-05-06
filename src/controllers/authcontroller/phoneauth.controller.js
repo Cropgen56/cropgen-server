@@ -4,6 +4,7 @@ import axios from "axios";
 import User from "../../models/user.model.js";
 import Organization from "../../models/organization.model.js";
 import { whatsappLanguageMap } from "../../utils/whatsapputility/whatsapplanguage.map.js";
+import { resolveClientSource } from "../../utils/authUtils.js";
 
 /* ================= CONSTANTS ================= */
 
@@ -71,7 +72,7 @@ export const sendWhatsappOtp = async (req, res) => {
         role: "farmer",
         terms: true,
         organization: organization._id,
-        clientSource: "android",
+        clientSource: resolveClientSource(req),
         language: normalizedLanguage,
       });
     }
@@ -208,6 +209,14 @@ export const verifyWhatsappOtp = async (req, res) => {
     user.otpAttemptCount = 0;
     user.lastLoginAt = new Date();
     user.lastActiveAt = new Date();
+    const clientSource = resolveClientSource(req);
+    if (clientSource === "web") {
+      user.clientSource = "web";
+    } else if (clientSource === "android" || clientSource === "ios") {
+      user.clientSource = clientSource;
+    } else if (!user.clientSource || user.clientSource === "unknown") {
+      user.clientSource = clientSource;
+    }
     await user.save();
 
     /* -------- JWT -------- */

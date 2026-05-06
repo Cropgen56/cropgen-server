@@ -105,6 +105,34 @@ export function resolveClientAppKey(req) {
   return null;
 }
 
+/** Known browser / admin clients → User.clientSource `web` */
+const WEB_CLIENT_APP_KEYS = new Set([
+  "cropgen_web",
+  "biodrops_web",
+  "admin",
+]);
+
+/**
+ * Maps request to `clientSource` for User (web / ios / android / webview).
+ * Native CropGen app sends `cropgen_android` / `cropgen_ios` so it is never
+ * classified as `web` via Origin. Web clients use `cropgen_web` / `biodrops_web` / `admin`.
+ * Clients that omit the header default to `android` for backward compatibility.
+ */
+export function resolveClientSource(req, defaultSource = "android") {
+  const raw = String(req.headers["x-client-app"] || "").trim().toLowerCase();
+  if (raw === "cropgen_android") return "android";
+  if (raw === "cropgen_ios") return "ios";
+
+  const appKey = resolveClientAppKey(req);
+  if (appKey && WEB_CLIENT_APP_KEYS.has(appKey)) {
+    return "web";
+  }
+  if (raw.includes("ios")) return "ios";
+  if (raw.includes("android")) return "android";
+  if (raw.includes("webview")) return "webview";
+  return defaultSource;
+}
+
 export function getRefreshCookieNameForRequest(req) {
   const key = resolveClientAppKey(req);
   if (key && CLIENT_APP_COOKIE_NAMES[key]) {

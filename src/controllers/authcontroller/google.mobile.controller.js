@@ -9,6 +9,7 @@ import {
   resolveAuthEmailPreset,
 } from "../../utils/emailTemplate.js";
 import jwt from "jsonwebtoken";
+import { resolveClientSource } from "../../utils/authUtils.js";
 
 const clientMobile = new OAuth2Client(process.env.MOBILE_GOOGLE_CLIENT_ID);
 
@@ -32,11 +33,20 @@ export const loginWithGoogleMobile = async (req, res) => {
     let user = await User.findOne({ email }).populate("organization");
     const isExisting = !!user && !!user.organization && user.terms === true;
 
-    // Backfill clientSource for legacy users
-if (user && (!user.clientSource || user.clientSource === "unknown")) {
-  user.clientSource = "android";
-  await user.save();
-}
+    const resolvedSource = resolveClientSource(req);
+    if (user) {
+      let changed = false;
+      if (resolvedSource === "ios" || resolvedSource === "android") {
+        if (user.clientSource !== resolvedSource) {
+          user.clientSource = resolvedSource;
+          changed = true;
+        }
+      } else if (!user.clientSource || user.clientSource === "unknown") {
+        user.clientSource = resolvedSource;
+        changed = true;
+      }
+      if (changed) await user.save();
+    }
 
     const orgCode = "CROPGEN";
 
@@ -79,7 +89,7 @@ if (user && (!user.clientSource || user.clientSource === "unknown")) {
         role: "farmer",
         terms: true,
         organization: organization?._id,
-        clientSource: "android"
+        clientSource: resolvedSource,
       });
       await user.save();
     }

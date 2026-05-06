@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import User from "../../models/user.model.js"
 import Organization from "../../models/organization.model.js";
 import admin from "firebase-admin";
+import { resolveClientSource } from "../../utils/authUtils.js";
 
 
 // mobile singup api controller
@@ -44,13 +45,16 @@ export const signupWithFirebase = async (req, res) => {
     };
 
     const existingUser = await User.findOne(query);
+    const resolvedSource = resolveClientSource(req);
 
     if (existingUser) {
-        // Backfill clientSource if missing or unknown
-  if (!existingUser.clientSource || existingUser.clientSource === "unknown") {
-    existingUser.clientSource = "android";
-    await existingUser.save();
-  }
+      if (
+        !existingUser.clientSource ||
+        existingUser.clientSource === "unknown"
+      ) {
+        existingUser.clientSource = resolvedSource;
+        await existingUser.save();
+      }
       return res.status(409).json({
         success: false,
         message: "User already exists.",
@@ -82,7 +86,7 @@ export const signupWithFirebase = async (req, res) => {
       terms,
       organization: organization._id,
       firebaseUid: uid,
-      clientSource: "android"
+      clientSource: resolvedSource,
     });
 
     // Generate JWT Token for authentication
