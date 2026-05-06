@@ -110,14 +110,22 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
 
     let user = await User.findOne({ phone }).populate("organization");
 
-    // Login path: OTP only for BIODROPS org users
+    // Login path: only existing BIODROPS users may receive OTP (register via signup first).
     if (signupIntent !== true) {
-      const orgCode = String(user?.organization?.organizationCode || "").toUpperCase();
-      if (!user || orgCode !== "BIODROPS") {
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User does not exist. Please register first.",
+        });
+      }
+      const orgCode = String(
+        user?.organization?.organizationCode || "",
+      ).toUpperCase();
+      if (orgCode !== "BIODROPS") {
         return res.status(403).json({
           success: false,
           message:
-            "Access denied. Only BIODROPS organization users can log in here.",
+            "Access denied. This phone is linked to another organization.",
         });
       }
     }
@@ -206,12 +214,18 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
     }
 
     const user = await User.findOne({ phone }).populate("organization");
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User does not exist. Please register first.",
+      });
+    }
     const orgCode = String(user?.organization?.organizationCode || "").toUpperCase();
-    if (!user || orgCode !== "BIODROPS") {
+    if (orgCode !== "BIODROPS") {
       return res.status(403).json({
         success: false,
         message:
-          "Access denied. Only BIODROPS organization users can log in here.",
+          "Access denied. This phone is linked to another organization.",
       });
     }
 
@@ -298,12 +312,18 @@ export const biodropsResendWhatsappOtp = async (req, res) => {
     const phone = assertPhone(phoneRaw);
 
     const user = await User.findOne({ phone }).populate("organization");
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User does not exist. Please register first.",
+      });
+    }
     const orgCode = String(user?.organization?.organizationCode || "").toUpperCase();
-    if (!user || orgCode !== "BIODROPS") {
+    if (orgCode !== "BIODROPS") {
       return res.status(403).json({
         success: false,
         message:
-          "Access denied. Only BIODROPS organization users can log in here.",
+          "Access denied. This phone is linked to another organization.",
       });
     }
 

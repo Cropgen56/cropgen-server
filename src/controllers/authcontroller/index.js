@@ -4,7 +4,11 @@ export { completeProfile } from "./complete.profile.controller.js";
 export { refreshTokenHandler } from "./refresh.token.controller.js";
 export { cropydealsRegisterLogin } from "./cropydeal.auth.controller.js";
 export { logoutHandler } from "./logout.controller.js";
-export { loginWithGoogleWeb } from "./google.web.controller.js";
+export {
+  loginWithGoogleWeb,
+  loginWithGoogleWebCropgen,
+  loginWithGoogleWebBiodrops,
+} from "./google.web.controller.js";
 export { loginWithGoogleMobile } from "./google.mobile.controller.js";
 export { requestAdminOtp } from "./admin.otp.controller.js";
 export { getAvatarPresignedUrl } from "./avatar.controller.js";

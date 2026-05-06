@@ -24,13 +24,41 @@ function resolveGoogleClientIdByBrand(preset) {
 }
 
 export const loginWithGoogleWeb = async (req, res) => {
+  return runGoogleWebLogin(req, res, {
+    forcedBrand: "cropgen",
+    forcedOrgCode: "CROPGEN",
+  });
+};
+
+export const loginWithGoogleWebCropgen = async (req, res) => {
+  return runGoogleWebLogin(req, res, {
+    forcedBrand: "cropgen",
+    forcedOrgCode: "CROPGEN",
+  });
+};
+
+export const loginWithGoogleWebBiodrops = async (req, res) => {
+  return runGoogleWebLogin(req, res, {
+    forcedBrand: "biodrops",
+    forcedOrgCode: "BIODROPS",
+  });
+};
+
+const runGoogleWebLogin = async (
+  req,
+  res,
+  { forcedBrand, forcedOrgCode } = {},
+) => {
   try {
     const { token } = req.body;
-    const preset = resolveAuthEmailPreset(req);
-    const clientBrand = String(
+    const reqPreset = resolveAuthEmailPreset(req);
+    const headerBrand = String(
       req.headers?.["x-client-brand"] || req.headers?.["X-Client-Brand"] || "",
     ).toLowerCase();
-    const isBiodropsBrand = clientBrand === "biodrops" || preset === "biodrops";
+    const effectiveBrand = (forcedBrand || headerBrand || reqPreset || "cropgen")
+      .toLowerCase();
+    const preset = effectiveBrand;
+    const isBiodropsBrand = effectiveBrand === "biodrops";
     const googleClientId = resolveGoogleClientIdByBrand(preset);
     const client = new OAuth2Client(googleClientId);
 
@@ -71,27 +99,25 @@ export const loginWithGoogleWeb = async (req, res) => {
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    // Resolve organization (BioDrops web app default)
-    const { org: organization, orgCode } = await resolveOrganizationByCode(
-      "BIODROPS"
-    );
+    // Resolve organization by brand so CropGen and Biodrops stay isolated.
+    const targetOrgCode = forcedOrgCode || (isBiodropsBrand ? "BIODROPS" : "CROPGEN");
+    const { org: organization, orgCode } =
+      await resolveOrganizationByCode(targetOrgCode);
 
     // Check if user exists
     let user = await User.findOne({ email }).populate("organization");
     const wasFullyRegistered =
       !!user && !!user.organization && user.terms === true;
 
-    // Biodrops restriction: only BIODROPS organization users can log in
-    // (New users created through this flow are assigned to BIODROPS below.)
-    if (isBiodropsBrand && user) {
+    // Restrict cross-brand sign-ins to prevent organization mixups.
+    if (user) {
       const existingOrgCode = String(
         user.organization?.organizationCode || "",
       ).toUpperCase();
-      if (existingOrgCode !== "BIODROPS") {
+      if (existingOrgCode && existingOrgCode !== targetOrgCode) {
         return res.status(403).json({
           success: false,
-          message:
-            "Access denied. Only BIODROPS organization users can sign in here.",
+          message: `Access denied. Only ${targetOrgCode} organization users can sign in here.`,
         });
       }
     }

@@ -7,7 +7,8 @@ import {
   completeProfile,
   cropydealsRegisterLogin,
   logoutHandler,
-  loginWithGoogleWeb,
+  loginWithGoogleWebCropgen,
+  loginWithGoogleWebBiodrops,
   loginWithGoogleMobile,
   requestAdminOtp,
   getAvatarPresignedUrl,
@@ -101,7 +102,7 @@ router.post("/verify", verifyOtp);
 router.post("/complete-profile", requireAuth, completeProfile);
 router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
-router.post("/google", loginWithGoogleWeb);
+router.post("/google", loginWithGoogleWebCropgen);
 
 // biodrops web application dedicated auth routes
 router.post("/biodrops/signup/otp", forceBiodropsBrand, requestOtp);
@@ -114,7 +115,11 @@ router.post(
 );
 router.post("/biodrops/login/otp", forceBiodropsBrand, requestOtp);
 router.post("/biodrops/login/verify", forceBiodropsBrand, verifyOtp);
-router.post("/biodrops/login/google", forceBiodropsBrand, loginWithGoogleWeb);
+router.post(
+  "/biodrops/login/google",
+  forceBiodropsBrand,
+  loginWithGoogleWebBiodrops,
+);
 
 // biodrops web application — WhatsApp OTP (phone login)
 router.post(
