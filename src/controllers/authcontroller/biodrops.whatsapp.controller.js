@@ -3,12 +3,12 @@ import crypto from "crypto";
 import User from "../../models/user.model.js";
 import {
   generateRefreshId,
+  resolveClientSource,
   resolveOrganizationByCode,
   setRefreshCookie,
   signAccessToken,
   signRefreshToken,
 } from "../../utils/authUtils.js";
-import { whatsappLanguageMap } from "../../utils/whatsapputility/whatsapplanguage.map.js";
 
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_RESEND_COOLDOWN = 60 * 1000;
@@ -16,42 +16,20 @@ const OTP_RESEND_COOLDOWN = 60 * 1000;
 const DEFAULT_LANGUAGE = "en";
 const ALLOWED_LANGUAGES = ["en", "hi", "mr"];
 
-function normalizeLanguage(lang) {
-  if (!lang) return DEFAULT_LANGUAGE;
-  const v = String(lang).toLowerCase();
-  return ALLOWED_LANGUAGES.includes(v) ? v : DEFAULT_LANGUAGE;
-}
-
-function assertPhone(phone) {
-  const v = String(phone || "").trim();
-  // Keep consistent with E.164 (+ and up to 15 digits).
-  if (!/^\+\d{8,15}$/.test(v)) {
-    const err = new Error("Phone must be in +<countrycode><number> format");
-    err.status = 400;
-    throw err;
-  }
-  return v;
-}
-
-async function sendWhatsappTemplateOtp(phone, otp, language) {
-  const waLanguage =
-    whatsappLanguageMap[language] || process.env.WHATSAPP_TEMPLATE_LANG;
-  const templateName =
-    String(process.env.WHATSAPP_TEMPLATE_NAME || "").trim() ||
-    "otp_login_code";
-
-  // Helpful runtime visibility during integration with Meta templates.
-  console.log("WhatsApp template in use:", templateName);
-
+// Use WhatsApp template for OTP authentication (WhatsApp template: auth, language: en)
+async function sendWhatsappOtpTemplate(phone, otp) {
+  // WhatsApp expects the phone string without the "+" for the recipient.
+  const num = phone.replace("+", "");
+  // This matches the WhatsApp auth template preview: "123456 is your verification code. For your security, do not share this code."
   await axios.post(
-    `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+    `https://graph.facebook.com/v19.0/${process.env.BIODROPS_WHATSAPP_PHONE_NUMBER_ID}/messages`,
     {
       messaging_product: "whatsapp",
-      to: phone.replace("+", ""),
+      to: num,
       type: "template",
       template: {
-        name: templateName,
-        language: { code: waLanguage },
+        name: "auth",
+        language: { code: "en" },
         components: [
           {
             type: "body",
@@ -68,7 +46,7 @@ async function sendWhatsappTemplateOtp(phone, otp, language) {
     },
     {
       headers: {
-        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.BIODROPS_WHATSAPP_ACCESS_TOKEN}`,
         "Content-Type": "application/json",
       },
     },
@@ -88,6 +66,23 @@ async function createUserByPhoneSafe(payload) {
   }
 }
 
+function normalizeLanguage(lang) {
+  if (!lang) return DEFAULT_LANGUAGE;
+  const v = String(lang).toLowerCase();
+  return ALLOWED_LANGUAGES.includes(v) ? v : DEFAULT_LANGUAGE;
+}
+
+function assertPhone(phone) {
+  const v = String(phone || "").trim();
+  // Keep consistent with E.164 (+ and up to 15 digits).
+  if (!/^\+\d{8,15}$/.test(v)) {
+    const err = new Error("Phone must be in +<countrycode><number> format");
+    err.status = 400;
+    throw err;
+  }
+  return v;
+}
+
 /**
  * POST /v1/api/auth/biodrops/whatsapp/otp
  * body: { phone, language, country, firstName, lastName, signupIntent }
@@ -105,8 +100,6 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
 
     const phone = assertPhone(phoneRaw);
     const lang = normalizeLanguage(language);
-
-    const { org: biodropsOrg } = await resolveOrganizationByCode("BIODROPS");
 
     let user = await User.findOne({ phone }).populate("organization");
 
@@ -140,6 +133,7 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
 
     // Signup path: create user for BIODROPS org
     if (!user) {
+      const { org: biodropsOrg } = await resolveOrganizationByCode("BIODROPS");
       user = await createUserByPhoneSafe({
         phone,
         firstName: String(firstName || "").trim() || "User",
@@ -147,10 +141,22 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
         role: "farmer",
         terms: false,
         organization: biodropsOrg._id,
-        clientSource: "web",
+        clientSource: resolveClientSource(req),
         language: lang,
         country: country ? String(country).trim().toUpperCase() : null,
       });
+      // Race recovery: createUserByPhoneSafe can return an existing user with
+      // a different organization. Reject those so we don't leak OTPs across orgs.
+      const recoveredOrgId = String(
+        user.organization?._id || user.organization || "",
+      );
+      if (recoveredOrgId !== String(biodropsOrg._id)) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "User already exists with a different organization. Please log in.",
+        });
+      }
     } else {
       user.language = lang;
     }
@@ -169,13 +175,15 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
+    // Send WhatsApp BEFORE persisting cooldown state, so a failed send does
+    // not lock the user out for OTP_RESEND_COOLDOWN with no way to recover.
+    await sendWhatsappOtpTemplate(phone, otp);
+
     user.otp = otpHash;
     user.otpExpires = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
     user.lastOtpSentAt = new Date();
     user.otpAttemptCount = 0;
     await user.save();
-
-    await sendWhatsappTemplateOtp(phone, otp, user.language || lang);
 
     return res.status(200).json({
       success: true,
@@ -220,12 +228,13 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
         message: "User does not exist. Please register first.",
       });
     }
-    const orgCode = String(user?.organization?.organizationCode || "").toUpperCase();
+    const orgCode = String(
+      user?.organization?.organizationCode || "",
+    ).toUpperCase();
     if (orgCode !== "BIODROPS") {
       return res.status(403).json({
         success: false,
-        message:
-          "Access denied. This phone is linked to another organization.",
+        message: "Access denied. This phone is linked to another organization.",
       });
     }
 
@@ -246,7 +255,10 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
         .json({ success: false, message: "Too many failed attempts" });
     }
 
-    const otpHash = crypto.createHash("sha256").update(String(otp)).digest("hex");
+    const otpHash = crypto
+      .createHash("sha256")
+      .update(String(otp))
+      .digest("hex");
     if (otpHash !== user.otp) {
       user.otpAttemptCount += 1;
       await user.save();
@@ -270,7 +282,8 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
     const payload = {
       id: user._id,
       role: user.role,
-      organization: user.organization,
+      // organization was populated above; keep JWT compact by using the id only.
+      organization: user.organization?._id || user.organization,
     };
 
     const accessToken = signAccessToken({ ...payload, onboardingRequired });
@@ -318,12 +331,13 @@ export const biodropsResendWhatsappOtp = async (req, res) => {
         message: "User does not exist. Please register first.",
       });
     }
-    const orgCode = String(user?.organization?.organizationCode || "").toUpperCase();
+    const orgCode = String(
+      user?.organization?.organizationCode || "",
+    ).toUpperCase();
     if (orgCode !== "BIODROPS") {
       return res.status(403).json({
         success: false,
-        message:
-          "Access denied. This phone is linked to another organization.",
+        message: "Access denied. This phone is linked to another organization.",
       });
     }
 
@@ -340,13 +354,15 @@ export const biodropsResendWhatsappOtp = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
+    // Send WhatsApp BEFORE persisting cooldown state, so a failed send does
+    // not lock the user out for OTP_RESEND_COOLDOWN with no way to recover.
+    await sendWhatsappOtpTemplate(phone, otp);
+
     user.otp = otpHash;
     user.otpExpires = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
     user.lastOtpSentAt = new Date();
     user.otpAttemptCount = 0;
     await user.save();
-
-    await sendWhatsappTemplateOtp(phone, otp, user.language || DEFAULT_LANGUAGE);
 
     return res.status(200).json({
       success: true,
@@ -358,9 +374,9 @@ export const biodropsResendWhatsappOtp = async (req, res) => {
       "biodropsResendWhatsappOtp error:",
       error?.response?.data || error,
     );
-    return res
-      .status(status)
-      .json({ success: false, message: error?.message || "Failed to resend OTP" });
+    return res.status(status).json({
+      success: false,
+      message: error?.message || "Failed to resend OTP",
+    });
   }
 };
-
