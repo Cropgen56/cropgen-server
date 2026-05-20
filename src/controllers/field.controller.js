@@ -353,24 +353,47 @@ export const deleteField = async (req, res) => {
 // Update a specific farm field by its ID
 export const updateField = async (req, res) => {
   const { fieldId } = req.params;
-  const updateData = req.body;
+  const body = req.body || {};
+
+  const ALLOWED = [
+    "fieldName",
+    "cropName",
+    "variety",
+    "sowingDate",
+    "acre",
+    "typeOfIrrigation",
+    "typeOfFarming",
+    "isBarrenLand",
+    "field",
+  ];
 
   try {
-    // Validate if fieldId is provided
     if (!fieldId) {
       return res
         .status(400)
         .json({ success: false, message: "Field ID is required." });
     }
 
-    // Validate if update data is not empty
-    if (!updateData || Object.keys(updateData).length === 0) {
+    const updateData = {};
+    for (const key of ALLOWED) {
+      if (Object.prototype.hasOwnProperty.call(body, key)) {
+        updateData[key] = body[key];
+      }
+    }
+    if (
+      updateData.typeOfFarming == null &&
+      body.farmingType != null &&
+      body.farmingType !== "N/A"
+    ) {
+      updateData.typeOfFarming = body.farmingType;
+    }
+
+    if (Object.keys(updateData).length === 0) {
       return res
         .status(400)
         .json({ success: false, message: "Update data cannot be empty." });
     }
 
-    // Check if the field exists
     const fieldExists = await FarmField.findById(fieldId);
     if (!fieldExists) {
       return res
@@ -378,7 +401,6 @@ export const updateField = async (req, res) => {
         .json({ success: false, message: "Farm field not found." });
     }
 
-    // Perform the update
     const updatedField = await FarmField.findByIdAndUpdate(
       fieldId,
       { $set: updateData },

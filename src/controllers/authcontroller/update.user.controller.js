@@ -1,9 +1,59 @@
 import User from "../../models/user.model.js";
 import Organization from "../../models/organization.model.js";
 
+/** Profile fields admins may update (excludes OTP, tokens, activity timestamps). */
+const ALLOWED_USER_UPDATE_FIELDS = new Set([
+  "firstName",
+  "lastName",
+  "avatar",
+  "email",
+  "phone",
+  "country",
+  "state",
+  "city",
+  "village",
+  "role",
+  "language",
+  "terms",
+  "clientSource",
+  "razorpayCustomerId",
+]);
+
+const NULLABLE_STRING_FIELDS = new Set([
+  "avatar",
+  "email",
+  "phone",
+  "country",
+  "state",
+  "city",
+  "village",
+  "razorpayCustomerId",
+]);
+
+function pickAllowedUpdateFields(body) {
+  const updateData = {};
+  for (const key of ALLOWED_USER_UPDATE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(body, key)) {
+      let value = body[key];
+      if (NULLABLE_STRING_FIELDS.has(key) && value === "") {
+        value = null;
+      }
+      if (key === "country" || key === "state") {
+        value = value == null ? null : String(value).trim().toUpperCase();
+      } else if (typeof value === "string" && key !== "email") {
+        value = value.trim();
+      } else if (key === "email" && typeof value === "string") {
+        value = value.trim().toLowerCase();
+      }
+      updateData[key] = value;
+    }
+  }
+  return updateData;
+}
+
 export const updateUserById = async (req, res) => {
   const { id } = req.params;
-  let updateData = { ...req.body };
+  let updateData = pickAllowedUpdateFields(req.body);
 
   try {
     /* ================= PHONE UNIQUE CHECK (OPTIONAL) ================= */
@@ -22,20 +72,31 @@ export const updateUserById = async (req, res) => {
     }
 
     /* ================= ORGANIZATION HANDLING ================= */
-    if (updateData.organizationCode) {
-      const organization = await Organization.findOne({
-        organizationCode: updateData.organizationCode.toUpperCase(),
-      });
-
-      if (!organization) {
-        return res.status(404).json({
-          success: false,
-          message: `Organization '${updateData.organizationCode}' not found`,
+    if (req.body.organizationCode !== undefined) {
+      const code = String(req.body.organizationCode || "").trim();
+      if (!code) {
+        updateData.organization = null;
+      } else {
+        const organization = await Organization.findOne({
+          organizationCode: code.toUpperCase(),
         });
-      }
 
-      updateData.organization = organization._id;
-      delete updateData.organizationCode;
+        if (!organization) {
+          return res.status(404).json({
+            success: false,
+            message: `Organization '${code}' not found`,
+          });
+        }
+
+        updateData.organization = organization._id;
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid fields to update",
+      });
     }
 
     /* ================= UPDATE USER ================= */
@@ -45,11 +106,11 @@ export const updateUserById = async (req, res) => {
       {
         new: true,
         runValidators: true,
-        context: "query", // IMPORTANT for mongoose validators
+        context: "query",
       },
     ).populate({
       path: "organization",
-      select: "organizationCode",
+      select: "organizationCode name",
     });
 
     if (!user) {
@@ -67,13 +128,19 @@ export const updateUserById = async (req, res) => {
   } catch (error) {
     console.error("Error updating user:", error);
 
-    /* ================= DUPLICATE KEY SAFETY NET ================= */
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern || {})[0];
 
       return res.status(409).json({
         success: false,
         message: `${field} already exists`,
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
       });
     }
 
