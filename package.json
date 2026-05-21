@@ -11,7 +11,8 @@
     "seed:web-plans": "node scripts/seed-web-plans.mjs",
     "seed:mobile-plans": "node scripts/seed-mobile-plans.mjs",
     "test:subscription-pricing": "node scripts/test-subscription-pricing.mjs",
-    "db:drop-email-index": "node scripts/drop-email-index.mjs"
+    "db:drop-email-index": "node scripts/drop-email-index.mjs",
+    "export:advisories": "node scripts/export-farm-advisories-excel.js"
   },
   "author": "crop gen team",
   "license": "ISC",
@@ -57,7 +58,8 @@
     "razorpay": "^2.9.6",
     "sequelize": "^6.37.5",
     "socket.io": "^4.8.3",
-    "validator": "^13.15.15"
+    "validator": "^13.15.15",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "jest": "^29.7.0",
