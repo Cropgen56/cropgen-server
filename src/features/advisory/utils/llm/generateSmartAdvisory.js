@@ -1,255 +1,86 @@
 import { callOpenAI } from "./openaiClient.js";
-import { normalizeTypeOfFarming } from "../shared/farmingTypeNormalize.js";
 import { postProcessAdvisory } from "./postProcessAdvisory.js";
+
+const REQUIRED_TYPES = [
+  "SPRAY",
+  "FERTIGATION",
+  "IRRIGATION",
+  "WEATHER",
+  "CROP_RISK",
+  "MONITORING",
+  "CARBON_TRACKING",
+];
 
 const LANGUAGE_MAP = {
   en: "English",
   hi: "Hindi",
   mr: "Marathi",
+  fr: "French",
+  gu: "Gujarati",
+  bn: "Bengali",
+  ta: "Tamil",
+  ur: "Urdu",
+  de: "German",
+  es: "Spanish",
 };
 
-function buildFertigationActivityFromHints(language, evidence) {
-  const farmType = normalizeTypeOfFarming(evidence?.typeOfFarming);
-  const fert = evidence?.decisionHints?.fertigation;
-  const irrigationType = (evidence?.irrigationType || "").toLowerCase();
-  const isDrip = irrigationType.includes("drip");
-  const methodFallback = isDrip ? "Drip" : "Soil application";
-  const category =
-    farmType === "Organic"
-      ? "ORGANIC"
-      : farmType === "Inorganic"
-        ? "CHEMICAL"
-        : "INTEGRATED";
-
-  if (!fert?.shouldFertigate || !fert.hint) {
-    return {
-      type: "FERTIGATION",
-      title: farmType === "Organic" ? "Organic fertilizer" : farmType === "Inorganic" ? "Inorganic fertilizer" : "Integrated fertilizer",
-      message: "No fertigation needed today.",
-      details: {
-        products: [],
-        applicationMethod: methodFallback,
-        timing: "",
-        reason: fert?.reason || "Nutrients are balanced for current stage.",
-      },
-    };
+function buildLanguageRules(languageCode, languageName) {
+  if (languageCode === "en") {
+    return `OUTPUT LANGUAGE (MANDATORY):
+- Write EVERY title, message, and details value in English only.
+- Do not use Hindi, Marathi, or any other language in this response.`;
   }
 
-  const hint = fert.hint;
-  const products = [];
-  if (hint.fertilizer || hint.quantity) {
-    products.push({
-      name: hint.fertilizer || "Nutrient input",
-      category,
-      purpose: "Correct nutrient deficiency for current crop stage",
-      dosage: hint.quantity || "",
-    });
-  }
+  const scriptNote =
+    languageCode === "hi" || languageCode === "mr"
+      ? "Use the native script (Devanagari for Hindi and Marathi)."
+      : "Use the standard native script for this language.";
 
-  const addPortionProducts = (portion, portionCategory) => {
-    if (!Array.isArray(portion)) return;
-    portion.forEach((name) => {
-      if (!name) return;
-      products.push({
-        name,
-        category: portionCategory,
-        purpose: "Nutrient correction based on field requirement",
-        dosage: "",
-      });
-    });
-  };
-  addPortionProducts(hint.organicPortion, "ORGANIC");
-  addPortionProducts(hint.chemicalPortion, "CHEMICAL");
-
-  return {
-    type: "FERTIGATION",
-    title: farmType === "Organic" ? "Organic fertilizer" : farmType === "Inorganic" ? "Inorganic fertilizer" : "Integrated fertilizer",
-    message: hint.quantity
-      ? `${hint.fertilizer || "Fertilizer"}: ${hint.quantity}. ${hint.time || ""}`.trim()
-      : "Apply scheduled fertigation.",
-    details: {
-      products,
-      applicationMethod: hint.method || methodFallback,
-      timing: hint.time || "",
-      reason: fert.reason || "Nutrient deficit detected for current crop stage.",
-      notes: Array.isArray(hint.farmerSteps) ? hint.farmerSteps.join("; ") : "",
-    },
-  };
+  return `OUTPUT LANGUAGE (MANDATORY):
+- Requested language: ${languageName} (code: ${languageCode}).
+- Write EVERY title, message, and details value entirely in ${languageName} only. ${scriptNote}
+- Do NOT mix English with ${languageName} in the same field or activity.
+- Evidence JSON below may be in English — translate all farmer-facing text into ${languageName}.
+- Allowed exceptions: product brand names, chemical names, and units (°C, mm, %, kg/acre, L/min).`;
 }
 
-function buildLLMPrompt(languageName, evidence) {
+function buildLLMPrompt(languageCode, languageName, evidence) {
+  const languageRules = buildLanguageRules(languageCode, languageName);
+
   return `CROP ADVISORY SYSTEM PROMPT — ACTIVITIES TO DO GENERATOR
 
 Objective:
-Generate a structured activitiesToDo array for a crop advisory system. Each activity must provide clear, actionable, and farmer-friendly guidance. The output must be concise, specific, and based on the crop stage, field condition, weather, pest/disease risk, soil moisture, and nutrient status.
+Generate a structured activitiesToDo array for a crop advisory system. Each activity must provide clear, actionable, and farmer-friendly guidance.
+
+${languageRules}
 
 STRICT OUTPUT RULES:
-1. Always return an object with key "activitiesToDo" containing an array of activity objects.
-2. Each activity object must include:
-   - type
-   - title
-   - message
-   - details (when action is required)
-3. Keep titles short, specific, and easy to read.
-4. Keep messages short, practical, and clear.
-5. Do not use vague terms like:
-   - some fertilizer
-   - pesticide
-   - spray product
-   - nutrient mix
-6. Always mention the exact product name whenever a recommendation is given.
-7. Always mention why the product is being used.
-8. Always mention quantity in a clear format, preferably per acre or per hectare.
-9. For spray, fertigation, irrigation, and integrated recommendations, give structured details.
-10. If no action is required, clearly mention that in the message.
-11. Do not generate unnecessary actions.
-12. Make the response suitable for direct UI display in cards or alerts.
+1. Always return an object with key "activitiesToDo" containing exactly 7 activity objects.
+2. Required types (all mandatory, in this order): SPRAY, FERTIGATION, IRRIGATION, WEATHER, CROP_RISK, MONITORING, CARBON_TRACKING.
+3. Each activity object must include: type, title, message, details (object; use {} if no extra fields).
+4. Keep titles short and specific.
+5. Keep messages short, practical, and clear.
+6. When recommending products, use exact product names, purpose, and quantity per acre/hectare.
+7. If no action is required for an activity, say so clearly in that activity's message (still in ${languageName}).
+8. Base irrigation and fertigation on decisionHints and irrigationRequirement in the evidence.
+9. Do not generate unnecessary actions.
 
 ACTIVITY TYPE RULES:
 
-1. FERTIGATION
-When fertigation is needed, include:
-- exact product name
-- product category: CHEMICAL / ORGANIC / BIO / INTEGRATED
-- purpose of the product
-- dosage per acre or per hectare
-- application method
-- timing
-- reason for recommendation
-
-Required structure:
-{
-  "type": "FERTIGATION",
-  "title": "Short title",
-  "message": "Short advisory message",
-  "details": {
-    "products": [
-      {
-        "name": "Urea",
-        "category": "CHEMICAL",
-        "purpose": "Provides nitrogen for vegetative growth",
-        "dosage": "25 kg/acre"
-      }
-    ],
-    "applicationMethod": "Drip / Soil application",
-    "timing": "Morning / Evening",
-    "reason": "Crop stage or nutrient deficiency"
-  }
-}
-
-2. SPRAY
-When spray is needed, include:
-- exact spray product name
-- category
-- target pest or disease
-- dosage per liter or per acre
-- application method
-- timing
-- precautions or notes
-
-Required structure:
-{
-  "type": "SPRAY",
-  "title": "Short title",
-  "message": "Short advisory message",
-  "details": {
-    "products": [
-      {
-        "name": "Neem Oil",
-        "category": "ORGANIC",
-        "purpose": "Controls sucking pests like aphids",
-        "dosage": "3 ml/liter"
-      }
-    ],
-    "applicationMethod": "Foliar Spray",
-    "timing": "Evening",
-    "notes": "Avoid spraying during high temperature"
-  }
-}
-
-3. IRRIGATION
-When irrigation is needed, include:
-- irrigation method
-- timing
-- duration
-- water quantity
-- reason
-
-Required structure:
-{
-  "type": "IRRIGATION",
-  "title": "Short title",
-  "message": "Short advisory message",
-  "details": {
-    "applicationMethod": "Drip / Flood / Sprinkler",
-    "timing": "Early morning",
-    "duration": "30–45 minutes",
-    "waterQuantity": "20 liters/plant or 15 mm",
-    "reason": "Soil moisture is below optimal level"
-  }
-}
-
-4. WEATHER
-When weather is included, provide:
-- temperature
-- humidity
-- rainfall probability
-- advisory impact on farming decisions
-
-Required structure:
-{
-  "type": "WEATHER",
-  "title": "Weather Forecast",
-  "message": "Short weather advisory message",
-  "details": {
-    "temperature": "41.3°C",
-    "humidity": "55%",
-    "rainfallProbability": "10%",
-    "advisory": "High temperature may increase irrigation need"
-  }
-}
-
-5. CROP_RISK
-When crop risk is included, provide:
-- risk level
-- cause
-- recommended action
-
-6. MONITORING
-When monitoring is included, provide:
-- focus areas
-- what to check
-- frequency
-
-7. CARBON_TRACKING
-When carbon tracking is included, provide:
-- emission estimate
-- capture estimate
-- net balance if available
-- recommendation for sustainability
+1. FERTIGATION — products, applicationMethod, timing, reason when action needed.
+2. SPRAY — products, applicationMethod, timing, notes when action needed.
+3. IRRIGATION — applicationMethod, timing, duration, waterQuantity, reason, frequency when irrigating.
+4. WEATHER — temperature, humidity, rainfallProbability, advisory in details.
+5. CROP_RISK — riskLevel, cause, recommendedAction in details.
+6. MONITORING — focusAreas, whatToCheck, frequency in details.
+7. CARBON_TRACKING — emission/capture/balance and sustainability note when data exists.
 
 IMPORTANT DECISION LOGIC:
-1. If the crop is at harvest stage:
-- avoid unnecessary spray
-- avoid unnecessary fertigation
-- only recommend actions that are truly required
-2. If soil moisture is sufficient:
-- do not recommend irrigation
-3. If crop stress is detected:
-- suggest irrigation, nutrient correction, or monitoring as needed
-4. If advisory includes fertilizer or spray:
-- always mention exact product names, purpose, and quantity per area
-5. Keep all instructions short, actionable, and practical for real field use.
+- Harvest stage: avoid unnecessary spray and fertigation.
+- Adequate soil moisture: do not recommend irrigation.
+- Use decisionHints.spray, decisionHints.fertigation, decisionHints.irrigation, irrigationRequirement.
 
-STYLE GUIDELINES:
-- Use simple language.
-- Be specific.
-- Avoid long paragraphs.
-- Avoid generic advice.
-- Output should be clean JSON-compatible data.
-
-Language must be ${languageName}.
-Return ONLY valid JSON object with this exact top-level shape:
+Return ONLY valid JSON:
 {
   "activitiesToDo": [
     {"type":"SPRAY","title":"string","message":"string","details":{}},
@@ -262,17 +93,48 @@ Return ONLY valid JSON object with this exact top-level shape:
   ]
 }
 
-Use only this evidence:
+Evidence (facts; output language is ${languageName} only):
 ${JSON.stringify(evidence, null, 2)}
 `;
+}
+
+function buildFillMissingPrompt(languageCode, languageName, evidence, missingTypes) {
+  return `Complete ONLY these missing farm advisory activities in ${languageName} (${languageCode}).
+Every title, message, and details value must be in ${languageName} only — no English except product names and units.
+
+Missing types: ${missingTypes.join(", ")}
+
+Return JSON: { "activitiesToDo": [ ...one object per missing type... ] }
+
+Evidence:
+${JSON.stringify(evidence, null, 2)}
+`;
+}
+
+async function fillMissingActivities(languageCode, languageName, evidence, existingMap) {
+  const missing = REQUIRED_TYPES.filter((t) => !existingMap.has(t) || !(existingMap.get(t)?.message || "").trim());
+  if (!missing.length) return existingMap;
+
+  const fillResponse = await callOpenAI(
+    buildFillMissingPrompt(languageCode, languageName, evidence, missing),
+  );
+  if (!fillResponse?.activitiesToDo) return existingMap;
+
+  for (const act of fillResponse.activitiesToDo) {
+    if (act?.type && missing.includes(act.type)) {
+      existingMap.set(act.type, act);
+    }
+  }
+  return existingMap;
 }
 
 export async function generateSmartAdvisory({
   language = "en",
   evidence,
 }) {
-  const selectedLanguage = LANGUAGE_MAP[language] || "English";
-  const prompt = buildLLMPrompt(selectedLanguage, evidence);
+  const languageCode = LANGUAGE_MAP[language] ? language : "en";
+  const languageName = LANGUAGE_MAP[languageCode] || "English";
+  const prompt = buildLLMPrompt(languageCode, languageName, evidence);
   const response = await callOpenAI(prompt);
 
   if (!response || !Array.isArray(response.activitiesToDo)) {
@@ -280,10 +142,25 @@ export async function generateSmartAdvisory({
     return null;
   }
 
-  return postProcessAdvisory(
-    response,
-    evidence,
-    language,
-    buildFertigationActivityFromHints,
-  );
+  const activityMap = new Map();
+  response.activitiesToDo.forEach((a) => {
+    if (a?.type) activityMap.set(a.type, a);
+  });
+
+  await fillMissingActivities(languageCode, languageName, evidence, activityMap);
+
+  const fullOutput = {
+    activitiesToDo: REQUIRED_TYPES.map((type) => {
+      return (
+        activityMap.get(type) || {
+          type,
+          title: type,
+          message: "",
+          details: {},
+        }
+      );
+    }),
+  };
+
+  return postProcessAdvisory(fullOutput, evidence);
 }
