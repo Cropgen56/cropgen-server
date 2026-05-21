@@ -99,20 +99,6 @@ function limitSatelliteRange(startISO, endISO, maxDays = 90) {
  * 1) Prefer latest date with cloud_cover <= maxCloudPercent.
  * 2) Fallback to minimum cloud_cover date.
  */
-function logObservearthFailure(endpoint, result) {
-  if (result.status === "fulfilled") return;
-  const err = result.reason;
-  const status = err?.response?.status;
-  const detail =
-    err?.response?.data?.detail ??
-    err?.response?.data?.error ??
-    err?.message ??
-    "unknown error";
-  console.warn(
-    `[Observearth] ${endpoint} failed (${status ?? "no status"}): ${detail}`,
-  );
-}
-
 function pickLowCloudDate(availability, fallbackDate, maxCloudPercent = 20) {
   const items = Array.isArray(availability?.items) ? availability.items : [];
   const rows = items
@@ -192,39 +178,18 @@ export async function generateAdvisoryForField(
       notes: "Polygon is sent to CropGen satellite APIs; Observearth uses geometryId separately",
     });
 
-    const [currentResult, forecastResult, historicalResult] =
-      await Promise.allSettled([
+    const [currentWeatherResp, forecastWeather, historicalWeather] =
+      await Promise.all([
         getCurrentWeather(geometryId),
         getForecastWeather(geometryId),
         getHistoricalWeather(geometryId, sowingDateISO, nowISO),
       ]);
-
-    logObservearthFailure("current", currentResult);
-    logObservearthFailure("forecast", forecastResult);
-    logObservearthFailure("historical", historicalResult);
-
-    const currentWeatherResp =
-      currentResult.status === "fulfilled" ? currentResult.value : null;
-    const forecastWeather =
-      forecastResult.status === "fulfilled" ? forecastResult.value : null;
-    const historicalWeather =
-      historicalResult.status === "fulfilled" ? historicalResult.value : null;
-
-    const weatherFetchFailures = [
-      currentResult.status === "rejected" && "current",
-      forecastResult.status === "rejected" && "forecast",
-      historicalResult.status === "rejected" && "historical",
-    ].filter(Boolean);
 
     flow.addStep({
       step: "fetch_weather",
       service: "observearth",
       apiOrFn: "GET /current + /forecast + /historical",
       inputs: { geometryId, sowingDateISO, nowISO },
-      notes:
-        weatherFetchFailures.length > 0
-          ? `Partial failure: ${weatherFetchFailures.join(", ")}`
-          : undefined,
       rawResponseSummary: {
         currentTopKeys:
           currentWeatherResp && typeof currentWeatherResp === "object"
