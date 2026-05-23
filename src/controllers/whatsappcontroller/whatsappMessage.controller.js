@@ -9,6 +9,10 @@ import {
 } from "../../utils/whatsapputility/phoneMatch.js";
 import { saveWhatsAppOutbound } from "../../services/whatsappMessageStore.js";
 import { clearWhatsAppAgentCache } from "../../services/whatsappAgent.service.js";
+import {
+  getWhatsAppAgentSettingsPayload,
+  setGlobalReplyMode,
+} from "../../services/whatsappSettings.service.js";
 
 function sanitizeAvatarUrl(url) {
   if (!url || typeof url !== "string") return null;
@@ -395,6 +399,40 @@ export const replyToWhatsAppMessage = async (req, res) => {
     });
   } catch (error) {
     console.error("replyToWhatsAppMessage error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
+export const getWhatsAppAgentSettings = async (req, res) => {
+  try {
+    const data = await getWhatsAppAgentSettingsPayload();
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("getWhatsAppAgentSettings error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
+export const patchWhatsAppAgentSettings = async (req, res) => {
+  try {
+    const { replyMode } = req.body || {};
+    if (replyMode !== "automation" && replyMode !== "manual") {
+      return res.status(400).json({
+        success: false,
+        error: 'replyMode must be "automation" or "manual"',
+      });
+    }
+
+    const data = await setGlobalReplyMode(replyMode, req.user?._id);
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("patchWhatsAppAgentSettings error:", error);
     return res.status(500).json({
       success: false,
       error: "Internal server error",

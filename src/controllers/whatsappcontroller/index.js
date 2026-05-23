@@ -8,4 +8,6 @@ export {
   updateWhatsAppMessage,
   replyToWhatsAppMessage,
   markWhatsAppChatRead,
+  getWhatsAppAgentSettings,
+  patchWhatsAppAgentSettings,
 } from "./whatsappMessage.controller.js";

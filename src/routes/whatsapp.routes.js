@@ -8,6 +8,8 @@ import {
   updateWhatsAppMessage,
   replyToWhatsAppMessage,
   markWhatsAppChatRead,
+  getWhatsAppAgentSettings,
+  patchWhatsAppAgentSettings,
 } from "../controllers/whatsappcontroller/index.js";
 import {
   verifyWebhook,
@@ -23,6 +25,9 @@ router.post("/webhook", receiveWebhook);
 
 /** Admin panel — authenticated */
 router.use(isAuthenticated);
+
+router.get("/agent-settings", getWhatsAppAgentSettings);
+router.patch("/agent-settings", patchWhatsAppAgentSettings);
 
 router.get("/chats/summary", getWhatsAppChatsSummary);
 router.get("/chats", getAllWhatsAppMessages);

@@ -71,7 +71,7 @@ function extractInboundText(message) {
 export const receiveWebhook = async (req, res) => {
   try {
     if (!agentStatusLogged) {
-      logWhatsAppAgentStatus();
+      logWhatsAppAgentStatus().catch(() => {});
       agentStatusLogged = true;
     }
 

@@ -47,7 +47,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config();
-logWhatsAppAgentStatus();
+logWhatsAppAgentStatus().catch((err) =>
+  console.error("[WhatsApp agent] status log failed:", err),
+);
 
 // Log crashes that often surface in production as nginx 502 (upstream connection refused / reset)
 process.on("unhandledRejection", (reason, promise) => {

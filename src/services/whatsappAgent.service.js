@@ -5,15 +5,16 @@ import FarmField from "../models/field.model.js";
 import FarmAdvisory from "../features/advisory/models/farmAdvisory.model.js";
 import WhatsAppMessage from "../models/whatsappmessage.model.js";
 import { buildPhoneQueryFilter } from "../utils/whatsapputility/phoneMatch.js";
+import {
+  getGlobalReplyMode,
+  isAutomationActive,
+} from "./whatsappSettings.service.js";
 
 const WHATSAPP_TEXT_MAX = 4096;
 const HISTORY_LIMIT = 20;
 const HISTORY_TEXT_MAX = 600;
 
 const farmerAgents = new Map();
-
-const HUMAN_HANDOFF_REPLY =
-  "Thanks for your message. Our agronomist will reply to you shortly.";
 
 /** Legacy static text — never feed into agent history or reuse as a reply. */
 const LEGACY_STATIC_REPLY =
@@ -32,11 +33,12 @@ export function isWhatsAppAgentEnabled() {
   return Boolean(String(process.env.OPENAI_API_KEY ?? "").trim());
 }
 
-export function logWhatsAppAgentStatus() {
-  const enabled = isWhatsAppAgentEnabled();
+export async function logWhatsAppAgentStatus() {
   const hasKey = Boolean(String(process.env.OPENAI_API_KEY ?? "").trim());
+  const mode = await getGlobalReplyMode();
+  const active = await isAutomationActive();
   console.log(
-    `[WhatsApp agent] auto-reply=${enabled ? "ON" : "OFF"} openai=${hasKey ? "configured" : "missing"} flag=${process.env.WHATSAPP_AGENT_AUTO_REPLY ?? "(default)"}`,
+    `[WhatsApp agent] globalMode=${mode} automationActive=${active} openai=${hasKey ? "configured" : "missing"} env=${process.env.WHATSAPP_AGENT_AUTO_REPLY ?? "(default)"}`,
   );
 }
 
@@ -52,7 +54,7 @@ function isSkippableOutboundForHistory(msg) {
   const t = String(msg.text || "").trim();
   return (
     t === LEGACY_STATIC_REPLY ||
-    t === HUMAN_HANDOFF_REPLY ||
+    t.startsWith("Thanks for your message. Our agronomist") ||
     t.startsWith("🙏 We received your message")
   );
 }
@@ -87,25 +89,6 @@ async function getLatestAdvisoryByFarmId(farms) {
     }),
   );
   return map;
-}
-
-async function shouldDeferToHuman(farmerId) {
-  const pauseMinutes = Number(
-    process.env.WHATSAPP_AGENT_PAUSE_AFTER_ADMIN_MINUTES ?? 60,
-  );
-  if (!Number.isFinite(pauseMinutes) || pauseMinutes <= 0) return false;
-
-  const since = new Date(Date.now() - pauseMinutes * 60 * 1000);
-  const recentAdmin = await WhatsAppMessage.findOne({
-    farmerId,
-    direction: "OUT",
-    source: "admin_reply",
-    createdAt: { $gte: since },
-  })
-    .select("_id")
-    .lean();
-
-  return Boolean(recentAdmin);
 }
 
 async function loadConversationSeed(farmerId, phone, excludeWaMessageId) {
@@ -206,23 +189,22 @@ export async function generateWhatsAppAgentReply({
   userText,
   waMessageId,
 }) {
-  if (!isWhatsAppAgentEnabled()) {
-    console.warn("[WhatsApp agent] Auto-reply is disabled — no outbound message");
+  const globalMode = await getGlobalReplyMode();
+  if (globalMode === "manual") {
+    console.log("[WhatsApp agent] Global mode is manual — no auto reply");
+    return null;
+  }
+
+  if (!(await isAutomationActive())) {
+    console.warn(
+      "[WhatsApp agent] Automation inactive (env or OpenAI) — no outbound message",
+    );
     return null;
   }
 
   const text = String(userText || "").trim();
   if (!text || text.startsWith("[")) {
     return null;
-  }
-
-  if (!String(process.env.OPENAI_API_KEY ?? "").trim()) {
-    console.error("[WhatsApp agent] OPENAI_API_KEY missing — cannot reply");
-    return null;
-  }
-
-  if (await shouldDeferToHuman(farmer._id)) {
-    return { text: HUMAN_HANDOFF_REPLY, source: "auto_reply" };
   }
 
   const farmerId = farmer._id.toString();
