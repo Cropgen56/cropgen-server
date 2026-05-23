@@ -1,5 +1,15 @@
 import axios from "axios";
 
+const GRAPH_API_VERSION = "v24.0";
+
+function getWhatsAppAccessToken() {
+  return process.env.WHATSAPP_ACCESS_TOKEN || process.env.WHATSAPP_TOKEN;
+}
+
+function getGraphMessagesUrl() {
+  return `https://graph.facebook.com/${GRAPH_API_VERSION}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+}
+
 // send custom message to the users
 export async function sendCustomWhatsAppMessage(
   phone,
@@ -7,8 +17,18 @@ export async function sendCustomWhatsAppMessage(
   options = {},
 ) {
   const { previewUrl = true } = options;
+  const token = getWhatsAppAccessToken();
 
-  const formattedPhone = phone.replace(/[^\d]/g, "");
+  if (!token) {
+    return {
+      success: false,
+      error:
+        "WhatsApp access token is not configured (WHATSAPP_ACCESS_TOKEN)",
+      status: 500,
+    };
+  }
+
+  const formattedPhone = normalizePhoneDigits(phone);
 
   if (!formattedPhone.match(/^\d{10,15}$/)) {
     return {
@@ -17,8 +37,6 @@ export async function sendCustomWhatsAppMessage(
         "Invalid phone number format. Use international format without + (e.g. 919322396236)",
     };
   }
-
-  const url = `https://graph.facebook.com/v24.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
   const payload = {
     messaging_product: "whatsapp",
@@ -32,9 +50,9 @@ export async function sendCustomWhatsAppMessage(
   };
 
   try {
-    const response = await axios.post(url, payload, {
+    const response = await axios.post(getGraphMessagesUrl(), payload, {
       headers: {
-        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       timeout: 10000,
@@ -65,11 +83,18 @@ export async function sendCustomWhatsAppMessage(
 }
 
 export async function sendWhatsAppReply(to, message) {
-  await axios.post(
-    `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+  const token = getWhatsAppAccessToken();
+  if (!token) {
+    throw new Error("WHATSAPP_ACCESS_TOKEN is not configured");
+  }
+
+  const formattedPhone = normalizePhoneDigits(to);
+
+  const response = await axios.post(
+    getGraphMessagesUrl(),
     {
       messaging_product: "whatsapp",
-      to,
+      to: formattedPhone,
       type: "text",
       text: {
         body: message,
@@ -77,9 +102,16 @@ export async function sendWhatsAppReply(to, message) {
     },
     {
       headers: {
-        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      timeout: 10000,
     },
   );
+
+  return response.data;
+}
+
+function normalizePhoneDigits(phone) {
+  return String(phone || "").replace(/\D/g, "");
 }

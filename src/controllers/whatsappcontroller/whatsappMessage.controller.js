@@ -1,6 +1,61 @@
 import WhatsAppMessage from "../../models/whatsappmessage.model.js";
 import User from "../../models/user.model.js";
 import { sendCustomWhatsAppMessage } from "../../services/whatsappService.js";
+import { findUserByWhatsAppPhone } from "../../utils/whatsapputility/phoneMatch.js";
+
+/** One row per phone — for admin chat sidebar (includes chats with missing/deleted farmers). */
+export const getWhatsAppChatsSummary = async (req, res) => {
+  try {
+    const rows = await WhatsAppMessage.aggregate([
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: "$phone",
+          farmerId: { $first: "$farmerId" },
+          lastMessage: { $first: "$text" },
+          lastTime: { $first: "$createdAt" },
+          lastDirection: { $first: "$direction" },
+          messageCount: { $sum: 1 },
+        },
+      },
+      { $sort: { lastTime: -1 } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "farmerId",
+          foreignField: "_id",
+          as: "farmer",
+        },
+      },
+      {
+        $unwind: {
+          path: "$farmer",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+    ]);
+
+    const data = rows.map((row) => ({
+      phone: row._id,
+      farmerId: row.farmer?._id || row.farmerId || null,
+      firstName: row.farmer?.firstName || "Unknown",
+      lastName: row.farmer?.lastName || "",
+      avatar: row.farmer?.avatar || null,
+      lastMessage: row.lastMessage || "",
+      lastTime: row.lastTime,
+      lastDirection: row.lastDirection,
+      messageCount: row.messageCount,
+    }));
+
+    return res.json({ success: true, total: data.length, data });
+  } catch (error) {
+    console.error("getWhatsAppChatsSummary error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
 
 export const getAllWhatsAppMessages = async (req, res) => {
   try {
@@ -23,7 +78,7 @@ export const getAllWhatsAppMessages = async (req, res) => {
     const messages = await WhatsAppMessage.find(filter)
       .populate("farmerId", "firstName lastName avatar phone")
       .populate("advisoryId")
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .skip((page - 1) * limit)
       .limit(Number(limit));
 
@@ -132,21 +187,22 @@ export const replyToWhatsAppMessage = async (req, res) => {
   try {
     const { phone, message, farmerId } = req.body;
 
-    /* ================= 1️⃣ VALIDATION ================= */
-    if (!phone || !message || !farmerId) {
+    if (!phone || !message) {
       return res.status(400).json({
         success: false,
-        error: "phone, message and farmerId are required",
+        error: "phone and message are required",
       });
     }
 
-    /* ================= 2️⃣ FIND FARMER ================= */
-    const farmer = await User.findById(farmerId);
+    let farmer = farmerId ? await User.findById(farmerId) : null;
+    if (!farmer) {
+      farmer = await findUserByWhatsAppPhone(phone);
+    }
 
     if (!farmer) {
       return res.status(404).json({
         success: false,
-        error: "Farmer not found",
+        error: "Farmer not found for this phone number",
       });
     }
 

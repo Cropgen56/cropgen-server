@@ -178,12 +178,48 @@ export async function generateAdvisoryForField(
       notes: "Polygon is sent to CropGen satellite APIs; Observearth uses geometryId separately",
     });
 
-    const [currentWeatherResp, forecastWeather, historicalWeather] =
-      await Promise.all([
-        getCurrentWeather(geometryId),
-        getForecastWeather(geometryId),
-        getHistoricalWeather(geometryId, sowingDateISO, nowISO),
-      ]);
+    const [currentWeatherResp, forecastWeather] = await Promise.all([
+      getCurrentWeather(geometryId),
+      getForecastWeather(geometryId),
+    ]);
+
+    let historicalWeather = null;
+    let historicalWeatherError = null;
+    try {
+      historicalWeather = await getHistoricalWeather(
+        geometryId,
+        sowingDateISO,
+        nowISO,
+      );
+    } catch (histErr) {
+      historicalWeatherError = histErr?.message || String(histErr);
+      console.warn(
+        `[Advisory] Observearth historical weather failed for ${geometryId} (${sowingDateISO}→${nowISO}):`,
+        historicalWeatherError,
+      );
+      // Retry a shorter window (Observearth often 500s on long ranges)
+      const shortStart = new Date(nowISO);
+      shortStart.setDate(shortStart.getDate() - 30);
+      const shortStartISO = formatDateISO(shortStart);
+      try {
+        historicalWeather = await getHistoricalWeather(
+          geometryId,
+          shortStartISO,
+          nowISO,
+        );
+        historicalWeatherError = null;
+        console.warn(
+          `[Advisory] Historical weather recovered using 30-day window (${shortStartISO}→${nowISO})`,
+        );
+      } catch (shortErr) {
+        historicalWeatherError =
+          shortErr?.message || historicalWeatherError || String(shortErr);
+        console.warn(
+          "[Advisory] Historical weather unavailable; GDD will use defaults:",
+          historicalWeatherError,
+        );
+      }
+    }
 
     flow.addStep({
       step: "fetch_weather",
@@ -203,13 +239,18 @@ export async function generateAdvisoryForField(
           historicalWeather && typeof historicalWeather === "object"
             ? Object.keys(historicalWeather).slice(0, 15)
             : [],
+        historicalFailed: Boolean(historicalWeatherError),
       },
       rawApiResponsesFull: {
         currentWeather: cloneForAdvisoryFlowLog(currentWeatherResp),
         forecastWeather: cloneForAdvisoryFlowLog(forecastWeather),
         historicalWeather: cloneForAdvisoryFlowLog(historicalWeather),
+        historicalWeatherError,
       },
       calculated: "Normalized weatherSummary (current + next7Days forecast slices)",
+      notes: historicalWeatherError
+        ? `Historical weather skipped: ${historicalWeatherError}`
+        : undefined,
     });
 
     const currentWeather = currentWeatherResp?.current || currentWeatherResp;

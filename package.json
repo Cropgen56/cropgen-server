@@ -12,7 +12,8 @@
     "seed:mobile-plans": "node scripts/seed-mobile-plans.mjs",
     "test:subscription-pricing": "node scripts/test-subscription-pricing.mjs",
     "db:drop-email-index": "node scripts/drop-email-index.mjs",
-    "export:advisories": "node scripts/export-farm-advisories-excel.js"
+    "export:advisories": "node scripts/export-farm-advisories-excel.js",
+    "advisory:generate-send": "node scripts/generate-and-send-advisory.mjs"
   },
   "author": "crop gen team",
   "license": "ISC",

@@ -1,18 +1,24 @@
-import User from "../../models/user.model.js";
 import FarmAdvisory from "../../features/advisory/models/farmAdvisory.model.js";
 import WhatsAppMessage from "../../models/whatsappmessage.model.js";
 import { sendWhatsAppReply } from "../../services/whatsappService.js";
+import {
+  findUserByWhatsAppPhone,
+  normalizePhoneDigits,
+} from "../../utils/whatsapputility/phoneMatch.js";
 
 export const verifyWebhook = (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
+  const verifyToken =
+    process.env.WHATSAPP_VERIFY_TOKEN || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
 
-  if (mode === "subscribe" && token === process.env.WHATSAPP_VERIFY_TOKEN) {
+  if (mode === "subscribe" && verifyToken && token === verifyToken) {
     console.log("✅ Webhook verified successfully");
     return res.status(200).send(challenge);
   }
 
+  console.warn("⚠️ Webhook verification failed — check WHATSAPP_VERIFY_TOKEN");
   return res.sendStatus(403);
 };
 
@@ -22,21 +28,27 @@ export const receiveWebhook = async (req, res) => {
 
     if (!message) return res.sendStatus(200);
 
-    const phone = message.from;
+    const phone = normalizePhoneDigits(message.from);
     const text = message.text?.body || "";
     const timestamp = new Date(Number(message.timestamp) * 1000);
 
-    const farmer = await User.findOne({ phone: `+${phone}` });
-    if (!farmer) return res.sendStatus(200);
+    const farmer = await findUserByWhatsAppPhone(phone);
+    if (!farmer) {
+      console.warn(
+        `[WhatsApp webhook] No user for phone +${phone} — inbound not stored`,
+      );
+      return res.sendStatus(200);
+    }
 
-    const lastSentMessage = await WhatsAppMessage.findOne({
+    const lastOutbound = await WhatsAppMessage.findOne({
       farmerId: farmer._id,
       direction: "OUT",
-    }).sort({ createdAt: -1 });
+    })
+      .sort({ createdAt: -1 })
+      .select("advisoryId")
+      .lean();
 
-    if (!lastSentMessage) return res.sendStatus(200);
-
-    const advisoryId = lastSentMessage.advisoryId;
+    const advisoryId = lastOutbound?.advisoryId ?? null;
 
     await WhatsAppMessage.create({
       advisoryId,
@@ -49,23 +61,32 @@ export const receiveWebhook = async (req, res) => {
       rawPayload: message,
     });
 
-    await FarmAdvisory.findByIdAndUpdate(advisoryId, {
-      $set: { updatedAt: new Date() },
-    });
+    if (advisoryId) {
+      await FarmAdvisory.findByIdAndUpdate(advisoryId, {
+        $set: { updatedAt: new Date() },
+      });
+    }
 
     const autoReply =
       "🙏 We received your message. Our agronomist will get back to you shortly.";
 
-    await sendWhatsAppReply(phone, autoReply);
+    try {
+      await sendWhatsAppReply(phone, autoReply);
 
-    await WhatsAppMessage.create({
-      advisoryId,
-      farmerId: farmer._id,
-      phone,
-      direction: "OUT",
-      messageType: "text",
-      text: autoReply,
-    });
+      await WhatsAppMessage.create({
+        advisoryId,
+        farmerId: farmer._id,
+        phone,
+        direction: "OUT",
+        messageType: "text",
+        text: autoReply,
+      });
+    } catch (replyError) {
+      console.error(
+        "[WhatsApp webhook] Auto-reply failed (IN message was saved):",
+        replyError.response?.data?.error || replyError.message,
+      );
+    }
 
     return res.sendStatus(200);
   } catch (error) {

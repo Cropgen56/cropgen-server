@@ -2,6 +2,7 @@ import express from "express";
 import {
   sendFarmAdvisoryMessage,
   getAllWhatsAppMessages,
+  getWhatsAppChatsSummary,
   getWhatsAppMessageById,
   deleteWhatsAppMessage,
   updateWhatsAppMessage,
@@ -16,6 +17,7 @@ const router = express.Router();
 
 router.post("/send-farm-advisory", sendFarmAdvisoryMessage);
 
+router.get("/chats/summary", getWhatsAppChatsSummary);
 router.get("/chats/", getAllWhatsAppMessages);
 router.get("/chat/:id", getWhatsAppMessageById);
 router.delete("/chat/:id", deleteWhatsAppMessage);
