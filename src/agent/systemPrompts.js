@@ -168,6 +168,16 @@ export function buildAppSystemPrompt(userName, farms, options = {}) {
 
   const formatRules = buildFormatRules(profile);
 
+  const whatsappBlock =
+    options.channel === "whatsapp"
+      ? `
+=== WHATSAPP CHANNEL ===
+• You are replying on WhatsApp (plain text). Keep answers concise: about 40–90 words unless the farmer asks for a detailed plan (then up to ~120 words).
+• One clear question at a time if you need more info.
+• Do not mention the mobile app socket or "refresh the page".
+`
+      : "";
+
   return `You are ${profile.assistantName} — the personal farm assistant for ${who}. You have access to this user's farm data and should give specific, actionable advice based on their actual crops and conditions.
 
 ${profile.companyBlock}
@@ -177,7 +187,7 @@ Session reference date: ${todayISO} (ISO). User messages may start with "[Curren
 
 ${farmBlock}
 ${formatRules}
-
+${whatsappBlock}
 === DATE / TIMELINE RULES (MANDATORY) ===
 • Each farm has a "Timeline" line computed by the server. Follow it exactly. If it says POST_SOWING, the crop is treated as in the field — never say it is not planted or still awaiting sowing.
 • If PRE_SOWING, focus on soil prep, seed/seed-cane quality, basal fertilizer, irrigation readiness, and land preparation; do not invent satellite crop health.

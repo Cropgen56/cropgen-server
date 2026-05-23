@@ -3,6 +3,10 @@ import Notification from "../models/notification.model.js";
 import { sendWhatsAppTemplate } from "../services/whatsapp.service.js";
 import { generateEmailFromTemplate } from "../services/email.services.js";
 import { sendEmail } from "../services/email.services.js";
+import {
+  formatTemplateAsChatText,
+  saveWhatsAppOutbound,
+} from "../services/whatsappMessageStore.js";
 
 const MAX_RETRY = 3;
 const BATCH_SIZE = 10;
@@ -54,7 +58,24 @@ async function processNotification(notification) {
       });
 
       notification.channel = "whatsapp";
-      notification.messageId = response?.data?.messages?.[0]?.id || null;
+      const waMessageId = response?.data?.messages?.[0]?.id || null;
+      notification.messageId = waMessageId;
+
+      const chatText = formatTemplateAsChatText(
+        notification.templateName,
+        notification.parameters,
+      );
+      const phoneDigits = user.phone.replace(/\D/g, "");
+      await saveWhatsAppOutbound({
+        farmerId: user._id,
+        phone: phoneDigits,
+        text: chatText,
+        advisoryId: notification.referenceId || null,
+        waMessageId,
+        source: "advisory_template",
+        rawPayload: response?.data,
+        messageType: "template",
+      });
     } else if (user.email) {
       /* ================= EMAIL FALLBACK ================= */
       const { subject, html } = generateEmailFromTemplate(

@@ -1,7 +1,7 @@
 import FarmAdviosryModel from "../../features/advisory/models/farmAdvisory.model.js";
-import WhatsAppMessage from "../../models/whatsappmessage.model.js"
 import { sendCustomWhatsAppMessage } from "../../services/whatsappService.js"
-import { formatFarmAdvisoryMessage , formatFarmAdvisoryMessageHindi} from "../../utils/whatsapp.utils.js";
+import { formatFarmAdvisoryMessage } from "../../utils/whatsapp.utils.js";
+import { saveWhatsAppOutbound } from "../../services/whatsappMessageStore.js";
 import FarmField from "../../models/field.model.js"
 import User from "../../models/user.model.js"
 
@@ -58,19 +58,12 @@ export const sendFarmAdvisoryMessage = async (req, res) => {
     /* ================= 5️⃣ FORMAT MESSAGE (WITH FARM DETAILS + CROP AGE) ================= */
 
 
-    let formattedMessage;
-
-    if (language === "hi") {
-      // ✅ Hindi (static / demo)
-      formattedMessage = formatFarmAdvisoryMessageHindi();
-    } else {
-      // ✅ English (dynamic)
-      formattedMessage = formatFarmAdvisoryMessage(
-        advisory.activitiesToDo,
-        farmDetails,
-        farmer
-      );
-    }
+    const formattedMessage = formatFarmAdvisoryMessage(
+      advisory.activitiesToDo,
+      farmDetails,
+      farmer,
+      language,
+    );
 
     /* ================= 6️⃣ SEND WHATSAPP ================= */
 
@@ -85,15 +78,15 @@ export const sendFarmAdvisoryMessage = async (req, res) => {
 
     /* ================= 7️⃣ SAVE WHATSAPP MESSAGE ================= */
 
-    await WhatsAppMessage.create({
+    await saveWhatsAppOutbound({
       advisoryId: advisory._id,
-      farmFieldId: advisory.farmFieldId,
       farmerId: farmer._id,
       phone,
-      direction: "OUT",
-      messageType: "text",
       text: formattedMessage,
+      waMessageId: result.messageId,
+      source: "advisory_custom",
       rawPayload: result.data,
+      messageType: "text",
     });
 
     /* ================= SUCCESS ================= */

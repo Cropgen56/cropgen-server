@@ -17,6 +17,7 @@ const whatsappMessageSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: true,
+      index: true,
     },
 
     direction: {
@@ -27,12 +28,46 @@ const whatsappMessageSchema = new mongoose.Schema(
 
     messageType: {
       type: String,
-      enum: ["text"],
+      enum: ["text", "template", "image", "audio", "document", "unknown"],
       default: "text",
     },
 
     text: {
       type: String,
+      default: "",
+    },
+
+    /** Meta WhatsApp message id (wamid) */
+    waMessageId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
+
+    source: {
+      type: String,
+      enum: [
+        "farmer",
+        "admin_reply",
+        "auto_reply",
+        "agent_reply",
+        "advisory_custom",
+        "advisory_template",
+        "system",
+      ],
+      default: "system",
+    },
+
+    deliveryStatus: {
+      type: String,
+      enum: ["pending", "sent", "delivered", "read", "failed", "received"],
+      default: "pending",
+    },
+
+    /** Admin panel read receipt for inbound messages */
+    readAtAdmin: {
+      type: Date,
+      default: null,
     },
 
     timestamp: {
@@ -41,11 +76,14 @@ const whatsappMessageSchema = new mongoose.Schema(
     },
 
     rawPayload: {
-      type: Object, 
+      type: Object,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-export default mongoose.model("WhatsAppMessage", whatsappMessageSchema);
+whatsappMessageSchema.index({ phone: 1, createdAt: -1 });
+whatsappMessageSchema.index({ farmerId: 1, createdAt: -1 });
+whatsappMessageSchema.index({ phone: 1, direction: 1, readAtAdmin: 1 });
 
+export default mongoose.model("WhatsAppMessage", whatsappMessageSchema);

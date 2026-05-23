@@ -7,24 +7,30 @@ import {
   deleteWhatsAppMessage,
   updateWhatsAppMessage,
   replyToWhatsAppMessage,
+  markWhatsAppChatRead,
 } from "../controllers/whatsappcontroller/index.js";
 import {
   verifyWebhook,
   receiveWebhook,
 } from "../controllers/whatsappcontroller/whatsapp.webhook.controller.js";
+import { isAuthenticated } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/send-farm-advisory", sendFarmAdvisoryMessage);
-
-router.get("/chats/summary", getWhatsAppChatsSummary);
-router.get("/chats/", getAllWhatsAppMessages);
-router.get("/chat/:id", getWhatsAppMessageById);
-router.delete("/chat/:id", deleteWhatsAppMessage);
-router.patch("/chat/:id", updateWhatsAppMessage);
-router.post("/chat/reply", replyToWhatsAppMessage);
-
+/** Meta webhook — public (verify token + optional signature in controller) */
 router.get("/webhook", verifyWebhook);
 router.post("/webhook", receiveWebhook);
+
+/** Admin panel — authenticated */
+router.use(isAuthenticated);
+
+router.get("/chats/summary", getWhatsAppChatsSummary);
+router.get("/chats", getAllWhatsAppMessages);
+router.post("/chats/:phone/read", markWhatsAppChatRead);
+router.get("/chat/:id", getWhatsAppMessageById);
+router.patch("/chat/:id", updateWhatsAppMessage);
+router.delete("/chat/:id", deleteWhatsAppMessage);
+router.post("/chat/reply", replyToWhatsAppMessage);
+router.post("/send-farm-advisory", sendFarmAdvisoryMessage);
 
 export default router;

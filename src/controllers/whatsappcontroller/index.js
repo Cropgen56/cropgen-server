@@ -7,4 +7,5 @@ export {
   deleteWhatsAppMessage,
   updateWhatsAppMessage,
   replyToWhatsAppMessage,
+  markWhatsAppChatRead,
 } from "./whatsappMessage.controller.js";

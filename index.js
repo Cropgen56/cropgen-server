@@ -41,11 +41,13 @@ import { runAdvisoryJob } from "./src/features/advisory/workers/advisory.worker.
 
 // Agent socket
 import { setupSocket } from "./src/socket/setupSocket.js";
+import { logWhatsAppAgentStatus } from "./src/services/whatsappAgent.service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config();
+logWhatsAppAgentStatus();
 
 // Log crashes that often surface in production as nginx 502 (upstream connection refused / reset)
 process.on("unhandledRejection", (reason, promise) => {

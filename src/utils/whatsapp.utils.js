@@ -24,29 +24,59 @@ const TYPE_ICONS = {
 
 /* ================= FORMAT MESSAGE ================= */
 
-export const formatFarmAdvisoryMessage = (activities, farmField, farmer) => {
+export const formatFarmAdvisoryMessage = (
+  activities,
+  farmField,
+  farmer,
+  language = "en",
+) => {
+  const lang = String(language || "en").toLowerCase().slice(0, 2);
   const farmerName = farmer?.firstName
     ? `${farmer.firstName}${farmer.lastName ? " " + farmer.lastName : ""}`
-    : "Farmer";
+    : lang === "hi"
+      ? "किसान"
+      : lang === "mr"
+        ? "शेतकरी"
+        : "Farmer";
 
-  let message = `🌾 *Farm Advisory – Today*\n\n`;
-  message += `${farmerName}, hello 🙏\n\n`;
+  let message =
+    lang === "hi"
+      ? `🌾 *कृषि सलाह – आज*\n\n${farmerName}, नमस्ते 🙏\n\n`
+      : lang === "mr"
+        ? `🌾 *शेती सल्ला – आज*\n\n${farmerName}, नमस्कार 🙏\n\n`
+        : `🌾 *Farm Advisory – Today*\n\n${farmerName}, hello 🙏\n\n`;
 
   /* ================= FARM DETAILS ================= */
 
   if (farmField) {
     const cropAge = calculateCropAgeInDays(farmField.sowingDate);
     const formattedArea = Number(farmField.acre || 0).toFixed(2);
+    const acreLabel = lang === "hi" ? "एकड़" : lang === "mr" ? "एकर" : "Acre";
 
-    message += `📍 *Farm Details*\n`;
-    message += `• Field: ${farmField.fieldName}\n`;
-    message += `• Crop: ${farmField.cropName} (${farmField.variety})\n`;
-    message += `• Area: ${formattedArea} Acre\n`;
-    message += `• Farming Type: ${farmField.typeOfFarming}\n`;
-    message += `• Irrigation Type: ${farmField.typeOfIrrigation}\n`;
-
-    if (cropAge !== null) {
-      message += `• Crop Age: ${cropAge} days\n`;
+    if (lang === "hi") {
+      message += `📍 *खेत विवरण*\n`;
+      message += `• खेत: ${farmField.fieldName}\n`;
+      message += `• फसल: ${farmField.cropName} (${farmField.variety})\n`;
+      message += `• क्षेत्र: ${formattedArea} ${acreLabel}\n`;
+      message += `• खेती: ${farmField.typeOfFarming}\n`;
+      message += `• सिंचाई: ${farmField.typeOfIrrigation}\n`;
+      if (cropAge !== null) message += `• फसल आयु: ${cropAge} दिन\n`;
+    } else if (lang === "mr") {
+      message += `📍 *शेत माहिती*\n`;
+      message += `• शेत: ${farmField.fieldName}\n`;
+      message += `• पीक: ${farmField.cropName} (${farmField.variety})\n`;
+      message += `• क्षेत्र: ${formattedArea} ${acreLabel}\n`;
+      message += `• शेती: ${farmField.typeOfFarming}\n`;
+      message += `• सिंचन: ${farmField.typeOfIrrigation}\n`;
+      if (cropAge !== null) message += `• पिक वय: ${cropAge} दिवस\n`;
+    } else {
+      message += `📍 *Farm Details*\n`;
+      message += `• Field: ${farmField.fieldName}\n`;
+      message += `• Crop: ${farmField.cropName} (${farmField.variety})\n`;
+      message += `• Area: ${formattedArea} ${acreLabel}\n`;
+      message += `• Farming Type: ${farmField.typeOfFarming}\n`;
+      message += `• Irrigation Type: ${farmField.typeOfIrrigation}\n`;
+      if (cropAge !== null) message += `• Crop Age: ${cropAge} days\n`;
     }
 
     message += `\n——————————————\n\n`;
@@ -87,7 +117,12 @@ export const formatFarmAdvisoryMessage = (activities, farmField, farmer) => {
     }
   });
 
-  message += `\n✅ Please follow the advisory carefully.\n📞 Contact us if you need any assistance.`;
+  message +=
+    lang === "hi"
+      ? `\n✅ कृपया सलाह का पालन करें।\n📞 सहायता के लिए संपर्क करें।`
+      : lang === "mr"
+        ? `\n✅ कृपया सल्ल्याचे पालन करा.\n📞 मदतीसाठी संपर्क करा.`
+        : `\n✅ Please follow the advisory carefully.\n📞 Contact us if you need any assistance.`;
 
   return message;
 };

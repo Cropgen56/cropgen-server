@@ -124,6 +124,7 @@ function createAgent(systemPrompt, agentOptions = {}) {
 
   if (!built) {
     return {
+      async preloadHistory() {},
       async call() {
         return { response: "AI chat is not configured. Please contact support." };
       },
@@ -134,6 +135,19 @@ function createAgent(systemPrompt, agentOptions = {}) {
   const chatHistory = new ChatMessageHistory();
 
   return {
+    async preloadHistory(pairs = []) {
+      for (const p of pairs) {
+        const content = String(p?.content ?? "").trim();
+        if (!content) continue;
+        if (p.role === "assistant") {
+          await chatHistory.addAIMessage(content);
+        } else {
+          await chatHistory.addUserMessage(content);
+        }
+      }
+      trimStoredHistory(chatHistory);
+    },
+
     async call({ input }) {
       const text = typeof input === "string" ? input.trim() : String(input ?? "");
       if (!text) return { response: "Sorry, I didn't catch that." };
