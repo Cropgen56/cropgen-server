@@ -1,51 +1,66 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient = null;
 
-export async function callOpenAI(prompt) {
-  try {
-    const response = await openai.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-4.1",
-      temperature: 0.2,
-      max_output_tokens: 1600,
-      input: [
-        {
-          role: "system",
-          content:
-            "You are a senior agronomist. Respond ONLY with valid JSON exactly matching the schema.",
-        },
-        { role: "user", content: prompt },
-      ],
-    });
-
-    const content = response.output?.[0]?.content?.[0];
-
-    if (content?.type === "output_json") return content.json;
-
-    if (content?.type === "output_text") {
-      let text = content.text || "";
-
-      const fencedMatch = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-      if (fencedMatch) {
-        text = fencedMatch[1];
-      }
-
-      text = text.trim();
-      if (text.startsWith("```")) {
-        text = text.replace(/^```(?:json)?\s*/i, "");
-      }
-      if (text.endsWith("```")) {
-        text = text.replace(/```$/i, "").trim();
-      }
-
-      return JSON.parse(text);
-    }
-
-    throw new Error("Invalid LLM response");
-  } catch (err) {
-    console.error("❌ OpenAI Error:", err.message);
-    return null;
+function getClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
   }
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openaiClient;
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function parseResponseContent(response) {
+  const content = response.output?.[0]?.content?.[0];
+
+  if (content?.type === "output_json") return content.json;
+
+  if (content?.type === "output_text") {
+    let text = content.text || "";
+    const fencedMatch = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fencedMatch) text = fencedMatch[1];
+    text = text.trim();
+    if (text.startsWith("```")) text = text.replace(/^```(?:json)?\s*/i, "");
+    if (text.endsWith("```")) text = text.replace(/```$/i, "").trim();
+    return JSON.parse(text);
+  }
+
+  throw new Error("Invalid LLM response format");
+}
+
+export async function callOpenAI(prompt, { maxAttempts = 2 } = {}) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const openai = getClient();
+      const response = await openai.responses.create({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        temperature: 0.2,
+        max_output_tokens: 1600,
+        input: [
+          {
+            role: "system",
+            content:
+              "You are a senior agronomist with 20 years of field experience in India. Respond ONLY with valid JSON matching the requested schema. Never contradict the decisionHints in the evidence.",
+          },
+          { role: "user", content: prompt },
+        ],
+      });
+      return parseResponseContent(response);
+    } catch (err) {
+      lastError = err;
+      console.error(
+        `[Advisory] OpenAI attempt ${attempt}/${maxAttempts} failed:`,
+        err.message,
+      );
+      if (attempt < maxAttempts) await sleep(1200 * attempt);
+    }
+  }
+
+  return null;
 }

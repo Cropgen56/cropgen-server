@@ -1,5 +1,6 @@
 import { callOpenAI } from "./openaiClient.js";
 import { postProcessAdvisory } from "./postProcessAdvisory.js";
+import { buildCompactEvidence } from "../agronomy/compactEvidence.js";
 
 const REQUIRED_TYPES = [
   "SPRAY",
@@ -63,7 +64,12 @@ STRICT OUTPUT RULES:
 6. When recommending products, use exact product names, purpose, and quantity per acre/hectare.
 7. If no action is required for an activity, say so clearly in that activity's message (still in ${languageName}).
 8. Base irrigation and fertigation on decisionHints and irrigationRequirement in the evidence.
-9. Do not generate unnecessary actions.
+9. If decisionHints.spray.shouldSpray is false, state clearly that no spray is needed.
+10. If decisionHints.fertigation.shouldFertigate is false, state clearly that no fertigation is needed.
+11. If decisionHints.irrigation.shouldIrrigate is false, state clearly that no irrigation is needed.
+12. Do not contradict decisionHints — they are the agronomist ground truth.
+13. Include specific product names and quantities from decisionHints when provided.
+14. CRITICAL: Every activity title and message must be 100% in ${languageName}. Never leave any activity in English when ${languageName} is requested.
 
 ACTIVITY TYPE RULES:
 
@@ -98,6 +104,11 @@ ${JSON.stringify(evidence, null, 2)}
 `;
 }
 
+function buildCompactPrompt(languageCode, languageName, evidence) {
+  const compact = buildCompactEvidence(evidence);
+  return buildLLMPrompt(languageCode, languageName, compact);
+}
+
 function buildFillMissingPrompt(languageCode, languageName, evidence, missingTypes) {
   return `Complete ONLY these missing farm advisory activities in ${languageName} (${languageCode}).
 Every title, message, and details value must be in ${languageName} only — no English except product names and units.
@@ -116,7 +127,12 @@ async function fillMissingActivities(languageCode, languageName, evidence, exist
   if (!missing.length) return existingMap;
 
   const fillResponse = await callOpenAI(
-    buildFillMissingPrompt(languageCode, languageName, evidence, missing),
+    buildFillMissingPrompt(
+      languageCode,
+      languageName,
+      buildCompactEvidence(evidence),
+      missing,
+    ),
   );
   if (!fillResponse?.activitiesToDo) return existingMap;
 
@@ -134,11 +150,11 @@ export async function generateSmartAdvisory({
 }) {
   const languageCode = LANGUAGE_MAP[language] ? language : "en";
   const languageName = LANGUAGE_MAP[languageCode] || "English";
-  const prompt = buildLLMPrompt(languageCode, languageName, evidence);
+  const prompt = buildCompactPrompt(languageCode, languageName, evidence);
   const response = await callOpenAI(prompt);
 
   if (!response || !Array.isArray(response.activitiesToDo)) {
-    console.warn("Advisory LLM returned no usable JSON; skipping AI activities");
+    console.warn("[Advisory] LLM returned no usable JSON");
     return null;
   }
 

@@ -11,6 +11,20 @@ function totalKgForFarmFromKgPerHa(kgPerHa, acre) {
   return Math.round(kgPerHaToKgPerAcre(kgPerHa) * (Number(acre) || 1) * 10) / 10;
 }
 
+function formatProductsFromSchedule(products, acre) {
+  if (!Array.isArray(products) || !products.length) return null;
+  const lines = products.map((p) => {
+    const perAcre = p.quantityKgPerAcre ?? kgPerHaToKgPerAcre(p.quantityKgPerHa);
+    const total = p.totalKgFarm ?? totalKgForFarmFromKgPerHa(p.quantityKgPerHa, acre);
+    return `${p.name}: ${perAcre} kg/acre (~${total} kg total)`;
+  });
+  return {
+    fertilizer: products.map((p) => p.name).join(" + "),
+    quantity: lines.join("; "),
+    products,
+  };
+}
+
 export function getFertigationDecision(evidence) {
   const nutrientDeficit = evidence?.nutrientDeficit ?? {};
   const irrigationType = evidence?.irrigationType ?? "";
@@ -24,7 +38,8 @@ export function getFertigationDecision(evidence) {
   const kDeficit = nutrientDeficit.potassiumKgPerHa ?? 0;
   const totalDeficit = nDeficit + pDeficit + kDeficit;
   const typeOfFarming = normalizeTypeOfFarming(evidence?.typeOfFarming);
-  const hasNutrientData = evidence?.npkManagement?.required && evidence?.npkManagement?.available;
+  const hasNutrientData =
+    evidence?.npkManagement?.required && evidence?.npkManagement?.available;
 
   if (!hasNutrientData) {
     return {
@@ -65,23 +80,42 @@ export function getFertigationDecision(evidence) {
     };
   }
 
+  const scheduleProducts = formatProductsFromSchedule(
+    currentApplication.products,
+    acre,
+  );
+
+  if (scheduleProducts) {
+    return {
+      shouldFertigate: true,
+      reason: `Apply ${currentApplication.stageLabel} nutrients per crop schedule.`,
+      products: scheduleProducts.products,
+      hint: {
+        fertilizer: scheduleProducts.fertilizer,
+        quantity: scheduleProducts.quantity,
+        method: currentApplication.application || (isDrip ? "Drip fertigation" : "Broadcast + irrigate"),
+        time: `${currentApplication.timing} (BBCH ${currentApplication.bbchWindow})`,
+        nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
+        farmerSteps: [
+          "Split dose if total exceeds 50 kg/acre",
+          "Irrigate within 2 hours after application",
+        ],
+      },
+    };
+  }
+
   if (typeOfFarming === "Organic") {
     const vcKgPerHa = Math.max(150, Math.round(totalDeficit * 40));
     return {
       shouldFertigate: true,
       reason: "Organic farm: use only organic inputs.",
-      products: [
-        {
-          name: "Vermicompost",
-          quantityKgPerHa: vcKgPerHa,
-        },
-      ],
+      products: [{ name: "Vermicompost", quantityKgPerHa: vcKgPerHa }],
       hint: {
         organicOnly: true,
         fertilizer: "Vermicompost",
         quantity: `~${kgPerHaToKgPerAcre(vcKgPerHa)} kg/acre (≈${totalKgForFarmFromKgPerHa(vcKgPerHa, acre)} kg total)`,
         method: isDrip ? "Soil drench or drip application" : "Top-dress with irrigation",
-        time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning irrigation preferred (before 10 AM)`,
+        time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning (6–10 AM)`,
         nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
       },
     };
@@ -93,24 +127,16 @@ export function getFertigationDecision(evidence) {
     shouldFertigate: true,
     reason:
       typeOfFarming === "Inorganic"
-        ? "Inorganic farm: chemical fertilizers only."
-        : "Integrated: combine organic and chemical inputs.",
-    products: [
-      {
-        name: "NPK 19:19:19",
-        quantityKgPerHa: npkDoseKgPerHa,
-      },
-    ],
+        ? "Inorganic farm: chemical fertilizers per deficit."
+        : "Integrated: combine organic and chemical inputs per schedule.",
+    products: [{ name: "NPK 19:19:19", quantityKgPerHa: npkDoseKgPerHa }],
     hint: {
       fertilizer: "NPK 19:19:19",
       quantity: `~${kgPerHaToKgPerAcre(npkDoseKgPerHa)} kg/acre (≈${totalKgForFarmFromKgPerHa(npkDoseKgPerHa, acre)} kg total)`,
       method: isDrip ? "Apply through drip system" : "Broadcast with irrigation",
-      time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning (6-10 AM)`,
+      time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning (6–10 AM)`,
       nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
-      farmerSteps: [
-        "Apply in split doses",
-        "Irrigate immediately after application",
-      ],
+      farmerSteps: ["Apply in split doses", "Irrigate immediately after application"],
     },
   };
 }

@@ -2,6 +2,9 @@ import axios from "axios";
 
 const CROPGEN_TS_BASE =
   process.env.CROPGEN_TS_BASE || "https://server.cropgenapp.com/v4/api";
+const REQUEST_TIMEOUT_MS = Number(process.env.SATELLITE_TIMEOUT_MS) || 45_000;
+
+const satelliteHttp = axios.create({ timeout: REQUEST_TIMEOUT_MS });
 
 /** Optical index names supported by `/calculate/index` (API returns legend + optional image). */
 export const OPTICAL_INDEX_NAMES = [
@@ -45,7 +48,9 @@ export async function getVegetationTimeseries(
     satellite: "s2",
     max_items: 25,
   };
-  const { data } = await axios.post(url, body, { headers: getSatelliteHeaders() });
+  const { data } = await satelliteHttp.post(url, body, {
+    headers: getSatelliteHeaders(),
+  });
   return data;
 }
 
@@ -65,7 +70,9 @@ export async function getWaterTimeseries(
     satellite: "s2",
     max_items: 25,
   };
-  const { data } = await axios.post(url, body, { headers: getSatelliteHeaders() });
+  const { data } = await satelliteHttp.post(url, body, {
+    headers: getSatelliteHeaders(),
+  });
   return data;
 }
 
@@ -84,7 +91,9 @@ export async function getImageAvailability(
     provider,
     satellite,
   };
-  const { data } = await axios.post(url, body, { headers: getSatelliteHeaders() });
+  const { data } = await satelliteHttp.post(url, body, {
+    headers: getSatelliteHeaders(),
+  });
   return data;
 }
 
@@ -115,7 +124,9 @@ export async function calculateIndexImage(
     smooth,
     gaussian_sigma: gaussianSigma,
   };
-  const { data } = await axios.post(url, body, { headers: getSatelliteHeaders() });
+  const { data } = await satelliteHttp.post(url, body, {
+    headers: getSatelliteHeaders(),
+  });
   return data;
 }
 

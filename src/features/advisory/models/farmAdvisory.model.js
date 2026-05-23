@@ -87,6 +87,14 @@ const FarmAdvisorySchema = new Schema(
     },
     /** Compact `/calculate/index` summaries (legend stats only; no base64 images). */
     opticalIndicesSummary: { type: Schema.Types.Mixed, default: null },
+    /** Weather at generation time — used by cron to detect significant changes. */
+    weatherSnapshot: { type: Schema.Types.Mixed, default: null },
+    /** How activities were produced: llm | rules | hybrid */
+    activitiesSource: {
+      type: String,
+      enum: ["llm", "rules", "hybrid"],
+      default: "rules",
+    },
   },
   { timestamps: true },
 );

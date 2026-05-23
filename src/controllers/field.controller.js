@@ -2,8 +2,7 @@ import mongoose from "mongoose";
 import FarmField from "../models/field.model.js";
 import User from "../models/user.model.js";
 import UserSubscription from "../models/usersubscription.model.js";
-import { generateAdvisoryForField } from "../features/advisory/services/advisory.service.js";
-import { resolveAOIForFarm } from "../utils/weather/weather.utils.js";
+import { triggerInitialAdvisoryForNewField } from "../features/advisory/services/triggerInitialAdvisory.service.js";
 import MonitoringRequest from "../models/monitoringrequest.model.js";
 
 // Add a new farm field for a particular user
@@ -61,22 +60,11 @@ export const addField = async (req, res) => {
 
     const savedFarmField = await newFarmField.save();
 
-    /* ---------- Trigger advisory in-process (non-blocking) ---------- */
-    FarmField.findById(savedFarmField._id)
-      .populate("user", "language")
-      .then(async (farm) => {
-        if (!farm?.user) return;
-        const { aoiId } = await resolveAOIForFarm(farm);
-        await generateAdvisoryForField(
-          farm._id,
-          aoiId,
-          user.language || farm.user?.language || "en",
-          "whatsapp",
-        );
-      })
-      .catch((err) => {
-        console.error("Advisory trigger failed:", err?.message || err);
-      });
+    /* ---------- Trigger first advisory (background; logs success/failure) ---------- */
+    void triggerInitialAdvisoryForNewField(savedFarmField._id, {
+      language: user.language || "en",
+      userId,
+    });
 
     /* ---------- Response ---------- */
     return res.status(201).json({

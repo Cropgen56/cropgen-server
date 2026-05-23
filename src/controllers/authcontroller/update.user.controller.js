@@ -138,9 +138,16 @@ export const updateUserById = async (req, res) => {
     }
 
     if (error.name === "ValidationError") {
+      const firstField = Object.values(error.errors || {})[0];
+      const friendly =
+        firstField?.message ||
+        (error.message?.includes("phone")
+          ? "Invalid phone number. Use E.164 format, e.g. +919876543210."
+          : error.message);
+
       return res.status(400).json({
         success: false,
-        message: error.message,
+        message: friendly,
       });
     }
 

@@ -14,6 +14,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import path from "path";
 import { fileURLToPath } from "url";
+import { buildAdvisoryNotificationParameters } from "../src/features/advisory/utils/notifications/advisoryNotificationParams.js";
 
 dotenv.config();
 
@@ -23,8 +24,6 @@ const DEFAULT_FIELD_IDS = [
   "6a0c2a63c6171e88a2ecd4b6", // Field 1 — sugarcane
   "6a10863a303f1f2b671cf0e6", // Sugarcane Pal Farm
 ];
-
-const ACRE_TO_HA = 0.404686;
 
 function parseArgs(argv) {
   const opts = {
@@ -56,82 +55,6 @@ function parseArgs(argv) {
   }
 
   return opts;
-}
-
-function formatAreaForNotification(acre, platform = "web") {
-  const value = Number(acre);
-  if (!Number.isFinite(value) || value < 0) {
-    return platform === "web" ? "0 ha" : "0 Acre";
-  }
-  if (platform === "web") {
-    return `${(value * ACRE_TO_HA).toFixed(2)} ha`;
-  }
-  return `${(Math.round(value * 100) / 100).toFixed(2)} Acre`;
-}
-
-function buildAdvisoryParameters(user, farmField, advisory, platform) {
-  const advisoryDateObj = advisory?.createdAt
-    ? new Date(advisory.createdAt)
-    : new Date();
-  const advisoryDateStr = advisoryDateObj
-    .toISOString()
-    .slice(0, 10)
-    .split("-")
-    .reverse()
-    .join("-");
-
-  const advisoryData = {
-    spray: "No spray advisory.",
-    fertigation: "No fertigation advisory.",
-    irrigation: "No irrigation advisory.",
-    weather: "No weather update.",
-    cropRisk: "No crop risk alert.",
-    monitoring: "No monitoring advice.",
-    carbonUpdate: "No carbon update.",
-  };
-
-  for (const activity of advisory?.activitiesToDo || []) {
-    switch (activity.type) {
-      case "SPRAY":
-        advisoryData.spray = activity.message;
-        break;
-      case "FERTIGATION":
-        advisoryData.fertigation = activity.message;
-        break;
-      case "IRRIGATION":
-        advisoryData.irrigation = activity.message;
-        break;
-      case "WEATHER":
-        advisoryData.weather = activity.message;
-        break;
-      case "CROP_RISK":
-        advisoryData.cropRisk = activity.message;
-        break;
-      case "MONITORING":
-        advisoryData.monitoring = activity.message;
-        break;
-      case "CARBON_TRACKING":
-        advisoryData.carbonUpdate = activity.message;
-        break;
-      default:
-        break;
-    }
-  }
-
-  return [
-    user.firstName || "Farmer",
-    advisoryDateStr,
-    farmField.cropName || "Crop",
-    farmField.fieldName || "Field",
-    formatAreaForNotification(farmField.acre, platform),
-    advisoryData.spray,
-    advisoryData.fertigation,
-    advisoryData.irrigation,
-    advisoryData.weather,
-    advisoryData.cropRisk,
-    advisoryData.monitoring,
-    advisoryData.carbonUpdate,
-  ];
 }
 
 async function markPendingNotificationsSent(advisoryId) {
@@ -224,7 +147,7 @@ async function processField(farmFieldId, opts, deps) {
     return { farmFieldId, ok: false, error: detail };
   }
 
-  const parameters = buildAdvisoryParameters(
+  const parameters = buildAdvisoryNotificationParameters(
     user,
     farm,
     advisory,

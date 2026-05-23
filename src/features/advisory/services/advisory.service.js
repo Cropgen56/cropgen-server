@@ -4,18 +4,13 @@ import { createNotification } from "../../../services/notificationCreator.servic
 import { saveCarbonFromAdvisory } from "../../../services/carbonTracking.service.js";
 import User from "../../../models/user.model.js";
 
-import {
-  getCurrentWeather,
-  getForecastWeather,
-  getHistoricalWeather,
-} from "../clients/observearth.client.js";
+import { fetchWeatherBundle } from "../clients/observearth.client.js";
 
 import {
   getVegetationTimeseries,
   getWaterTimeseries,
   fetchOpticalIndexSnapshots,
   getImageAvailability,
-  OPTICAL_INDEX_NAMES,
 } from "../clients/satellite.client.js";
 
 import { generateSmartAdvisory } from "../utils/llm/generateSmartAdvisory.js";
@@ -29,16 +24,21 @@ import {
   buildOpticalIndicesSummary,
 } from "../utils/satellite/index.js";
 
-import {
-  getBaseTemperature,
-  calculateCumulativeGDD,
-  getCropStage,
-  getCropGrowthStage,
-} from "../../../utils/cropgrowth/gddCalculator.js";
+import { getBaseTemperature } from "../../../utils/cropgrowth/gddCalculator.js";
 
 import { calculateNPKFromfarmField } from "../../../utils/npk/npkCalculator.js";
 import { calcCropHealth } from "../../../utils/crophealth/cropHealth.js";
 import { calculateYieldPrecise } from "../utils/yield/yieldCalculator.js";
+import {
+  assembleWeatherSummary,
+  buildWeatherSnapshot,
+} from "../utils/weather/weatherSnapshot.utils.js";
+import { resolveGDDAndGrowthStage } from "../utils/weather/gddFromWeatherSummary.js";
+import { selectOpticalIndicesForAdvisory } from "../utils/agronomy/opticalIndexSelection.js";
+import { buildActivitiesFromDecisionHints } from "../utils/agronomy/activitiesFromDecisionHints.js";
+import { buildAdvisoryNotificationParameters } from "../utils/notifications/advisoryNotificationParams.js";
+import { generateBarrenLandAdvisoryForField } from "./barrenLandAdvisory.service.js";
+import { mergeLocalizedActivities } from "../utils/i18n/advisoryLocale.js";
 
 const ACRE_TO_HA = 0.404686;
 const BIODROPS_BOKASHI_PRODUCT = {
@@ -125,7 +125,12 @@ export async function generateAdvisoryForField(
   geometryId,
   language,
   platform = "whatsapp",
+  options = {},
 ) {
+  const { preferShortHistoricalWindow = false, lightweight = false } = options;
+  const fieldIdStr = String(farmFieldId);
+  const logStep = (message) => console.log(`[Advisory] ${fieldIdStr}: ${message}`);
+
   const flow = {
     addStep() {},
     setOutcome() {},
@@ -134,6 +139,11 @@ export async function generateAdvisoryForField(
   };
 
   try {
+    logStep(
+      lightweight
+        ? "started (fast path — new farm)"
+        : "started",
+    );
     const now = new Date();
     const nowISO = formatDateISO(now);
 
@@ -160,10 +170,22 @@ export async function generateAdvisoryForField(
         fieldName: farmField.fieldName,
         acre: farmField.acre,
         sowingDate: farmField.sowingDate,
+        isBarrenLand: Boolean(farmField.isBarrenLand),
         boundaryPointCount: Array.isArray(farmField.field) ? farmField.field.length : 0,
       },
       outputFull: cloneForAdvisoryFlowLog(farmField),
     });
+
+    if (farmField.isBarrenLand) {
+      logStep("barren land — pre-sowing advisory path");
+      return generateBarrenLandAdvisoryForField(
+        farmFieldId,
+        geometryId,
+        language,
+        platform,
+        { lightweight },
+      );
+    }
 
     const sowingDateISO = formatDateISO(farmField.sowingDate || now);
     const geometry = buildGeometryFromFarmField(farmField);
@@ -178,47 +200,35 @@ export async function generateAdvisoryForField(
       notes: "Polygon is sent to CropGen satellite APIs; Observearth uses geometryId separately",
     });
 
-    const [currentWeatherResp, forecastWeather] = await Promise.all([
-      getCurrentWeather(geometryId),
-      getForecastWeather(geometryId),
-    ]);
+    logStep("fetching weather (Observearth)");
+    const weatherBundle = await fetchWeatherBundle(
+      geometryId,
+      sowingDateISO,
+      nowISO,
+      {
+        preferShortWindows: preferShortHistoricalWindow,
+        onProgress: (msg) => logStep(`weather: ${msg}`),
+      },
+    );
 
-    let historicalWeather = null;
-    let historicalWeatherError = null;
-    try {
-      historicalWeather = await getHistoricalWeather(
-        geometryId,
-        sowingDateISO,
-        nowISO,
+    const currentWeatherResp = weatherBundle.currentWeatherResp;
+    const forecastWeather = weatherBundle.forecastWeather;
+    const historicalWeather = weatherBundle.historicalWeather;
+    const historicalWeatherError = weatherBundle.historicalError
+      ? weatherBundle.historicalError?.message ||
+        String(weatherBundle.historicalError)
+      : null;
+
+    if (!historicalWeather && historicalWeatherError) {
+      logStep(
+        `historical unavailable — will estimate GDD from current+forecast: ${historicalWeatherError}`,
       );
-    } catch (histErr) {
-      historicalWeatherError = histErr?.message || String(histErr);
-      console.warn(
-        `[Advisory] Observearth historical weather failed for ${geometryId} (${sowingDateISO}→${nowISO}):`,
-        historicalWeatherError,
+    } else if (weatherBundle.historicalWindowDays) {
+      logStep(
+        `weather loaded (historical ${weatherBundle.historicalWindowDays}d window)`,
       );
-      // Retry a shorter window (Observearth often 500s on long ranges)
-      const shortStart = new Date(nowISO);
-      shortStart.setDate(shortStart.getDate() - 30);
-      const shortStartISO = formatDateISO(shortStart);
-      try {
-        historicalWeather = await getHistoricalWeather(
-          geometryId,
-          shortStartISO,
-          nowISO,
-        );
-        historicalWeatherError = null;
-        console.warn(
-          `[Advisory] Historical weather recovered using 30-day window (${shortStartISO}→${nowISO})`,
-        );
-      } catch (shortErr) {
-        historicalWeatherError =
-          shortErr?.message || historicalWeatherError || String(shortErr);
-        console.warn(
-          "[Advisory] Historical weather unavailable; GDD will use defaults:",
-          historicalWeatherError,
-        );
-      }
+    } else {
+      logStep("weather loaded");
     }
 
     flow.addStep({
@@ -253,31 +263,11 @@ export async function generateAdvisoryForField(
         : undefined,
     });
 
-    const currentWeather = currentWeatherResp?.current || currentWeatherResp;
-
-    const weatherSummary = {
-      current: {
-        temp: currentWeather?.temp,
-        humidity: currentWeather?.relative_humidity,
-        rainfall: currentWeather?.precipitation ?? currentWeather?.rain ?? 0,
-        windSpeed: currentWeather?.wind_speed,
-        et0: currentWeather?.et0_fao_evapotranspiration,
-        soilMoisture_5cm: currentWeather?.soil_moisture_5cm,
-        soilMoisture_15cm: currentWeather?.soil_moisture_15cm,
-      },
-      next7Days: {
-        dates: forecastWeather?.forecast?.time?.slice(0, 7) ?? [],
-        tempMean: forecastWeather?.forecast?.temp_mean?.slice(0, 7) ?? [],
-        tempMax: forecastWeather?.forecast?.temp_max?.slice(0, 7) ?? [],
-        tempMin: forecastWeather?.forecast?.temp_min?.slice(0, 7) ?? [],
-        rainfall: forecastWeather?.forecast?.precipitation?.slice(0, 7) ?? [],
-        humidity: forecastWeather?.forecast?.relative_humidity?.slice(0, 7) ?? [],
-        et0: forecastWeather?.forecast?.evapotranspiration?.slice(0, 7) ?? [],
-        windSpeed: forecastWeather?.forecast?.wind_speed?.slice(0, 7) ?? [],
-        windGusts: forecastWeather?.forecast?.wind_gusts?.slice(0, 7) ?? [],
-        cloudCover: forecastWeather?.forecast?.cloud_cover?.slice(0, 7) ?? [],
-      },
-    };
+    const weatherSummary = assembleWeatherSummary(
+      currentWeatherResp,
+      forecastWeather,
+    );
+    const weatherSnapshot = buildWeatherSnapshot(weatherSummary);
 
     flow.addStep({
       step: "assemble_weather_summary",
@@ -304,35 +294,78 @@ export async function generateAdvisoryForField(
       outputFull: cloneForAdvisoryFlowLog(satelliteRange),
     });
 
-    const vegTs = await getVegetationTimeseries(
-      geometry,
-      satelliteRange.start,
-      satelliteRange.end,
-      "NDVI",
-    );
-    const ndvi = parseNDVIMetrics(vegTs);
+    logStep("fetching satellite NDVI and water stress (parallel)");
+    let ndvi = {
+      ndviLatest: null,
+      ndviMean: null,
+      trend: 0,
+      ndviTrend: 0,
+      values: [],
+    };
+    let latestVegDate = satelliteRange.end.slice(0, 10);
+    let water = {
+      waterLatest: null,
+      waterMean: null,
+      stressLevel: "unknown",
+      confidence: 0,
+    };
 
-    const latestVegDate =
-      getLatestVegetationTimeseriesDate(vegTs) || satelliteRange.end.slice(0, 10);
+    const [vegOutcome, waterOutcome] = await Promise.allSettled([
+      getVegetationTimeseries(
+        geometry,
+        satelliteRange.start,
+        satelliteRange.end,
+        "NDVI",
+      ),
+      getWaterTimeseries(
+        geometry,
+        satelliteRange.start,
+        satelliteRange.end,
+        "NDMI",
+      ),
+    ]);
 
-    flow.addStep({
-      step: "vegetation_timeseries",
-      service: "cropgen_satellite",
-      apiOrFn: "POST /timeseries/vegetation/vegetation (NDVI)",
-      inputs: {
-        geometry: summarizeGeometry(geometry),
-        start_date: satelliteRange.start,
-        end_date: satelliteRange.end,
-        index: "ndvi",
-        provider: "aws",
-        satellite: "s2",
-      },
-      rawResponseSummary: summarizeTimeseriesPayload(vegTs),
-      rawApiResponseFull: cloneForAdvisoryFlowLog(vegTs),
-      calculated: "parseNDVIMetrics, getLatestVegetationTimeseriesDate",
-      output: { ndvi, latestVegDate },
-      outputFull: cloneForAdvisoryFlowLog({ ndvi, latestVegDate }),
-    });
+    if (vegOutcome.status === "fulfilled") {
+      ndvi = parseNDVIMetrics(vegOutcome.value);
+      latestVegDate =
+        getLatestVegetationTimeseriesDate(vegOutcome.value) || latestVegDate;
+      flow.addStep({
+        step: "vegetation_timeseries",
+        service: "cropgen_satellite",
+        apiOrFn: "POST /timeseries/vegetation/vegetation (NDVI)",
+        output: { ndvi, latestVegDate },
+      });
+    } else {
+      console.warn(
+        "[Advisory] Vegetation timeseries failed:",
+        vegOutcome.reason?.message || vegOutcome.reason,
+      );
+      flow.addStep({
+        step: "vegetation_timeseries",
+        notes: `Failed: ${vegOutcome.reason?.message || vegOutcome.reason}`,
+        output: { ndvi, latestVegDate },
+      });
+    }
+
+    if (waterOutcome.status === "fulfilled") {
+      water = parseWaterMetrics(waterOutcome.value);
+      flow.addStep({
+        step: "water_timeseries",
+        service: "cropgen_satellite",
+        apiOrFn: "POST /timeseries/water/water (NDMI)",
+        output: water,
+      });
+    } else {
+      console.warn(
+        "[Advisory] Water timeseries failed:",
+        waterOutcome.reason?.message || waterOutcome.reason,
+      );
+      flow.addStep({
+        step: "water_timeseries",
+        notes: `Failed: ${waterOutcome.reason?.message || waterOutcome.reason}`,
+        output: water,
+      });
+    }
 
     let snapshotDate = latestVegDate;
     try {
@@ -377,99 +410,6 @@ export async function generateAdvisoryForField(
       });
     }
 
-    let opticalIndicesSummary = null;
-    try {
-      const indexRows = await fetchOpticalIndexSnapshots(geometry, snapshotDate);
-      opticalIndicesSummary = buildOpticalIndicesSummary(indexRows, snapshotDate);
-      const perIndexApiLog = summarizeOpticalIndexRowsForFlow(indexRows);
-      flow.addStep({
-        step: "optical_index_snapshots",
-        service: "cropgen_satellite",
-        apiOrFn: "POST /calculate/index (per index)",
-        inputs: {
-          geometry: summarizeGeometry(geometry),
-          date: snapshotDate,
-          indexNames: [...OPTICAL_INDEX_NAMES],
-          indexCountRequested: OPTICAL_INDEX_NAMES.length,
-        },
-        rawResponseSummary: {
-          rowCount: indexRows.length,
-          okCount: indexRows.filter((r) => r.ok).length,
-          failCount: indexRows.filter((r) => !r.ok).length,
-        },
-        rawApiRowsMeta: indexRows.map((r) => ({
-          indexName: r.indexName,
-          ok: r.ok,
-          error: r.ok ? undefined : r.error,
-          dataTopKeys: r.ok && r.data && typeof r.data === "object" ? Object.keys(r.data) : [],
-          hasImageBase64: Boolean(r.data?.image_base64),
-          imageBase64Length:
-            typeof r.data?.image_base64 === "string" ? r.data.image_base64.length : 0,
-        })),
-        calculated: "buildOpticalIndicesSummary (legend stats; no image_base64 in DB summary)",
-        output: {
-          totals: {
-            requestedIndexNames: OPTICAL_INDEX_NAMES.length,
-            responses: indexRows.length,
-            ok: indexRows.filter((r) => r.ok).length,
-            failed: indexRows.filter((r) => !r.ok).length,
-          },
-          /** Full per-index API outcome; image_base64 omitted (see image_base64_meta). */
-          perIndexApi: perIndexApiLog,
-          /** Full `buildOpticalIndicesSummary` result used downstream (no base64). */
-          processedSummaryFull: opticalIndicesSummary,
-        },
-      });
-    } catch (err) {
-      console.warn("Optical index snapshots failed:", err?.message || err);
-      flow.addStep({
-        step: "optical_index_snapshots",
-        service: "cropgen_satellite",
-        notes: `Failed: ${err?.message || err}`,
-        output: null,
-      });
-    }
-
-    let water;
-    try {
-      const waterTs = await getWaterTimeseries(
-        geometry,
-        satelliteRange.start,
-        satelliteRange.end,
-        "NDMI",
-      );
-      water = parseWaterMetrics(waterTs);
-      flow.addStep({
-        step: "water_timeseries",
-        service: "cropgen_satellite",
-        apiOrFn: "POST /timeseries/water/water (NDMI)",
-        inputs: {
-          geometry: summarizeGeometry(geometry),
-          start_date: satelliteRange.start,
-          end_date: satelliteRange.end,
-          index: "ndmi",
-        },
-        rawResponseSummary: summarizeTimeseriesPayload(waterTs),
-        rawApiResponseFull: cloneForAdvisoryFlowLog(waterTs),
-        calculated: "parseWaterMetrics",
-        output: water,
-        outputFull: cloneForAdvisoryFlowLog(water),
-      });
-    } catch {
-      water = {
-        waterLatest: null,
-        stressLevel: "unknown",
-        confidence: 0,
-      };
-      flow.addStep({
-        step: "water_timeseries",
-        service: "cropgen_satellite",
-        notes: "Request failed; using placeholder water object",
-        output: water,
-        outputFull: cloneForAdvisoryFlowLog(water),
-      });
-    }
-
     const baseTemp = getBaseTemperature(farmField.cropName);
 
     let cumulativeGDD = 0;
@@ -479,31 +419,59 @@ export async function generateAdvisoryForField(
       description: "Crop not yet emerged",
       overallProgress: 0,
       stageProgress: 0,
+      gddSource: "none",
     };
-
     let gddSeries = null;
+    let gddSource = "historical";
+    let gddMeta = {};
+
     try {
-      gddSeries = calculateCumulativeGDD(historicalWeather, baseTemp);
-      if (gddSeries?.length) {
-        cumulativeGDD = gddSeries.at(-1)?.cumulativeGDD || 0;
-        getCropStage(farmField.cropName, cumulativeGDD);
-        plantGrowthActivity = getCropGrowthStage(
-          farmField.cropName,
-          cumulativeGDD,
-          ndvi,
+      const gddResult = resolveGDDAndGrowthStage({
+        historicalWeather,
+        weatherSummary,
+        baseTemp,
+        sowingDateISO,
+        cropName: farmField.cropName,
+        ndvi,
+        endDateISO: nowISO,
+      });
+      gddSeries = gddResult.gddSeries;
+      cumulativeGDD = gddResult.cumulativeGDD;
+      plantGrowthActivity = gddResult.plantGrowthActivity;
+      gddSource = gddResult.gddSource;
+      gddMeta = gddResult.gddMeta;
+
+      if (gddSource === "current_forecast_estimate") {
+        logStep(
+          `GDD estimated from current+forecast: ${cumulativeGDD} (${gddMeta.daysSinceSowing}d × ~${gddMeta.avgDailyGDD} GDD/d)`,
         );
+      } else {
+        logStep(`GDD from historical weather: ${cumulativeGDD}`);
       }
+
       flow.addStep({
         step: "gdd_crop_growth",
-        service: "src/utils/cropgrowth/gddCalculator",
-        apiOrFn: "calculateCumulativeGDD + getCropGrowthStage",
-        inputs: { cropName: farmField.cropName, baseTemp },
-        rawResponseSummary: { gddSeriesLength: gddSeries?.length ?? 0 },
+        service: "gddFromWeatherSummary.resolveGDDAndGrowthStage",
+        apiOrFn:
+          gddSource === "historical"
+            ? "calculateCumulativeGDD(historical)"
+            : "estimateGDDFromCurrentAndForecast",
+        inputs: { cropName: farmField.cropName, baseTemp, sowingDateISO, gddSource },
+        rawResponseSummary: {
+          gddSeriesLength: gddSeries?.length ?? 0,
+          gddSource,
+          gddMeta,
+        },
         rawInputHistoricalWeatherFull: cloneForAdvisoryFlowLog(historicalWeather),
         rawSeriesFull: gddSeries ? cloneForAdvisoryFlowLog(gddSeries) : null,
         calculated: "cumulativeGDD, plantGrowthActivity (BBCH, progress, stage name)",
-        output: { cumulativeGDD, plantGrowthActivity },
-        outputFull: cloneForAdvisoryFlowLog({ cumulativeGDD, plantGrowthActivity, ndviInputs: ndvi }),
+        output: { cumulativeGDD, plantGrowthActivity, gddSource },
+        outputFull: cloneForAdvisoryFlowLog({
+          cumulativeGDD,
+          plantGrowthActivity,
+          ndviInputs: ndvi,
+          gddMeta,
+        }),
       });
     } catch (err) {
       console.error("GDD calculation failed:", err);
@@ -511,7 +479,6 @@ export async function generateAdvisoryForField(
         step: "gdd_crop_growth",
         notes: `Failed: ${err?.message || err}`,
         rawInputHistoricalWeatherFull: cloneForAdvisoryFlowLog(historicalWeather),
-        rawSeriesFull: gddSeries ? cloneForAdvisoryFlowLog(gddSeries) : null,
         output: { cumulativeGDD, plantGrowthActivity },
         outputFull: cloneForAdvisoryFlowLog({ cumulativeGDD, plantGrowthActivity, error: String(err?.message || err) }),
       });
@@ -522,6 +489,51 @@ export async function generateAdvisoryForField(
       stageNameLower.includes("maturity") ||
       stageNameLower.includes("harvest") ||
       (plantGrowthActivity?.bbchStage ?? 0) >= 85;
+
+    let opticalIndicesSummary = null;
+    const opticalIndexNames = selectOpticalIndicesForAdvisory({
+      cropName: farmField.cropName,
+      bbchStage: plantGrowthActivity?.bbchStage ?? 0,
+      lightweight,
+    });
+
+    if (!opticalIndexNames.length) {
+      logStep("skipping optical index snapshots (fast path)");
+      flow.addStep({
+        step: "optical_index_snapshots",
+        notes: lightweight ? "Skipped lightweight mode" : "No indices selected",
+        output: null,
+      });
+    } else {
+      try {
+        logStep(
+          `fetching ${opticalIndexNames.length} optical index snapshots`,
+        );
+        const indexRows = await fetchOpticalIndexSnapshots(
+          geometry,
+          snapshotDate,
+          opticalIndexNames,
+        );
+        opticalIndicesSummary = buildOpticalIndicesSummary(
+          indexRows,
+          snapshotDate,
+        );
+        flow.addStep({
+          step: "optical_index_snapshots",
+          output: {
+            indexNames: opticalIndexNames,
+            ok: indexRows.filter((r) => r.ok).length,
+            failed: indexRows.filter((r) => !r.ok).length,
+          },
+        });
+      } catch (err) {
+        console.warn("Optical index snapshots failed:", err?.message || err);
+        flow.addStep({
+          step: "optical_index_snapshots",
+          notes: `Failed: ${err?.message || err}`,
+        });
+      }
+    }
 
     flow.addStep({
       step: "yield_stage_gate",
@@ -670,7 +682,6 @@ export async function generateAdvisoryForField(
 
     const evidence = buildEvidence({
       farmField,
-      organizationCode,
       weatherSummary,
       ndvi,
       water,
@@ -680,6 +691,7 @@ export async function generateAdvisoryForField(
       regionProfile: farmField.regionProfile ?? {},
       yieldGap: isMaturityOrHarvestStage ? safeYield.yieldGap : null,
       opticalIndicesSummary,
+      language,
     });
     flow.addStep({
       step: "evidence_and_decision_hints",
@@ -702,11 +714,16 @@ export async function generateAdvisoryForField(
     });
 
     let advisoryResponse = null;
+    let activitiesSource = "rules";
     try {
+      logStep("generating AI advisory");
       advisoryResponse = await generateSmartAdvisory({
         language,
         evidence,
       });
+      if (advisoryResponse?.activitiesToDo?.some((a) => (a?.message || "").trim())) {
+        activitiesSource = "llm";
+      }
       flow.addStep({
         step: "llm_advisory",
         service: "openai",
@@ -740,6 +757,24 @@ export async function generateAdvisoryForField(
       });
     }
 
+    let activitiesToDo = advisoryResponse?.activitiesToDo ?? null;
+    const hasUsableLlmActivities =
+      Array.isArray(activitiesToDo) &&
+      activitiesToDo.some((a) => (a?.message || "").trim().length > 10);
+
+    const ruleBased = buildActivitiesFromDecisionHints(evidence);
+    if (!hasUsableLlmActivities) {
+      logStep("using agronomist rule-based activities");
+      activitiesToDo = ruleBased.activitiesToDo;
+      activitiesSource = advisoryResponse ? "hybrid" : "rules";
+    } else if (language && language !== "en") {
+      activitiesToDo = mergeLocalizedActivities(
+        activitiesToDo,
+        ruleBased.activitiesToDo,
+        language,
+      );
+    }
+
     const carbonData = evidence?.carbonData ?? null;
 
     const recommendedProducts =
@@ -748,14 +783,17 @@ export async function generateAdvisoryForField(
     const advisory = await FarmAdvisory.create({
       farmFieldId: farmField._id,
       yield: safeYield,
-      activitiesToDo: advisoryResponse?.activitiesToDo ?? null,
+      activitiesToDo,
+      activitiesSource,
       cropHealth,
       plantGrowthActivity,
       npkManagement,
       carbonData,
       recommendedProducts,
       opticalIndicesSummary,
+      weatherSnapshot,
     });
+    logStep(`saved advisory ${advisory._id}`);
     flow.addStep({
       step: "persist_advisory",
       service: "mongoose",
@@ -839,71 +877,19 @@ export async function generateAdvisoryForField(
     });
 
     if (user) {
-      const advisoryDateObj = advisory?.createdAt
-        ? new Date(advisory.createdAt)
-        : new Date(nowISO);
-      const advisoryDateStr = advisoryDateObj
-        .toISOString()
-        .slice(0, 10)
-        .split("-")
-        .reverse()
-        .join("-");
-
-      const advisoryData = {
-        spray: "No spray advisory.",
-        fertigation: "No fertigation advisory.",
-        irrigation: "No irrigation advisory.",
-        weather: "No weather update.",
-        cropRisk: "No crop risk alert.",
-        monitoring: "No monitoring advice.",
-        carbonUpdate: "No carbon update.",
-      };
-
-      (advisory.activitiesToDo || []).forEach((activity) => {
-        switch (activity.type) {
-          case "SPRAY":
-            advisoryData.spray = activity.message;
-            break;
-          case "FERTIGATION":
-            advisoryData.fertigation = activity.message;
-            break;
-          case "IRRIGATION":
-            advisoryData.irrigation = activity.message;
-            break;
-          case "WEATHER":
-            advisoryData.weather = activity.message;
-            break;
-          case "CROP_RISK":
-            advisoryData.cropRisk = activity.message;
-            break;
-          case "MONITORING":
-            advisoryData.monitoring = activity.message;
-            break;
-          case "CARBON_TRACKING":
-            advisoryData.carbonUpdate = activity.message;
-            break;
-        }
-      });
+      const notificationParameters = buildAdvisoryNotificationParameters(
+        user,
+        farmField,
+        advisory,
+        platform,
+      );
 
       await createNotification({
         user,
         type: "ADVISORY",
         referenceId: advisory._id,
         templateName: "farm_advisory",
-        parameters: [
-          user.firstName || "Farmer",
-          advisoryDateStr,
-          farmField.cropName || "Crop",
-          farmField.fieldName || "Field",
-          formatAreaForNotification(farmField.acre, platform),
-          advisoryData.spray,
-          advisoryData.fertigation,
-          advisoryData.irrigation,
-          advisoryData.weather,
-          advisoryData.cropRisk,
-          advisoryData.monitoring,
-          advisoryData.carbonUpdate,
-        ],
+        parameters: notificationParameters,
       });
       flow.addStep({
         step: "notification",
@@ -913,23 +899,10 @@ export async function generateAdvisoryForField(
           type: "ADVISORY",
           referenceId: advisory._id,
           templateName: "farm_advisory",
-          parameters: [
-            user.firstName || "Farmer",
-            advisoryDateStr,
-            farmField.cropName || "Crop",
-            farmField.fieldName || "Field",
-            formatAreaForNotification(farmField.acre, platform),
-            advisoryData.spray,
-            advisoryData.fertigation,
-            advisoryData.irrigation,
-            advisoryData.weather,
-            advisoryData.cropRisk,
-            advisoryData.monitoring,
-            advisoryData.carbonUpdate,
-          ],
+          parameters: notificationParameters,
+          activitiesSource,
         }),
         output: { templateName: "farm_advisory", referenceId: String(advisory._id) },
-        outputFull: cloneForAdvisoryFlowLog(advisoryData),
       });
       flow.setOutcome({
         status: "complete",

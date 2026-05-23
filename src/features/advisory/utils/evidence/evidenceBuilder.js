@@ -38,7 +38,21 @@ function computeWaterStressPercent(water) {
   return 80;
 }
 
-function computeNitrogenDeficitPercent(ndvi, cropCategory) {
+function nitrogenStressFromOptical(opticalIndicesSummary) {
+  const nitrogen = opticalIndicesSummary?.indices?.NITROGEN;
+  if (nitrogen?.healthScore == null) return null;
+  const score = nitrogen.healthScore;
+  if (score >= 72) return 0;
+  if (score >= 55) return 15;
+  if (score >= 42) return 30;
+  if (score >= 28) return 50;
+  return 65;
+}
+
+function computeNitrogenDeficitPercent(ndvi, cropCategory, opticalIndicesSummary) {
+  const opticalN = nitrogenStressFromOptical(opticalIndicesSummary);
+  if (opticalN != null) return opticalN;
+
   if (!ndvi?.ndviLatest) return 0;
   const expected = {
     cereal: 0.55,
@@ -71,9 +85,13 @@ function estimatePestPressure(bbch, weatherSummary) {
   return "low";
 }
 
-function buildStressZones(ndvi, water, bbch, weatherSummary, cropCategory) {
+function buildStressZones(ndvi, water, bbch, weatherSummary, cropCategory, opticalIndicesSummary) {
   const percentageWaterStressed = computeWaterStressPercent(water);
-  const percentageNitrogenDeficient = computeNitrogenDeficitPercent(ndvi, cropCategory);
+  const percentageNitrogenDeficient = computeNitrogenDeficitPercent(
+    ndvi,
+    cropCategory,
+    opticalIndicesSummary,
+  );
   const diseasePressure = estimatePestPressure(bbch ?? 30, weatherSummary);
 
   const zones = [];
@@ -111,6 +129,7 @@ export function buildEvidence({
   regionProfile = {},
   yieldGap = null,
   opticalIndicesSummary = null,
+  language = "en",
 }) {
   const soilMoistureRaw =
     weatherSummary?.current?.soilMoisture_15cm ??
@@ -137,11 +156,17 @@ export function buildEvidence({
   const cropCategory = CROP_CATEGORY_MAP[cropKey] || "default";
   const bbchStage = plantGrowthActivity?.bbchStage ?? 0;
 
+  const soilType =
+    regionProfile?.soilType ||
+    regionProfile?.soilTexture ||
+    farmField?.soilType ||
+    "loamy";
+
   const irrigationRequirement = calculateIrrigationRequirement({
     cropCategory,
     bbchStage,
     et0: et0Today,
-    soilType: "loamy",
+    soilType: String(soilType).toLowerCase(),
     soilMoisturePercent,
     rainfallForecast7d,
     rainfallForecast3d,
@@ -168,7 +193,21 @@ export function buildEvidence({
   };
 
   const nutrientDeficit = deriveNutrientDeficit(npkManagement);
-  const stressZones = buildStressZones(ndvi, water, bbchStage, weatherSummary, cropCategory);
+  const stressZones = buildStressZones(
+    ndvi,
+    water,
+    bbchStage,
+    weatherSummary,
+    cropCategory,
+    opticalIndicesSummary,
+  );
+
+  const irrigationLower = (farmField?.typeOfIrrigation || "").toLowerCase();
+  const useDieselPump =
+    irrigationLower.includes("diesel") ||
+    irrigationLower.includes("pump") ||
+    irrigationLower.includes("flood") ||
+    irrigationLower.includes("open");
 
   const carbonData = calculateCarbonBalance({
     npkManagement,
@@ -178,7 +217,7 @@ export function buildEvidence({
     irrigationType: farmField?.typeOfIrrigation,
     ndviLatest: ndvi?.ndviLatest,
     bbchStage,
-    useDieselPump: false,
+    useDieselPump,
   });
 
   const isHarvestStage =
@@ -206,7 +245,12 @@ export function buildEvidence({
     weatherForecast: {
       current: weatherSummary?.current,
       next7Days: weatherSummary?.next7Days,
-      rainProbabilityToday: rainfallNext24h > 0 ? "likely" : "low",
+      rainProbabilityToday:
+        rainfallNext24h >= 8
+          ? "high"
+          : rainfallNext24h >= 2
+            ? "moderate"
+            : "low",
       rainfallForecast3d,
       rainfallForecast7d,
       windSpeedToday:
@@ -239,6 +283,7 @@ export function buildEvidence({
 
   return {
     ...rawEvidence,
+    language: String(language || "en").toLowerCase().slice(0, 2),
     decisionHints,
     isHarvestStage,
   };

@@ -30,14 +30,14 @@ export const getFarmAdvisories = async (req, res) => {
     const query = { farmFieldId };
 
     if (from || to) {
-      query.targetDate = {};
-      if (from) query.targetDate.$gte = new Date(from);
-      if (to) query.targetDate.$lte = new Date(to);
+      query.createdAt = {};
+      if (from) query.createdAt.$gte = new Date(from);
+      if (to) query.createdAt.$lte = new Date(to);
     }
 
     let advisoryQuery = FarmAdvisory.find(query)
       .populate("farmFieldId", "fieldName cropName variety sowingDate")
-      .sort({ targetDate: -1 })
+      .sort({ createdAt: -1 })
       .lean();
 
     if (latest === "true") {
@@ -128,11 +128,24 @@ export const generateFarmAdvisory = async (req, res) => {
     const { aoiId } = await resolveAOIForFarm(farm);
     const advisoryLanguage = language || farm.user?.language || "en";
 
-    await generateAdvisoryForField(farm._id, aoiId, advisoryLanguage, platform || "whatsapp");
-    res.json({ success: true });
+    const advisory = await generateAdvisoryForField(
+      farm._id,
+      aoiId,
+      advisoryLanguage,
+      platform || "whatsapp",
+    );
+    res.json({
+      success: true,
+      advisoryId: String(advisory._id),
+      activitiesSource: advisory.activitiesSource,
+      activitiesCount: (advisory.activitiesToDo || []).length,
+    });
   } catch (err) {
     console.error("Advisory API failed", err);
-    res.status(500).json({ message: "Advisory generation failed" });
+    res.status(500).json({
+      message: "Advisory generation failed",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
   }
 };
 

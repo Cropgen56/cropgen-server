@@ -81,6 +81,104 @@ Balanced fertilization along with proper irrigation will improve yield.`;
   }
 }
 
+/**
+ * Formatted NPK block for barren land (pre-sowing) — same layout as standing-crop advisories.
+ */
+export function getBarrenLandNPKRecommendation({
+  cropName,
+  stageName,
+  areaAcre,
+  language = "en",
+}) {
+  const acre = Number(areaAcre);
+  const acreStr = Number.isFinite(acre) ? acre.toFixed(2) : "0.00";
+
+  switch (language) {
+    case "mr":
+      return `पीक: ${cropName}
+वाढीची अवस्था: ${stageName}
+क्षेत्रफळ: ${acreStr} एकर
+
+शेतात सध्या उभी पिक नाही (रानटी जमीन).
+योजित पीक: ${cropName} — पेरणीपूर्व बेसल खताची तयारी करा.
+सडलेले FYM/कंपोस्ट (एकात्मिक/सेंद्रिय शेती) आणि DAP/SSP/युरिया/MOP माती चाचणीनुसार.
+पेरणीच्या 1–3 दिवस आधी किंवा पेरणीसोबत बियाणे खोलीवर मिसळा.
+हलके सिंचन; पाणथळ टाळा.`;
+
+    case "hi":
+      return `फसल: ${cropName}
+विकास अवस्था: ${stageName}
+क्षेत्रफल: ${acreStr} एकड़
+
+खेत में अभी खड़ी फसल नहीं है (खाली/रानटी खेत)।
+योजित फसल: ${cropName} — बुवाई से पहले बेसल उर्वरक की तैयारी करें।
+सड़ा हुआ FYM/कम्पोस्ट (एकीकृत या जैविक खेती) और DAP/SSP/यूरिया/MOP मिट्टी परीक्षण के अनुसार।
+बुवाई के 1–3 दिन पहले या बुवाई के समय बीज बिस्तर में मिलाएं।
+हल्की सिंचाई के साथ; जलभराव से बचें।`;
+
+    default:
+      return `Crop: ${cropName}
+Growth stage: ${stageName}
+Area: ${acreStr} acres
+
+No standing crop in the field (barren / fallow).
+Planned crop: ${cropName} — prepare basal fertilizer before sowing.
+Apply well-decomposed FYM/compost (integrated/organic farms) and DAP/SSP/Urea/MOP per soil test.
+Incorporate 1–3 days before sowing or at sowing in the seedbed.
+Light irrigation if needed; avoid waterlogging.`;
+  }
+}
+
+/**
+ * NPK numbers (early-stage plan) + formatted pre-sowing recommendation text.
+ */
+export function buildBarrenLandNpkFromField({
+  farmField,
+  plantGrowthActivity,
+  ndvi = null,
+  water = null,
+  weatherSummary = null,
+  language = "en",
+}) {
+  const stageName =
+    plantGrowthActivity?.stageName || "Pre-sowing (barren land)";
+  let available = null;
+  let required = null;
+  let hsi = null;
+
+  try {
+    const calc = calculateNPKFromfarmField({
+      farmField,
+      ndviLatest: ndvi?.ndviLatest ?? 0.25,
+      waterLatest: water?.waterLatest ?? 0,
+      plantGrowthActivity: {
+        bbchStage: 12,
+        stageName,
+      },
+      weatherSummary,
+      language,
+    });
+    available = calc.available;
+    required = calc.required;
+    hsi = calc.hsi;
+  } catch {
+    // Crop not in NPK profile — text-only recommendation
+  }
+
+  return {
+    mode: "pre_sowing_basal",
+    available,
+    required,
+    hsi,
+    recommendation: getBarrenLandNPKRecommendation({
+      cropName: farmField?.cropName || "crop",
+      stageName,
+      areaAcre: farmField?.acre ?? 1,
+      language,
+    }),
+  };
+}
+
 function getHarvestStageRecommendation({ cropName, stageName, areaAcre, language }) {
   switch (language) {
     case "mr":
