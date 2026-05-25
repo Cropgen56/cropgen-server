@@ -2,6 +2,7 @@ import FarmAdvisory from "../models/farmAdvisory.model.js";
 import FarmField from "../../../models/field.model.js";
 import User from "../../../models/user.model.js";
 import { createNotification } from "../../../services/notificationCreator.service.js";
+import { syncAdvisoryActivitiesToOperations } from "./syncAdvisoryToOperations.service.js";
 
 import {
   getCurrentWeather,
@@ -216,10 +217,15 @@ export async function generateBarrenLandAdvisoryForField(
   const recommendedProducts =
     organizationCode === "BIODROPS" ? [BIODROPS_BOKASHI_PRODUCT] : [];
 
+  const activitiesWithProgress = (activitiesToDo || []).map((a) => ({
+    ...a,
+    progress: a.progress ?? null,
+  }));
+
   const advisory = await FarmAdvisory.create({
     farmFieldId: farmField._id,
     yield: safeYield,
-    activitiesToDo,
+    activitiesToDo: activitiesWithProgress,
     activitiesSource,
     cropHealth,
     plantGrowthActivity,
@@ -231,6 +237,23 @@ export async function generateBarrenLandAdvisoryForField(
   });
 
   logStep(`saved pre-sowing advisory ${advisory._id}`);
+
+  try {
+    const syncResult = await syncAdvisoryActivitiesToOperations({
+      farmFieldId: farmField._id,
+      advisoryId: advisory._id,
+      activitiesToDo: activitiesWithProgress,
+      generatedAt: new Date(),
+    });
+    if (syncResult.operationIds?.length) {
+      await FarmAdvisory.findByIdAndUpdate(advisory._id, {
+        linkedOperationIds: syncResult.operationIds,
+      });
+    }
+    logStep(`synced ${syncResult.created} barren-land activities to operations`);
+  } catch (syncErr) {
+    console.warn("Barren advisory → operations sync failed:", syncErr.message);
+  }
 
   if (user) {
     const notificationParameters = buildAdvisoryNotificationParameters(

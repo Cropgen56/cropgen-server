@@ -36,7 +36,8 @@ const operationSchema = new mongoose.Schema(
     },
     progress: {
       type: String,
-      enum: ["completed", "in_progress", "started"],
+      enum: ["completed", "in_progress", "started", null],
+      default: null,
     },
     labourMale: {
       type: Number,
@@ -54,6 +55,30 @@ const operationSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    /** Set when created from Smart Advisory generation */
+    source: {
+      type: String,
+      enum: ["manual", "advisory"],
+      default: "manual",
+    },
+    advisoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FarmAdvisory",
+      default: null,
+    },
+    advisoryActivityType: {
+      type: String,
+      enum: [
+        "SPRAY",
+        "FERTIGATION",
+        "IRRIGATION",
+        "WEATHER",
+        "CROP_RISK",
+        "MONITORING",
+        "CARBON_TRACKING",
+      ],
+      default: null,
+    },
     operationDate: {
       type: String,
       required: true,
@@ -69,6 +94,9 @@ const operationSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+operationSchema.index({ farmField: 1, operationDate: 1 });
+operationSchema.index({ advisoryId: 1 });
 
 const Operation = mongoose.model("Operation", operationSchema);
 

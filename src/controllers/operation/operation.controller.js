@@ -99,7 +99,7 @@ export const getOperationsByFarmField = async (req, res) => {
     // Query operations with selective fields for optimization
     const operations = await Operation.find({ farmField: farmFieldId })
       .select(
-        "supervisorName operationType progress chemicalUsed chemicalQuantity labourMale labourFemale estimatedCost comments createdAt operationDate operationTime"
+        "supervisorName operationType progress chemicalUsed chemicalQuantity labourMale labourFemale estimatedCost comments source advisoryId advisoryActivityType createdAt operationDate operationTime"
       )
       .lean();
 
@@ -123,7 +123,7 @@ export const getOperationById = async (req, res) => {
     // Find operation with selective fields
     const operation = await Operation.findById(operationId)
       .select(
-        "supervisorName operationType progress chemicalUsed chemicalQuantity labourMale labourFemale estimatedCost comments farmField createdAt"
+        "supervisorName operationType progress chemicalUsed chemicalQuantity labourMale labourFemale estimatedCost comments source advisoryId advisoryActivityType farmField createdAt operationDate operationTime"
       )
       .populate("farmField", "fieldName cropName")
       .lean();
@@ -171,7 +171,7 @@ export const updateOperation = async (req, res) => {
       supervisorName: supervisorName ?? "",
       chemicalUsed: chemicalUsed ?? "",
       chemicalQuantity: chemicalQuantity ?? "",
-      progress: progress ?? undefined,
+      progress: progress ?? null,
       labourMale:
         labourMale !== undefined && labourMale !== null && labourMale !== ""
           ? Number(labourMale)

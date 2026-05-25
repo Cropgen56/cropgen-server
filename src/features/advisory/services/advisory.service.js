@@ -16,6 +16,7 @@ import {
 import { generateSmartAdvisory } from "../utils/llm/generateSmartAdvisory.js";
 import { buildEvidence } from "../utils/evidence/evidenceBuilder.js";
 
+import { syncAdvisoryActivitiesToOperations } from "./syncAdvisoryToOperations.service.js";
 import { formatDateISO, buildGeometryFromFarmField } from "../utils/shared/helpers.js";
 import {
   parseNDVIMetrics,
@@ -780,10 +781,15 @@ export async function generateAdvisoryForField(
     const recommendedProducts =
       organizationCode === "BIODROPS" ? [BIODROPS_BOKASHI_PRODUCT] : [];
 
+    const activitiesWithProgress = (activitiesToDo || []).map((a) => ({
+      ...a,
+      progress: a.progress ?? null,
+    }));
+
     const advisory = await FarmAdvisory.create({
       farmFieldId: farmField._id,
       yield: safeYield,
-      activitiesToDo,
+      activitiesToDo: activitiesWithProgress,
       activitiesSource,
       cropHealth,
       plantGrowthActivity,
@@ -794,6 +800,41 @@ export async function generateAdvisoryForField(
       weatherSnapshot,
     });
     logStep(`saved advisory ${advisory._id}`);
+
+    let linkedOperationIds = [];
+    try {
+      const syncResult = await syncAdvisoryActivitiesToOperations({
+        farmFieldId: farmField._id,
+        advisoryId: advisory._id,
+        activitiesToDo: activitiesWithProgress,
+        generatedAt: new Date(),
+      });
+      linkedOperationIds = syncResult.operationIds;
+      if (linkedOperationIds.length) {
+        await FarmAdvisory.findByIdAndUpdate(advisory._id, {
+          linkedOperationIds,
+        });
+      }
+      logStep(
+        `synced ${syncResult.created} advisory activities to operations (replaced ${syncResult.deleted} pending)`,
+      );
+      flow.addStep({
+        step: "sync_advisory_operations",
+        service: "syncAdvisoryToOperations.service",
+        apiOrFn: "syncAdvisoryActivitiesToOperations",
+        output: {
+          created: syncResult.created,
+          deleted: syncResult.deleted,
+          operationIds: linkedOperationIds.map(String),
+        },
+      });
+    } catch (syncErr) {
+      console.warn("Advisory → operations sync failed:", syncErr.message);
+      flow.addStep({
+        step: "sync_advisory_operations",
+        notes: `sync failed: ${syncErr.message}`,
+      });
+    }
     flow.addStep({
       step: "persist_advisory",
       service: "mongoose",

@@ -28,6 +28,16 @@ const ActivitySchema = new Schema(
       type: Schema.Types.Mixed,
       default: {},
     },
+    /** Farmer tracking: started → in_progress → completed (null until farmer sets) */
+    progress: {
+      type: String,
+      enum: ["started", "in_progress", "completed", null],
+      default: null,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { _id: false },
 );
@@ -94,6 +104,11 @@ const FarmAdvisorySchema = new Schema(
       type: String,
       enum: ["llm", "rules", "hybrid"],
       default: "rules",
+    },
+    /** Operations created on the farm calendar from activitiesToDo */
+    linkedOperationIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "Operation" }],
+      default: [],
     },
   },
   { timestamps: true },

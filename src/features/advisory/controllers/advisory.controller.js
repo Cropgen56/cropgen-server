@@ -3,6 +3,7 @@ import FarmAdvisory from "../models/farmAdvisory.model.js";
 import FarmField from "../../../models/field.model.js";
 import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
 import { generateAdvisoryForField } from "../services/advisory.service.js";
+import { updateAdvisoryActivityProgress } from "../services/updateAdvisoryActivityProgress.service.js";
 import Notification from "../../../models/notification.model.js";
 
 export const getFarmAdvisories = async (req, res) => {
@@ -108,6 +109,55 @@ export const getFarmAdvisories = async (req, res) => {
       status: "error",
       message: "Internal server error.",
       advisories: [],
+    });
+  }
+};
+
+export const patchAdvisoryActivityProgress = async (req, res) => {
+  try {
+    const { advisoryId, activityType } = req.params;
+    const { progress } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(advisoryId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid advisory ID",
+      });
+    }
+
+    if (!progress) {
+      return res.status(400).json({
+        success: false,
+        message: "progress is required",
+      });
+    }
+
+    const advisory = await updateAdvisoryActivityProgress({
+      advisoryId,
+      activityType: activityType.toUpperCase(),
+      progress,
+    });
+
+    const doc =
+      typeof advisory.toObject === "function" ? advisory.toObject() : advisory;
+
+    return res.status(200).json({
+      success: true,
+      message: "Activity progress updated",
+      advisory: doc,
+    });
+  } catch (error) {
+    const status =
+      error.message === "Advisory not found" ||
+      error.message === "Activity not found on this advisory"
+        ? 404
+        : error.message === "Invalid progress value" ||
+            error.message === "Invalid activity type"
+          ? 400
+          : 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Failed to update activity progress",
     });
   }
 };
