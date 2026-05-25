@@ -6,7 +6,7 @@ import {
   getBlogById,
   updateBlog,
   uploadBlogImage,
-} from "../controllers/blog.controller.js";
+} from "../controllers/blog/blog.controller.js";
 import {
   isAuthenticated,
   authorizeRoles,

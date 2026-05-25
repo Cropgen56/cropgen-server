@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import {
   verifyRefreshToken,
   getRefreshTokenFromRequest,
-} from "../utils/authUtils.js";
+} from "../utils/auth/authUtils.js";
 
 const JWT_SECRET = process.env.JWT_ACCESS_SECRET;
 

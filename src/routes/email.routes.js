@@ -12,7 +12,7 @@ import {
   deleteCampaign,
   testCampaign,
   getCampaignDetails,
-} from "../controllers/email.campaign.controller.js";
+} from "../controllers/email/campaign.controller.js";
 import {
   isAuthenticated,
   authorizeRoles,

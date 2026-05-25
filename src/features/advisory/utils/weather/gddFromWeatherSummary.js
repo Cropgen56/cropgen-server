@@ -2,7 +2,7 @@ import {
   calculateCumulativeGDD,
   calculateDailyGDD,
   getCropGrowthStage,
-} from "../../../../utils/cropgrowth/gddCalculator.js";
+} from "../../../../utils/crop/growth/gddCalculator.js";
 import { formatDateISO } from "../shared/helpers.js";
 
 function daysBetween(startISO, endISO) {

@@ -1,8 +1,8 @@
 import Notification from "../models/notification.model.js";
 import User from "../models/user.model.js";
 import FarmField from "../models/field.model.js";
-import SubscriptionPlan from "../models/subscriptionplan.model.js";
-import UserSubscription from "../models/usersubscription.model.js";
+import SubscriptionPlan from "../models/subscription-plan.model.js";
+import UserSubscription from "../models/user-subscription.model.js";
 
 const formatDate = (date) => new Date(date).toISOString().split("T")[0];
 

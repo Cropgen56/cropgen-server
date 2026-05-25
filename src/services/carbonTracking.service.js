@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
-import FarmCarbonRecord from "../models/farmcarbonrecord.model.js";
-import FarmCarbonProfile from "../models/farmcarbonprofile.model.js";
+import FarmCarbonRecord from "../models/farm-carbon-record.model.js";
+import FarmCarbonProfile from "../models/farm-carbon-profile.model.js";
 import User from "../models/user.model.js";
 
 export async function saveCarbonFromAdvisory({

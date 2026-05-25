@@ -5,7 +5,7 @@ import {
   getOperationById,
   updateOperation,
   deleteOperation,
-} from "../controllers/operation.controller.js";
+} from "../controllers/operation/operation.controller.js";
 
 import { isAuthenticated } from "../middleware/auth.middleware.js";
 

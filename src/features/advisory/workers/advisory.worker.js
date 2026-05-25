@@ -1,5 +1,5 @@
 import FarmField from "../../../models/field.model.js";
-import UserSubscription from "../../../models/usersubscription.model.js";
+import UserSubscription from "../../../models/user-subscription.model.js";
 import FarmAdvisory from "../models/farmAdvisory.model.js";
 import "../../../models/user.model.js";
 import cron from "node-cron";
@@ -10,7 +10,7 @@ import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
 import {
   getBaseTemperature,
   normalizeCropName,
-} from "../../../utils/cropgrowth/gddCalculator.js";
+} from "../../../utils/crop/growth/gddCalculator.js";
 
 import {
   getCurrentWeather,

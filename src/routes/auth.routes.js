@@ -5,10 +5,8 @@ import {
   verifyOtp,
   refreshTokenHandler,
   completeProfile,
-  cropydealsRegisterLogin,
   logoutHandler,
   loginWithGoogleWebCropgen,
-  loginWithGoogleWebBiodrops,
   loginWithGoogleMobile,
   requestAdminOtp,
   getAvatarPresignedUrl,
@@ -25,10 +23,9 @@ import {
   sendWhatsappOtp,
   verifyWhatsappOtp,
   resendWhatsappOtp,
-  biodropsSendWhatsappOtp,
-  biodropsVerifyWhatsappOtp,
-  biodropsResendWhatsappOtp,
-} from "../controllers/authcontroller/index.js";
+} from "../controllers/auth/index.js";
+import biodropsAuthRoutes from "../clients/biodrops/routes/auth.routes.js";
+import cropydealsAuthRoutes from "../clients/cropydeals/routes/auth.routes.js";
 
 import {
   requireAuth,
@@ -39,12 +36,6 @@ import {
 import { updateUserActivity } from "../middleware/update.user.activity.middleware.js";
 
 const router = express.Router();
-
-const forceBiodropsBrand = (req, _res, next) => {
-  req.headers["x-client-brand"] = "biodrops";
-  req.body = { ...(req.body || {}), clientBrand: "biodrops" };
-  next();
-};
 
 const forceLfpOrganization = (req, _res, next) => {
   req.body = { ...(req.body || {}), organizationCode: "LFP" };
@@ -104,39 +95,8 @@ router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
 router.post("/google", loginWithGoogleWebCropgen);
 
-// biodrops web application dedicated auth routes
-router.post("/biodrops/signup/otp", forceBiodropsBrand, requestOtp);
-router.post("/biodrops/signup/verify", forceBiodropsBrand, verifyOtp);
-router.post(
-  "/biodrops/signup/complete-profile",
-  forceBiodropsBrand,
-  requireAuth,
-  completeProfile,
-);
-router.post("/biodrops/login/otp", forceBiodropsBrand, requestOtp);
-router.post("/biodrops/login/verify", forceBiodropsBrand, verifyOtp);
-router.post(
-  "/biodrops/login/google",
-  forceBiodropsBrand,
-  loginWithGoogleWebBiodrops,
-);
-
-// biodrops web application — WhatsApp OTP (phone login)
-router.post(
-  "/biodrops/whatsapp/otp",
-  forceBiodropsBrand,
-  biodropsSendWhatsappOtp,
-);
-router.post(
-  "/biodrops/whatsapp/verify",
-  forceBiodropsBrand,
-  biodropsVerifyWhatsappOtp,
-);
-router.post(
-  "/biodrops/whatsapp/resend",
-  forceBiodropsBrand,
-  biodropsResendWhatsappOtp,
-);
+router.use(biodropsAuthRoutes);
+router.use(cropydealsAuthRoutes);
 
 // lfp app dedicated auth routes (separate API surface)
 router.post("/lfp/signup/check-user", forceLfpOrganization, checkUser);
@@ -146,9 +106,6 @@ router.post("/lfp/whatsapp/resend", forceLfpOrganization, resendWhatsappOtp);
 
 // request admin otp
 router.post("/admin-otp", requestAdminOtp);
-
-// cropydeals register login api
-router.post("/cropydeal-register-login", cropydealsRegisterLogin);
 
 // whatsapp otp authentication routes
 router.post("/send-otp", sendWhatsappOtp);

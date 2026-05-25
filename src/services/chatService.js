@@ -1,6 +1,6 @@
-import Chathistory from "../models/UserChat.js";
-import Farmer from "../models/farmerModel.js";
-import Organization from "../models/organizationModel.js";
+import Chathistory from "../models/user-chat.model.js";
+import Farmer from "../models/farmer.model.js";
+import Organization from "../models/agent-organization.model.js";
 
 class ChatService {
   async getChatByUser(userId, userType) {

@@ -7,7 +7,7 @@ import {
   getAllField,
   requestFieldMonitoring,
   getMonitoringRequests,
-} from "../controllers/field.controller.js";
+} from "../controllers/field/field.controller.js";
 import { isAuthenticated } from "../middleware/auth.middleware.js";
 const router = express.Router();
 

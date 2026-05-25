@@ -6,7 +6,7 @@ import {
   getCropById,
   getCropNamesAndImages,
   updateCrop,
-} from "../controllers/crop.controller.js";
+} from "../controllers/crop/crop.controller.js";
 import {
   isAuthenticated,
   authorizeRoles,

@@ -1,13 +1,13 @@
 import express from "express";
-import chatController from "../controllers/chatController.js";
-import farmerController from "../controllers/farmerController.js";
-import organizationController from "../controllers/organizationController.js";
+import chatController from "../controllers/chat/chat.controller.js";
+import farmerController from "../controllers/farmer/farmer.controller.js";
+import organizationController from "../controllers/organization/chat.controller.js";
 import {
   requireAuth,
   isAuthenticated,
   authorizeRoles,
 } from "../middleware/auth.middleware.js";
-import AppUserChat from "../models/AppUserChat.js";
+import AppUserChat from "../models/app-user-chat.model.js";
 import User from "../models/user.model.js";
 
 const router = express.Router();

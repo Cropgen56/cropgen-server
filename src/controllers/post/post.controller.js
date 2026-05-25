@@ -1,7 +1,7 @@
 import Post from "../../models/post.model.js";
 import Comment from "../../models/comment.model.js";
 import mongoose from "mongoose";
-import { createPostImagePresignedUrl } from "../../utils/s3.js";
+import { createPostImagePresignedUrl } from "../../utils/storage/s3.js";
 
 export const createPost = async (req, res) => {
   try {

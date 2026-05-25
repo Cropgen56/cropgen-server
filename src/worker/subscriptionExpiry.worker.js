@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import UserSubscription from "../models/usersubscription.model.js";
+import UserSubscription from "../models/user-subscription.model.js";
 import Notification from "../models/notification.model.js";
 import { createSubscriptionExpiryNotification } from "../services/notification.service.js";
 

@@ -16,8 +16,8 @@ import { connectToDatabase } from "../config/db.js";
 import { createRedisConnection } from "../config/redisConnection.js";
 import { sendBasicEmail } from "../config/sesClient.js";
 
-import EmailCampaing from "../models/email.campaign.model.js";
-import EmailStatus from "../models/email.status.model.js";
+import EmailCampaing from "../models/email-campaign.model.js";
+import EmailStatus from "../models/email-status.model.js";
 
 const logger = Pino({ level: process.env.LOG_LEVEL || "info" });
 

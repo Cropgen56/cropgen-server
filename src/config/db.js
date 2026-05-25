@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import UserSubscription from "../models/usersubscription.model.js";
+import UserSubscription from "../models/user-subscription.model.js";
 
 dotenv.config();
 

@@ -9,7 +9,7 @@ import {
   activateSubscriptionManually,
   getSubscriptionAdminDetail,
   cancelSubscriptionAdmin,
-} from "../controllers/subscriptioncontroller/index.js";
+} from "../controllers/subscription/index.js";
 
 import { isAuthenticated, authorizeRoles } from "../middleware/auth.middleware.js";
 

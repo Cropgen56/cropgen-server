@@ -24,10 +24,10 @@ import {
   buildOpticalIndicesSummary,
 } from "../utils/satellite/index.js";
 
-import { getBaseTemperature } from "../../../utils/cropgrowth/gddCalculator.js";
+import { getBaseTemperature } from "../../../utils/crop/growth/gddCalculator.js";
 
 import { calculateNPKFromfarmField } from "../../../utils/npk/npkCalculator.js";
-import { calcCropHealth } from "../../../utils/crophealth/cropHealth.js";
+import { calcCropHealth } from "../../../utils/crop/health/cropHealth.js";
 import { calculateYieldPrecise } from "../utils/yield/yieldCalculator.js";
 import {
   assembleWeatherSummary,
@@ -591,7 +591,7 @@ export async function generateAdvisoryForField(
     });
     flow.addStep({
       step: "crop_health",
-      service: "src/utils/crophealth/cropHealth",
+      service: "src/utils/crop/health/cropHealth",
       apiOrFn: "calcCropHealth",
       inputsFull: cloneForAdvisoryFlowLog({
         ndvi,

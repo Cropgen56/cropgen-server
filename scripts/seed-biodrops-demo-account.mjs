@@ -1,7 +1,7 @@
 /**
  * Seeds the Biodrops app-store demo account:
  *   Phone: +91 9999999999  →  +919999999999
- *   OTP:   123456 (static; handled in biodrops.whatsapp.controller.js)
+ *   OTP:   123456 (static; handled in src/clients/biodrops/controllers/whatsapp.controller.js)
  *
  * Usage: node scripts/seed-biodrops-demo-account.mjs
  */
@@ -10,14 +10,14 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "../src/config/db.js";
 import User from "../src/models/user.model.js";
 import FarmField from "../src/models/field.model.js";
-import UserSubscription from "../src/models/usersubscription.model.js";
-import SubscriptionPlan from "../src/models/subscriptionplan.model.js";
+import UserSubscription from "../src/models/user-subscription.model.js";
+import SubscriptionPlan from "../src/models/subscription-plan.model.js";
 import FarmAdvisory from "../src/features/advisory/models/farmAdvisory.model.js";
 import {
   BIODROPS_DEMO_PHONE,
   BIODROPS_DEMO_USER_PROFILE,
-} from "../src/utils/biodropsDemoAccount.js";
-import { resolveOrganizationByCode } from "../src/utils/authUtils.js";
+} from "../src/clients/biodrops/utils/demoAccount.js";
+import { resolveOrganizationByCode } from "../src/utils/auth/authUtils.js";
 
 dotenv.config();
 

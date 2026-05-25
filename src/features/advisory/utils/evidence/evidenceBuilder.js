@@ -5,7 +5,7 @@ import {
   soilMoistureToPercent,
 } from "./irrigationCalculator.js";
 import { calculateFertilizerSchedule } from "./fertilizerCalculator.js";
-import { CROP_CATEGORY_MAP } from "../../../../utils/cropgrowth/cropCategoryMap.js";
+import { CROP_CATEGORY_MAP } from "../../../../utils/crop/growth/cropCategoryMap.js";
 
 function normalizeCropName(name) {
   return (name || "").toLowerCase().replace(/[^a-z]/g, "");

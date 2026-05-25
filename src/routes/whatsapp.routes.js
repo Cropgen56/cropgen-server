@@ -10,11 +10,11 @@ import {
   markWhatsAppChatRead,
   getWhatsAppAgentSettings,
   patchWhatsAppAgentSettings,
-} from "../controllers/whatsappcontroller/index.js";
+} from "../controllers/whatsapp/index.js";
 import {
   verifyWebhook,
   receiveWebhook,
-} from "../controllers/whatsappcontroller/whatsapp.webhook.controller.js";
+} from "../controllers/whatsapp/whatsapp.webhook.controller.js";
 import { isAuthenticated } from "../middleware/auth.middleware.js";
 
 const router = express.Router();

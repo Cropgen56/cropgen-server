@@ -1,5 +1,5 @@
-import Organization from "../models/organizationModel.js";
-import Chathistory from "../models/UserChat.js";
+import Organization from "../models/agent-organization.model.js";
+import Chathistory from "../models/user-chat.model.js";
 
 class OrganizationService {
   async getAllOrganizations() {

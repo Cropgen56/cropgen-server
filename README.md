@@ -35,6 +35,16 @@ The CropGen Web Application Backend provides robust server-side logic to support
 
 ---
 
+## Architecture
+
+CropGen is the default platform; white-label clients (e.g. **Biodrops** / Satagro.ai) live under [`src/clients/`](src/clients/README.md). Client-specific auth routes and branding are grouped per client; shared APIs (`/v1/api/field`, advisory, etc.) stay in `src/routes/` and are unchanged.
+
+HTTP handlers are grouped by domain in [`src/controllers/`](src/controllers/README.md). Shared helpers live in [`src/utils/`](src/utils/README.md). Joi request schemas live in [`src/validation/`](src/validation/README.md). Mongoose models use kebab-case `*.model.js` in [`src/models/`](src/models/README.md). Large product areas use [`src/features/`](src/features/agent/README.md) (e.g. `advisory/`, `agent/`). Routes import from these folders; URL paths are unchanged.
+
+HTTP paths are **not** tied to folder names — see [`src/clients/README.md`](src/clients/README.md) for how routes are composed.
+
+---
+
 ## 📋 Prerequisites
 
 Before setting up the project, ensure you have the following:

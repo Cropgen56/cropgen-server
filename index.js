@@ -31,7 +31,7 @@ import chatRoutes from "./src/routes/chat.routes.js";
 import "./src/config/firebaseConfig.js";
 
 // Webhook (raw body must come before express.json)
-import { handleRazorpayWebhook } from "./src/controllers/subscriptioncontroller/razorpay.webhook.controller.js";
+import { handleRazorpayWebhook } from "./src/controllers/subscription/razorpay.webhook.controller.js";
 
 // Workers
 import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
@@ -40,8 +40,10 @@ import { startWelcomeFarmReminderWorker } from "./src/worker/welcomeFarm.worker.
 import { runAdvisoryJob } from "./src/features/advisory/workers/advisory.worker.js";
 
 // Agent socket
-import { setupSocket } from "./src/socket/setupSocket.js";
-import { logWhatsAppAgentStatus } from "./src/services/whatsappAgent.service.js";
+import {
+  setupSocket,
+  logWhatsAppAgentStatus,
+} from "./src/features/agent/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -1,4 +1,4 @@
-import { CROP_CATEGORY_MAP } from "../../../../../utils/cropgrowth/cropCategoryMap.js";
+import { CROP_CATEGORY_MAP } from "../../../../../utils/crop/growth/cropCategoryMap.js";
 import { soilMoistureToPercent } from "../../evidence/irrigationCalculator.js";
 import {
   daysUntilSowing,

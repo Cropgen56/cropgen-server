@@ -5,7 +5,7 @@ import {
   getAllOrganizations,
   getOrganizationById,
   updateOrganization,
-} from "../controllers/organization.controller.js";
+} from "../controllers/organization/organization.controller.js";
 import {
   isAuthenticated,
   authorizeRoles,

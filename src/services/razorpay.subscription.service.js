@@ -3,7 +3,7 @@ import User from "../models/user.model.js";
 import {
   billingPatternFromBillingCycle,
   resolveRazorpayChargeMinor,
-} from "../utils/subscriptionPricing.js";
+} from "../utils/subscription/pricing.js";
 
 export const USD_INR_RATE = () =>
   Number(process.env.RAZORPAY_USD_INR_RATE || "91.46") || 91.46;

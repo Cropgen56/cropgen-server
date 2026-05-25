@@ -1,7 +1,7 @@
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { uploadFileToS3, getS3Url, deleteFileFromS3 } from "../utils/s3.js";
+import { uploadFileToS3, getS3Url, deleteFileFromS3 } from "../utils/storage/s3.js";
 
 // Multer temp storage
 const tempStorage = multer.diskStorage({

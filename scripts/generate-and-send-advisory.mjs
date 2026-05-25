@@ -272,13 +272,13 @@ async function main() {
     "../src/services/whatsapp.service.js"
   );
   const { formatFarmAdvisoryMessage } = await import(
-    "../src/utils/whatsapp.utils.js"
+    "../src/utils/whatsapp/messageFormat.js"
   );
   const { generateEmailFromTemplate, sendEmail } = await import(
     "../src/services/email.services.js"
   );
   const WhatsAppMessage = (
-    await import("../src/models/whatsappmessage.model.js")
+    await import("../src/models/whatsapp-message.model.js")
   ).default;
 
   const deps = {

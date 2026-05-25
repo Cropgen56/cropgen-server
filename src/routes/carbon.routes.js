@@ -6,7 +6,7 @@ import {
   getAdminFarmersHandler,
   getAdminOrganizationsHandler,
   getPlatformTotalHandler,
-} from "../controllers/carbon.controller.js";
+} from "../controllers/carbon/carbon.controller.js";
 
 const router = express.Router();
 

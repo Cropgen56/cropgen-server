@@ -1,6 +1,6 @@
 import { CROP_PROFILES } from "./cropProfiles.js";
 import { STAGE_RANGES } from "./stageRanges.js";
-import { CROP_CATEGORY_MAP } from "../cropgrowth/cropCategoryMap.js";
+import { CROP_CATEGORY_MAP } from "../crop/growth/cropCategoryMap.js";
 
 /* ------------------ Helpers ------------------ */
 

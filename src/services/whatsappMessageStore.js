@@ -1,5 +1,5 @@
-import WhatsAppMessage from "../models/whatsappmessage.model.js";
-import { normalizePhoneDigits } from "../utils/whatsapputility/phoneMatch.js";
+import WhatsAppMessage from "../models/whatsapp-message.model.js";
+import { normalizePhoneDigits } from "../utils/whatsapp/phoneMatch.js";
 
 /**
  * Build display text for farm_advisory template notifications (admin chat history).
