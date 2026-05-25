@@ -9,6 +9,12 @@ import {
   signAccessToken,
   signRefreshToken,
 } from "../../utils/authUtils.js";
+import {
+  BIODROPS_DEMO_USER_PROFILE,
+  biodropsDemoOtpHash,
+  isBiodropsDemoOtp,
+  isBiodropsDemoPhone,
+} from "../../utils/biodropsDemoAccount.js";
 
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_RESEND_COOLDOWN = 60 * 1000;
@@ -100,11 +106,22 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
 
     const phone = assertPhone(phoneRaw);
     const lang = normalizeLanguage(language);
+    const isDemoPhone = isBiodropsDemoPhone(phone);
 
     let user = await User.findOne({ phone }).populate("organization");
 
     // Login path: only existing BIODROPS users may receive OTP (register via signup first).
     if (signupIntent !== true) {
+      if (!user && isDemoPhone) {
+        const { org: biodropsOrg } = await resolveOrganizationByCode("BIODROPS");
+        user = await createUserByPhoneSafe({
+          phone,
+          ...BIODROPS_DEMO_USER_PROFILE,
+          organization: biodropsOrg._id,
+          clientSource: resolveClientSource(req),
+          language: lang,
+        });
+      }
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -161,8 +178,8 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
       user.language = lang;
     }
 
-    // Rate limiting
-    if (user.lastOtpSentAt) {
+    // Rate limiting (demo account bypasses for store reviewers)
+    if (!isDemoPhone && user.lastOtpSentAt) {
       const diff = Date.now() - new Date(user.lastOtpSentAt).getTime();
       if (diff < OTP_RESEND_COOLDOWN) {
         return res.status(429).json({
@@ -172,14 +189,15 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
       }
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
-
-    // Send WhatsApp BEFORE persisting cooldown state, so a failed send does
-    // not lock the user out for OTP_RESEND_COOLDOWN with no way to recover.
-    await sendWhatsappOtpTemplate(phone, otp);
-
-    user.otp = otpHash;
+    if (isDemoPhone) {
+      user.otp = biodropsDemoOtpHash();
+    } else {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      // Send WhatsApp BEFORE persisting cooldown state, so a failed send does
+      // not lock the user out for OTP_RESEND_COOLDOWN with no way to recover.
+      await sendWhatsappOtpTemplate(phone, otp);
+      user.otp = crypto.createHash("sha256").update(otp).digest("hex");
+    }
     user.otpExpires = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
     user.lastOtpSentAt = new Date();
     user.otpAttemptCount = 0;
@@ -213,6 +231,7 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
   try {
     const { phone: phoneRaw, otp } = req.body || {};
     const phone = assertPhone(phoneRaw);
+    const isDemoPhone = isBiodropsDemoPhone(phone);
 
     if (!otp) {
       return res.status(400).json({
@@ -221,7 +240,17 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ phone }).populate("organization");
+    let user = await User.findOne({ phone }).populate("organization");
+    if (!user && isDemoPhone && isBiodropsDemoOtp(otp)) {
+      const { org: biodropsOrg } = await resolveOrganizationByCode("BIODROPS");
+      user = await createUserByPhoneSafe({
+        phone,
+        ...BIODROPS_DEMO_USER_PROFILE,
+        organization: biodropsOrg._id,
+        clientSource: resolveClientSource(req),
+      });
+      user = await User.findById(user._id).populate("organization");
+    }
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -238,28 +267,32 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
       });
     }
 
-    if (!user.otp || !user.otpExpires) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid OTP request",
-      });
-    }
+    const demoOtpOk = isDemoPhone && isBiodropsDemoOtp(otp);
 
-    if (user.otpExpires < new Date()) {
-      return res.status(400).json({ success: false, message: "OTP expired" });
-    }
+    if (!demoOtpOk) {
+      if (!user.otp || !user.otpExpires) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid OTP request",
+        });
+      }
 
-    if (user.otpAttemptCount >= 5) {
-      return res
-        .status(429)
-        .json({ success: false, message: "Too many failed attempts" });
+      if (user.otpExpires < new Date()) {
+        return res.status(400).json({ success: false, message: "OTP expired" });
+      }
+
+      if (user.otpAttemptCount >= 5) {
+        return res
+          .status(429)
+          .json({ success: false, message: "Too many failed attempts" });
+      }
     }
 
     const otpHash = crypto
       .createHash("sha256")
       .update(String(otp))
       .digest("hex");
-    if (otpHash !== user.otp) {
+    if (!demoOtpOk && otpHash !== user.otp) {
       user.otpAttemptCount += 1;
       await user.save();
       return res.status(400).json({ success: false, message: "Invalid OTP" });
@@ -323,6 +356,7 @@ export const biodropsResendWhatsappOtp = async (req, res) => {
   try {
     const { phone: phoneRaw } = req.body || {};
     const phone = assertPhone(phoneRaw);
+    const isDemoPhone = isBiodropsDemoPhone(phone);
 
     const user = await User.findOne({ phone }).populate("organization");
     if (!user) {
@@ -341,7 +375,7 @@ export const biodropsResendWhatsappOtp = async (req, res) => {
       });
     }
 
-    if (user.lastOtpSentAt) {
+    if (!isDemoPhone && user.lastOtpSentAt) {
       const diff = Date.now() - new Date(user.lastOtpSentAt).getTime();
       if (diff < OTP_RESEND_COOLDOWN) {
         return res.status(429).json({
@@ -351,14 +385,15 @@ export const biodropsResendWhatsappOtp = async (req, res) => {
       }
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
-
-    // Send WhatsApp BEFORE persisting cooldown state, so a failed send does
-    // not lock the user out for OTP_RESEND_COOLDOWN with no way to recover.
-    await sendWhatsappOtpTemplate(phone, otp);
-
-    user.otp = otpHash;
+    if (isDemoPhone) {
+      user.otp = biodropsDemoOtpHash();
+    } else {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      // Send WhatsApp BEFORE persisting cooldown state, so a failed send does
+      // not lock the user out for OTP_RESEND_COOLDOWN with no way to recover.
+      await sendWhatsappOtpTemplate(phone, otp);
+      user.otp = crypto.createHash("sha256").update(otp).digest("hex");
+    }
     user.otpExpires = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
     user.lastOtpSentAt = new Date();
     user.otpAttemptCount = 0;
