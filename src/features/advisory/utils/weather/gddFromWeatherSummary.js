@@ -3,6 +3,7 @@ import {
   calculateDailyGDD,
   getCropGrowthStage,
 } from "../../../../utils/crop/growth/gddCalculator.js";
+import { GDD_MAX_TEMP_CAP_C } from "../../cropGrowthStage/index.js";
 import { formatDateISO } from "../shared/helpers.js";
 
 function daysBetween(startISO, endISO) {
@@ -105,7 +106,7 @@ export function estimateGDDFromCurrentAndForecast(
   }
 
   const dailyGdds = samples.map((s) =>
-    calculateDailyGDD(s.tmax, s.tmin, baseTemp),
+    calculateDailyGDD(s.tmax, s.tmin, baseTemp, { maxTempCap: GDD_MAX_TEMP_CAP_C }),
   );
   const avgDailyGDD =
     dailyGdds.reduce((sum, v) => sum + v, 0) / dailyGdds.length;
@@ -150,6 +151,7 @@ export function resolveGDDAndGrowthStage({
     historicalWeather,
     baseTemp,
     sowingDateISO,
+    { maxTempCap: GDD_MAX_TEMP_CAP_C },
   );
 
   let gddSeries = [];
@@ -204,6 +206,7 @@ export async function resolveCumulativeGDDForFarm({
     historicalWeather,
     baseTemp,
     sowingDateISO,
+    { maxTempCap: GDD_MAX_TEMP_CAP_C },
   );
 
   if (historicalSeries?.length) {

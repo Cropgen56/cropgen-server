@@ -2,6 +2,24 @@ import { CROP_YIELD_PROFILE } from "./cropYieldProfile.js";
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+function getYieldProfile(farmField) {
+  const cropKey = (farmField?.cropName || "").toLowerCase().replace(/[^a-z]/g, "");
+  return (
+    CROP_YIELD_PROFILE[cropKey] ??
+    CROP_YIELD_PROFILE.default ?? { baseYieldPerHa: 40, unit: "quintal", category: "default" }
+  );
+}
+
+export function calculateStandardYieldBaseline(farmField) {
+  const profile = getYieldProfile(farmField);
+  const areaHa = Number(farmField?.acre || 0) / 2.471;
+  const standardYield = profile.baseYieldPerHa * areaHa;
+  return {
+    standardYield: Number(standardYield.toFixed(2)),
+    unit: profile.unit || "quintal",
+  };
+}
+
 const OPTIMAL_TEMP = {
   cereal: { min: 12, max: 30 },
   pulse: { min: 15, max: 32 },
@@ -125,8 +143,7 @@ export function calculateYieldPrecise({
   weatherSummary,
   language = "en",
 }) {
-  const cropKey = (farmField.cropName || "").toLowerCase().replace(/[^a-z]/g, "");
-  const profile = CROP_YIELD_PROFILE[cropKey] ?? CROP_YIELD_PROFILE.default ?? { baseYieldPerHa: 40, unit: "quintal", category: "default" };
+  const profile = getYieldProfile(farmField);
   const category = profile.category || "default";
 
   const areaHa = Number(farmField?.acre || 0) / 2.471;

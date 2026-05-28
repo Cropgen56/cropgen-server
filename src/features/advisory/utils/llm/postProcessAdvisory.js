@@ -21,6 +21,85 @@ function truncate(text, max = WHATSAPP_MAX) {
   return trimmed.length <= max ? trimmed : `${trimmed.slice(0, max - 3)}...`;
 }
 
+function cleanText(v) {
+  return String(v ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    const text = cleanText(value);
+    if (text) return text;
+  }
+  return "";
+}
+
+function detailsContextByType(activity) {
+  const type = String(activity?.type || "").toUpperCase();
+  const d = activity?.details || {};
+
+  if (type === "SPRAY") {
+    const p0 = Array.isArray(d.products) ? d.products[0] : null;
+    return firstText(
+      p0?.name && p0?.dose ? `${p0.name} ${p0.dose}` : p0?.name,
+      d?.timing,
+      d?.method,
+      d?.applicationMethod,
+    );
+  }
+
+  if (type === "FERTIGATION") {
+    const p0 = Array.isArray(d.products) ? d.products[0] : null;
+    return firstText(
+      p0?.name,
+      d?.fertilizer,
+      d?.quantity,
+      d?.timing,
+      d?.time,
+      d?.method,
+    );
+  }
+
+  if (type === "IRRIGATION") {
+    return firstText(d?.duration, d?.waterQuantity, d?.frequency);
+  }
+
+  if (type === "WEATHER") {
+    return firstText(d?.temperature, d?.rainfallProbability, d?.humidity);
+  }
+
+  if (type === "CROP_RISK") {
+    return firstText(d?.riskLevel, d?.cause);
+  }
+
+  if (type === "MONITORING") {
+    return firstText(d?.whatToCheck, d?.checks, d?.frequency);
+  }
+
+  if (type === "CARBON_TRACKING") {
+    return firstText(d?.netBalance, d?.netBalanceKgCO2, d?.note);
+  }
+
+  return "";
+}
+
+function enrichActivityMessage(activity) {
+  const baseMessage = cleanText(activity?.message);
+  const context = detailsContextByType(activity);
+  if (!baseMessage || !context) return activity;
+
+  // Avoid duplicating context when message already contains it.
+  if (baseMessage.toLowerCase().includes(context.toLowerCase())) {
+    return { ...activity, message: truncate(baseMessage) };
+  }
+
+  return {
+    ...activity,
+    message: truncate(`${baseMessage} - ${context}`),
+  };
+}
+
 function applyHintMessage(activity, hintMessage, { force = false, language = "en" } = {}) {
   if (!hintMessage) return activity;
   const msg = (activity.message || "").trim();
@@ -146,6 +225,7 @@ export function postProcessAdvisory(llmOutput, evidence) {
 
   let ordered = REQUIRED_TYPES.map((type) => activityMap.get(type));
   ordered = enforceDecisionHints(ordered, evidence);
+  ordered = ordered.map(enrichActivityMessage);
 
   return { activitiesToDo: ordered };
 }

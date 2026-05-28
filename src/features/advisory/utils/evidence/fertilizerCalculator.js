@@ -1,6 +1,11 @@
 import { CROP_PROFILES } from "../../../../utils/npk/cropProfiles.js";
 
 const ACRES_PER_HA = 2.471;
+const ORGANIC_COMPOST_CAP_BY_STAGE_KG_HA = {
+  early: 800,
+  vegetative: 500,
+  reproductive: 0,
+};
 
 function normalizeCropName(name) {
   return (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -68,13 +73,21 @@ function pickInorganicProducts(N_kgHa, P_kgHa, K_kgHa, acre, isDrip) {
   return products;
 }
 
-function pickOrganicProducts(N_kgHa, P_kgHa, K_kgHa, acre, isDrip) {
+function pickOrganicProducts(
+  N_kgHa,
+  P_kgHa,
+  K_kgHa,
+  acre,
+  isDrip,
+  { maxCompostKgHa = 2000 } = {},
+) {
   const products = [];
+  if (maxCompostKgHa <= 0) return products;
   const method = isDrip ? "Soil drench or drip application" : "Top-dress + irrigate";
   const nTotal = N_kgHa + P_kgHa + K_kgHa;
   if (nTotal > 0) {
     const vcKgHa = Math.min(
-      2000,
+      maxCompostKgHa,
       Math.round(Math.max(N_kgHa / 0.015, P_kgHa / 0.01, K_kgHa / 0.005)),
     );
     products.push({
@@ -89,8 +102,15 @@ function pickOrganicProducts(N_kgHa, P_kgHa, K_kgHa, acre, isDrip) {
   return products;
 }
 
-function pickIntegratedProducts(N_kgHa, P_kgHa, K_kgHa, acre, isDrip) {
-  const chemShare = 0.5;
+function pickIntegratedProducts(
+  N_kgHa,
+  P_kgHa,
+  K_kgHa,
+  acre,
+  isDrip,
+  { compostCapKgHa = 500 } = {},
+) {
+  const chemShare = 0.75;
   const chem = pickInorganicProducts(
     N_kgHa * chemShare,
     P_kgHa * chemShare,
@@ -104,6 +124,7 @@ function pickIntegratedProducts(N_kgHa, P_kgHa, K_kgHa, acre, isDrip) {
     K_kgHa * (1 - chemShare),
     acre,
     isDrip,
+    { maxCompostKgHa: compostCapKgHa },
   );
   return [...org, ...chem];
 }
@@ -119,17 +140,21 @@ function buildSplit(window, cropNPK, fractions, acre, farmingType, isDrip) {
   } else if (farmingType === "Inorganic") {
     products = pickInorganicProducts(N, P, K, acre, isDrip);
   } else {
-    products = pickIntegratedProducts(N, P, K, acre, isDrip);
+    products = pickIntegratedProducts(N, P, K, acre, isDrip, {
+      compostCapKgHa:
+        ORGANIC_COMPOST_CAP_BY_STAGE_KG_HA[window.label] ??
+        ORGANIC_COMPOST_CAP_BY_STAGE_KG_HA.vegetative,
+    });
   }
 
   const stageLabel = {
-    early: "Vegetative (BBCH 0–29)",
-    vegetative: "Stem elongation (BBCH 30–59)",
+    early: "Vegetative (BBCH 0-29)",
+    vegetative: "Stem elongation (BBCH 30-59)",
     reproductive: "Flowering & grain fill (BBCH 60+)",
   };
 
   return {
-    bbchWindow: `${window.bbchMin}–${window.bbchMax}`,
+    bbchWindow: `${window.bbchMin}-${window.bbchMax}`,
     stageLabel: stageLabel[window.label] || window.label,
     N_kgPerHa: N,
     P_kgPerHa: P,
@@ -139,7 +164,7 @@ function buildSplit(window, cropNPK, fractions, acre, farmingType, isDrip) {
       window.label === "early"
         ? "At sowing / early emergence"
         : window.label === "vegetative"
-          ? "Top-dress at 30–45 DAS"
+          ? "Top-dress at 30-45 DAS"
           : "Fertigation at flowering / grain initiation",
     application: isDrip
       ? "Dissolve in water; apply via drip system"

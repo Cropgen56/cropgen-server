@@ -1,4 +1,4 @@
-import { OPTICAL_INDEX_NAMES } from "../../clients/satellite.client.js";
+import { OPTICAL_INDEX_NAMES } from "../../client/satellite.client.js";
 
 const CORE_VEGETATION = ["NDVI", "NDMI", "NDWI", "NDRE", "EVI"];
 const NUTRIENT_INDICES = ["NITROGEN", "CCC", "SOC"];

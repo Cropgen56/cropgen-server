@@ -13,9 +13,19 @@ export function getBaseTemperature(cropName) {
   return CROP_BASE_TEMPERATURE[key] ?? CROP_BASE_TEMPERATURE.default;
 }
 
-export function calculateDailyGDD(tmax, tmin, baseTemp) {
+/**
+ * @param {number} tmax
+ * @param {number} tmin
+ * @param {number} baseTemp
+ * @param {{ maxTempCap?: number | null }} [options] — cap Tmax (e.g. 30°C) for more realistic heat units
+ */
+export function calculateDailyGDD(tmax, tmin, baseTemp, options = {}) {
   if (tmax == null || tmin == null) return 0;
-  return Math.max(0, (tmax + tmin) / 2 - baseTemp);
+  const cap = options.maxTempCap;
+  const effMax =
+    cap != null && Number.isFinite(cap) ? Math.min(Number(tmax), cap) : Number(tmax);
+  const effMin = Number(tmin);
+  return Math.max(0, (effMax + effMin) / 2 - baseTemp);
 }
 
 export function normalizeWeatherData(weather) {
@@ -30,7 +40,12 @@ export function normalizeWeatherData(weather) {
   }));
 }
 
-export function calculateCumulativeGDD(rawWeatherData, baseTemp, sowingDateISO) {
+export function calculateCumulativeGDD(
+  rawWeatherData,
+  baseTemp,
+  sowingDateISO,
+  options = {},
+) {
   const dailyData = normalizeWeatherData(rawWeatherData);
   if (dailyData.length === 0) return [];
 
@@ -43,7 +58,7 @@ export function calculateCumulativeGDD(rawWeatherData, baseTemp, sowingDateISO) 
     const dayDate = new Date(day.date);
     if (sowingDate && dayDate < sowingDate) continue;
 
-    const gdd = calculateDailyGDD(day.temp_max, day.temp_min, baseTemp);
+    const gdd = calculateDailyGDD(day.temp_max, day.temp_min, baseTemp, options);
     cumulative += gdd;
 
     results.push({

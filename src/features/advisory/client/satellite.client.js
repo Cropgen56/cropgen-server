@@ -130,6 +130,45 @@ export async function calculateIndexImage(
   return data;
 }
 
+export async function getNpkAvailability(
+  geometry,
+  date,
+  { provider = "both", satellite = "s2", bbchStage = null, stageName = null } = {},
+) {
+  const url = `${CROPGEN_TS_BASE}/npk/availability`;
+  const body = {
+    geometry,
+    date,
+    provider,
+    satellite,
+    bbch_stage: bbchStage,
+    stage_name: stageName,
+  };
+  const { data } = await satelliteHttp.post(url, body, {
+    headers: getSatelliteHeaders(),
+  });
+  return data;
+}
+
+export async function getCropHealthScore(
+  geometry,
+  date,
+  { sowingDate = null, provider = "both", satellite = "s2" } = {},
+) {
+  const url = `${CROPGEN_TS_BASE}/crop-health/score`;
+  const body = {
+    geometry,
+    date,
+    sowing_date: sowingDate,
+    provider,
+    satellite,
+  };
+  const { data } = await satelliteHttp.post(url, body, {
+    headers: getSatelliteHeaders(),
+  });
+  return data;
+}
+
 /**
  * Calls `/calculate/index` for each index name. Failures are per-index (allSettled).
  * @returns {Promise<Array<{ indexName: string, ok: boolean, data?: object, error?: string }>>}

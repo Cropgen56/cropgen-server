@@ -1,6 +1,7 @@
 import { CROP_PROFILES } from "./cropProfiles.js";
 import { STAGE_RANGES } from "./stageRanges.js";
 import { CROP_CATEGORY_MAP } from "../crop/growth/cropCategoryMap.js";
+import { acresToHectares } from "./npkArea.js";
 
 /* ------------------ Helpers ------------------ */
 
@@ -142,12 +143,10 @@ export function buildBarrenLandNpkFromField({
 }) {
   const stageName =
     plantGrowthActivity?.stageName || "Pre-sowing (barren land)";
-  let available = null;
-  let required = null;
-  let hsi = null;
+  let calc = null;
 
   try {
-    const calc = calculateNPKFromfarmField({
+    calc = calculateNPKFromfarmField({
       farmField,
       ndviLatest: ndvi?.ndviLatest ?? 0.25,
       waterLatest: water?.waterLatest ?? 0,
@@ -158,18 +157,19 @@ export function buildBarrenLandNpkFromField({
       weatherSummary,
       language,
     });
-    available = calc.available;
-    required = calc.required;
-    hsi = calc.hsi;
   } catch {
     // Crop not in NPK profile — text-only recommendation
   }
 
   return {
     mode: "pre_sowing_basal",
-    available,
-    required,
-    hsi,
+    available: calc?.available ?? null,
+    required: calc?.required ?? null,
+    deficit: calc?.deficit ?? null,
+    hsi: calc?.hsi ?? null,
+    area: calc?.area ?? null,
+    factorSource: calc?.factorSource ?? "fallback_hsi",
+    satelliteNpk: calc?.satelliteNpk ?? null,
     recommendation: getBarrenLandNPKRecommendation({
       cropName: farmField?.cropName || "crop",
       stageName,
@@ -218,6 +218,7 @@ export function calculateNPKFromfarmField({
   waterLatest,
   plantGrowthActivity,
   weatherSummary,
+  satelliteNpkAvailability = null,
   language = "en",
 }) {
   const cropName = normalizeCropName(farmField.cropName);
@@ -225,17 +226,30 @@ export function calculateNPKFromfarmField({
   if (!crop) throw new Error(`Crop not supported: ${farmField.cropName}`);
 
   const { bbchStage, stageName } = plantGrowthActivity;
-  const areaHa = farmField.acre / 2.47105;
+  const areaAcre = Number(farmField?.acre) || 0;
+  const areaHectare = acresToHectares(areaAcre);
 
   /* ---------- Harvest stage ---------- */
   if (bbchStage >= crop.maturityBBCH) {
+    const required = {
+      nitrogenKgPerHa: 0,
+      phosphorousKgPerHa: 0,
+      potassiumKgPerHa: 0,
+    };
+    const available = {
+      nitrogenKgPerHa: 0,
+      phosphorousKgPerHa: 0,
+      potassiumKgPerHa: 0,
+    };
     return {
-      available: { nitrogenKgPerHa: 0, phosphorousKgPerHa: 0, potassiumKgPerHa: 0 },
-      required: { nitrogenKgPerHa: 0, phosphorousKgPerHa: 0, potassiumKgPerHa: 0 },
+      available,
+      required,
+      deficit: required,
+      area: { acre: areaAcre, hectare: areaHectare },
       recommendation: getHarvestStageRecommendation({
         cropName: farmField.cropName,
         stageName,
-        areaAcre: farmField.acre,
+        areaAcre,
         language,
       }),
     };
@@ -272,12 +286,28 @@ export function calculateNPKFromfarmField({
   /* ---------- HSI-based AVAILABLE NPK ---------- */
   const expectedNDVI = crop.ndviExpected[stage] || 0.55;
 
-  const { hsi, nFactor, pFactor, kFactor } = calculateHSI({
+  const hsiFallback = calculateHSI({
     ndvi: ndviLatest,
     waterIndex: waterLatest,
     bbchStage,
     expectedNDVI,
   });
+
+  const nutrientFactorsFromSatellite = {
+    nFactor: satelliteNpkAvailability?.nutrients?.nitrogen?.factor,
+    pFactor: satelliteNpkAvailability?.nutrients?.phosphorous?.factor,
+    kFactor: satelliteNpkAvailability?.nutrients?.potassium?.factor,
+  };
+  const nFactor = Number.isFinite(nutrientFactorsFromSatellite.nFactor)
+    ? nutrientFactorsFromSatellite.nFactor
+    : hsiFallback.nFactor;
+  const pFactor = Number.isFinite(nutrientFactorsFromSatellite.pFactor)
+    ? nutrientFactorsFromSatellite.pFactor
+    : hsiFallback.pFactor;
+  const kFactor = Number.isFinite(nutrientFactorsFromSatellite.kFactor)
+    ? nutrientFactorsFromSatellite.kFactor
+    : hsiFallback.kFactor;
+  const hsi = Number(((nFactor + pFactor + kFactor) / 3).toFixed(2));
 
   const available = {
     nitrogenKgPerHa: Number((required.nitrogenKgPerHa * nFactor).toFixed(1)),
@@ -285,14 +315,40 @@ export function calculateNPKFromfarmField({
     potassiumKgPerHa: Number((required.potassiumKgPerHa * kFactor).toFixed(1)),
   };
 
+  const deficit = {
+    nitrogenKgPerHa: Math.max(
+      0,
+      Number((required.nitrogenKgPerHa - available.nitrogenKgPerHa).toFixed(1)),
+    ),
+    phosphorousKgPerHa: Math.max(
+      0,
+      Number(
+        (required.phosphorousKgPerHa - available.phosphorousKgPerHa).toFixed(1),
+      ),
+    ),
+    potassiumKgPerHa: Math.max(
+      0,
+      Number((required.potassiumKgPerHa - available.potassiumKgPerHa).toFixed(1)),
+    ),
+  };
+
   return {
     available,
     required,
+    deficit,
     hsi, // useful for UI / confidence
+    factorSource: satelliteNpkAvailability ? "satellite" : "fallback_hsi",
+    area: { acre: areaAcre, hectare: areaHectare },
+    satelliteNpk: satelliteNpkAvailability
+      ? {
+          date: satelliteNpkAvailability.date,
+          nutrients: satelliteNpkAvailability.nutrients,
+        }
+      : null,
     recommendation: getNPKRecommendation({
       cropName: farmField.cropName,
       stageName,
-      areaAcre: farmField.acre,
+      areaAcre,
       language,
     }),
   };

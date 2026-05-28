@@ -44,12 +44,15 @@ export function getFertigationDecision(evidence) {
   if (!hasNutrientData) {
     return {
       shouldFertigate: false,
-      reason: "NPK baseline missing. Check soil/fertilizer records before fertigation.",
+      reason:
+        "NPK baseline missing. Check soil/fertilizer records before fertigation.",
       products: [],
       hint: {
         fertilizer: "",
         quantity: "",
-        method: isDrip ? "Drip fertigation after validation" : "Broadcast with irrigation after validation",
+        method: isDrip
+          ? "Drip fertigation after validation"
+          : "Broadcast with irrigation after validation",
         time: "After nutrient verification",
         nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
       },
@@ -93,7 +96,9 @@ export function getFertigationDecision(evidence) {
       hint: {
         fertilizer: scheduleProducts.fertilizer,
         quantity: scheduleProducts.quantity,
-        method: currentApplication.application || (isDrip ? "Drip fertigation" : "Broadcast + irrigate"),
+        method:
+          currentApplication.application ||
+          (isDrip ? "Drip fertigation" : "Broadcast + irrigate"),
         time: `${currentApplication.timing} (BBCH ${currentApplication.bbchWindow})`,
         nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
         farmerSteps: [
@@ -114,8 +119,10 @@ export function getFertigationDecision(evidence) {
         organicOnly: true,
         fertilizer: "Vermicompost",
         quantity: `~${kgPerHaToKgPerAcre(vcKgPerHa)} kg/acre (≈${totalKgForFarmFromKgPerHa(vcKgPerHa, acre)} kg total)`,
-        method: isDrip ? "Soil drench or drip application" : "Top-dress with irrigation",
-        time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning (6–10 AM)`,
+        method: isDrip
+          ? "Soil drench or drip application"
+          : "Top-dress with irrigation",
+        time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning (6-10 AM)`,
         nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
       },
     };
@@ -134,7 +141,7 @@ export function getFertigationDecision(evidence) {
       fertilizer: "NPK 19:19:19",
       quantity: `~${kgPerHaToKgPerAcre(npkDoseKgPerHa)} kg/acre (≈${totalKgForFarmFromKgPerHa(npkDoseKgPerHa, acre)} kg total)`,
       method: isDrip ? "Apply through drip system" : "Broadcast with irrigation",
-      time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning (6–10 AM)`,
+      time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning (6-10 AM)`,
       nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
       farmerSteps: ["Apply in split doses", "Irrigate immediately after application"],
     },

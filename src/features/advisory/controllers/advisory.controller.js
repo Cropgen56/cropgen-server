@@ -113,6 +113,94 @@ export const getFarmAdvisories = async (req, res) => {
   }
 };
 
+export const getLatestNpkBreakdown = async (req, res) => {
+  try {
+    const { farmFieldId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(farmFieldId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid farmFieldId.",
+      });
+    }
+
+    const advisory = await FarmAdvisory.findOne({ farmFieldId })
+      .sort({ createdAt: -1 })
+      .select("farmFieldId plantGrowthActivity npkManagement createdAt")
+      .populate("farmFieldId", "fieldName cropName variety sowingDate acre")
+      .lean();
+
+    if (!advisory) {
+      return res.status(404).json({
+        success: false,
+        message: "No advisory found for this farm field.",
+      });
+    }
+
+    const reqNpk = advisory?.npkManagement?.required ?? {};
+    const availNpk = advisory?.npkManagement?.available ?? {};
+
+    const nRequired = Number(reqNpk.nitrogenKgPerHa) || 0;
+    const pRequired = Number(reqNpk.phosphorousKgPerHa) || 0;
+    const kRequired = Number(reqNpk.potassiumKgPerHa) || 0;
+
+    const nAvailable = Number(availNpk.nitrogenKgPerHa) || 0;
+    const pAvailable = Number(availNpk.phosphorousKgPerHa) || 0;
+    const kAvailable = Number(availNpk.potassiumKgPerHa) || 0;
+
+    const response = {
+      farmField: advisory.farmFieldId,
+      advisoryId: advisory._id,
+      generatedAt: advisory.createdAt,
+      stage: advisory?.plantGrowthActivity ?? null,
+      npkBreakdown: {
+        nitrogen: {
+          unit: "kg/ha",
+          required: nRequired,
+          available: nAvailable,
+          deficit: Math.max(0, Number((nRequired - nAvailable).toFixed(1))),
+        },
+        phosphorous: {
+          unit: "kg/ha",
+          required: pRequired,
+          available: pAvailable,
+          deficit: Math.max(0, Number((pRequired - pAvailable).toFixed(1))),
+        },
+        potassium: {
+          unit: "kg/ha",
+          required: kRequired,
+          available: kAvailable,
+          deficit: Math.max(0, Number((kRequired - kAvailable).toFixed(1))),
+        },
+      },
+      totals: {
+        unit: "kg/ha",
+        required: Number((nRequired + pRequired + kRequired).toFixed(1)),
+        available: Number((nAvailable + pAvailable + kAvailable).toFixed(1)),
+        deficit: Number(
+          (
+            Math.max(0, nRequired - nAvailable) +
+            Math.max(0, pRequired - pAvailable) +
+            Math.max(0, kRequired - kAvailable)
+          ).toFixed(1),
+        ),
+      },
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: "Latest NPK breakdown fetched successfully.",
+      data: response,
+    });
+  } catch (error) {
+    console.error("Latest NPK breakdown fetch error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch latest NPK breakdown.",
+    });
+  }
+};
+
 export const patchAdvisoryActivityProgress = async (req, res) => {
   try {
     const { advisoryId, activityType } = req.params;

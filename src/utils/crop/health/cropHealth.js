@@ -289,7 +289,20 @@ export function calcCropHealth({
   farmField,
   language = "en",
   opticalIndicesSummary = null,
+  satelliteHealthSignal = null,
 }) {
+  const satHealth = Number(satelliteHealthSignal?.health);
+  if (Number.isFinite(satHealth)) {
+    const pct = Math.round(clamp(satHealth, 0, 100));
+    const category = getHealthCategory(pct);
+    return {
+      score: Number((pct / 100).toFixed(2)),
+      percentage: pct,
+      category,
+      recommendation: getHealthRecommendation(category, language),
+    };
+  }
+
   const cropKey = normalizeCropName(farmField?.cropName);
   const cropCategory = CROP_CATEGORY_MAP[cropKey] || "vegetable";
 

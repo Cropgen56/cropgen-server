@@ -28,16 +28,20 @@ export function getLatestVegetationTimeseriesDate(vegTs) {
 }
 
 export function parseNDVIMetrics(vegTs) {
-  const series = getTimeseriesArray(vegTs);
-  if (!series.length) return { ndviLatest: null, ndviMean: null, trend: 0, ndviTrend: 0, values: [] };
+  const inputSeries = getTimeseriesArray(vegTs);
+  if (!inputSeries.length) return { ndviLatest: null, ndviMean: null, trend: 0, ndviTrend: 0, values: [] };
 
-  const points = series
+  const points = inputSeries
     .map((p) => getPointDateValue(p))
     .filter((p) => p.date && !Number.isNaN(p.value));
   if (!points.length) return { ndviLatest: null, ndviMean: null, trend: 0, ndviTrend: 0, values: [] };
 
   const sorted = [...points].sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const values = sorted.map((p) => p.value);
+  const series = sorted.map((p) => ({
+    date: String(p.date).slice(0, 10),
+    value: p.value,
+  }));
 
   const trend = +(values.at(-1) - values[0]).toFixed(3);
   return {
@@ -46,6 +50,7 @@ export function parseNDVIMetrics(vegTs) {
     trend,
     ndviTrend: trend,
     values,
+    series,
   };
 }
 

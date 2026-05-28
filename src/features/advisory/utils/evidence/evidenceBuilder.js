@@ -118,7 +118,10 @@ function buildStressZones(ndvi, water, bbch, weatherSummary, cropCategory, optic
   };
 }
 
-export function buildEvidence({
+/**
+ * Builds agronomic evidence payload without LLM decision hints (modules 5–6 add those).
+ */
+export function buildEvidencePayload({
   farmField,
   weatherSummary,
   ndvi,
@@ -129,7 +132,6 @@ export function buildEvidence({
   regionProfile = {},
   yieldGap = null,
   opticalIndicesSummary = null,
-  language = "en",
 }) {
   const soilMoistureRaw =
     weatherSummary?.current?.soilMoisture_15cm ??
@@ -279,7 +281,26 @@ export function buildEvidence({
     },
   };
 
+  return { rawEvidence, isHarvestStage };
+}
+
+/**
+ * Attaches decision engine output; optional overrides from fertilizer/spray modules.
+ */
+export function finalizeEvidence({
+  rawEvidence,
+  isHarvestStage,
+  language = "en",
+  decisionOverrides = null,
+}) {
   const decisionHints = runDecisionEngine(rawEvidence, isHarvestStage);
+
+  if (decisionOverrides?.fertigation) {
+    decisionHints.fertigation = decisionOverrides.fertigation;
+  }
+  if (decisionOverrides?.spray) {
+    decisionHints.spray = decisionOverrides.spray;
+  }
 
   return {
     ...rawEvidence,
@@ -287,4 +308,33 @@ export function buildEvidence({
     decisionHints,
     isHarvestStage,
   };
+}
+
+export function buildEvidence({
+  farmField,
+  weatherSummary,
+  ndvi,
+  water,
+  plantGrowthActivity,
+  npkManagement,
+  cropHealth,
+  regionProfile = {},
+  yieldGap = null,
+  opticalIndicesSummary = null,
+  language = "en",
+}) {
+  const { rawEvidence, isHarvestStage } = buildEvidencePayload({
+    farmField,
+    weatherSummary,
+    ndvi,
+    water,
+    plantGrowthActivity,
+    npkManagement,
+    cropHealth,
+    regionProfile,
+    yieldGap,
+    opticalIndicesSummary,
+  });
+
+  return finalizeEvidence({ rawEvidence, isHarvestStage, language });
 }

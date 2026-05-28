@@ -16,7 +16,7 @@ import {
   getCurrentWeather,
   getForecastWeather,
   getHistoricalWeatherWithFallback,
-} from "../clients/observearth.client.js";
+} from "../client/observearth.client.js";
 import { formatDateISO } from "../utils/shared/helpers.js";
 import { resolveCumulativeGDDForFarm } from "../utils/weather/gddFromWeatherSummary.js";
 import {

@@ -1,12 +1,16 @@
 import cron from "node-cron";
 import Notification from "../models/notification.model.js";
 import { sendWhatsAppTemplate } from "../services/whatsapp.service.js";
+import { sendCustomWhatsAppMessage } from "../services/whatsappService.js";
 import { generateEmailFromTemplate } from "../services/email.services.js";
 import { sendEmail } from "../services/email.services.js";
 import {
   formatTemplateAsChatText,
   saveWhatsAppOutbound,
 } from "../services/whatsappMessageStore.js";
+import FarmAdvisory from "../features/advisory/models/farmAdvisory.model.js";
+import FarmField from "../models/field.model.js";
+import { formatFarmAdvisoryMessage } from "../utils/whatsapp/messageFormat.js";
 
 const MAX_RETRY = 3;
 const BATCH_SIZE = 10;
@@ -76,6 +80,45 @@ async function processNotification(notification) {
         rawPayload: response?.data,
         messageType: "template",
       });
+
+      // For farm advisory, send a second plain-text message with full details.
+      // Template variables must stay short for Meta validation; full content goes here.
+      if (notification.templateName === "farm_advisory" && notification.referenceId) {
+        try {
+          const advisory = await FarmAdvisory.findById(notification.referenceId).lean();
+          if (advisory) {
+            const farmField = await FarmField.findById(advisory.farmFieldId).lean();
+            const fullText = formatFarmAdvisoryMessage(
+              advisory.activitiesToDo || [],
+              farmField || {},
+              user,
+              user?.language || "hi",
+            );
+
+            const fullMsgResult = await sendCustomWhatsAppMessage(phoneDigits, fullText);
+            if (fullMsgResult?.success) {
+              await saveWhatsAppOutbound({
+                farmerId: user._id,
+                phone: phoneDigits,
+                text: fullText,
+                advisoryId: notification.referenceId || null,
+                waMessageId: fullMsgResult.messageId || null,
+                source: "advisory_custom",
+                rawPayload: fullMsgResult.data || null,
+                messageType: "text",
+              });
+            } else {
+              console.warn(
+                `[Notification] Full advisory text send skipped: ${fullMsgResult?.error || "unknown error"}`,
+              );
+            }
+          }
+        } catch (fullTextErr) {
+          console.warn(
+            `[Notification] Failed to send full advisory text: ${fullTextErr?.message || fullTextErr}`,
+          );
+        }
+      }
     } else if (user.email) {
       /* ================= EMAIL FALLBACK ================= */
       const { subject, html } = generateEmailFromTemplate(

@@ -20,6 +20,28 @@ const DEFAULT_MESSAGES = {
   MONITORING: "No monitoring advice.",
   CARBON_TRACKING: "No carbon update.",
 };
+const WHATSAPP_TEMPLATE_PARAM_MAX_CHARS = 100;
+
+function cleanText(v) {
+  return String(v ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateForTemplate(
+  value,
+  maxChars = WHATSAPP_TEMPLATE_PARAM_MAX_CHARS,
+) {
+  const text = cleanText(value);
+  if (!text) return "";
+  if (text.length <= maxChars) return text;
+  return text.slice(0, maxChars).trim();
+}
+
+function formatActivityNotificationMessage(activity) {
+  const message = cleanText(activity?.message);
+  return truncateForTemplate(message);
+}
 
 /**
  * Build WhatsApp/email template parameters for farm_advisory.
@@ -53,8 +75,9 @@ export function buildAdvisoryNotificationParameters(
   const mapped = { ...DEFAULT_MESSAGES };
   for (const activity of advisory?.activitiesToDo || []) {
     const key = typeToKey[activity.type];
-    if (key && activity?.message) {
-      mapped[key] = activity.message;
+    if (key) {
+      const formatted = formatActivityNotificationMessage(activity);
+      if (formatted) mapped[key] = formatted;
     }
   }
 
