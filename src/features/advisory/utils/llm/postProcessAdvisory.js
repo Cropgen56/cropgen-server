@@ -1,5 +1,6 @@
 import {
   normalizeAdvisoryLanguage,
+  needsLocalization,
   t,
 } from "../i18n/advisoryLocale.js";
 
@@ -105,8 +106,12 @@ function applyHintMessage(activity, hintMessage, { force = false, language = "en
   const msg = (activity.message || "").trim();
   const lang = normalizeAdvisoryLanguage(language);
 
-  // Never replace Hindi/Marathi LLM text with English agronomist hints
-  if (lang !== "en" && msg.length > 12) {
+  // Keep good localized LLM text; never overwrite with English hints
+  if (lang !== "en" && msg.length > 12 && !needsLocalization(msg, lang)) {
+    return activity;
+  }
+
+  if (lang !== "en" && needsLocalization(hintMessage, lang)) {
     return activity;
   }
 
@@ -114,6 +119,85 @@ function applyHintMessage(activity, hintMessage, { force = false, language = "en
     return { ...activity, message: truncate(hintMessage) };
   }
   return activity;
+}
+
+function localizedSprayMessage(hints, lang) {
+  const spray = hints?.spray;
+  if (!spray) return t("no_spray", lang);
+  if (spray.shouldSpray === false) {
+    const reason = String(spray.reason || "");
+    if (reason.includes("Organic")) return t("decision_organic_no_spray", lang);
+    if (reason.includes("Wind") || reason.includes("rain")) {
+      return t("decision_wind_rain_no_spray", lang);
+    }
+    if (reason.includes("stable") || reason.includes("No spray")) {
+      return t("decision_stable_no_spray", lang);
+    }
+    if (reason.includes("Harvest")) return t("no_spray", lang);
+    return t("no_spray", lang);
+  }
+  if (spray.hint?.message) {
+    return needsLocalization(spray.hint.message, lang)
+      ? t("decision_spray_choose", lang)
+      : spray.hint.message;
+  }
+  return t("decision_stress_spray", lang);
+}
+
+function localizedFertigationMessage(hints, lang) {
+  const fert = hints?.fertigation;
+  if (!fert) return t("no_fertigation", lang);
+  if (fert.shouldFertigate === false) {
+    const reason = String(fert.reason || "");
+    if (reason.includes("NPK") || reason.includes("baseline")) {
+      return t("decision_npk_missing", lang);
+    }
+    if (reason.includes("BBCH") || reason.includes("window")) {
+      return t("decision_no_fert_window", lang);
+    }
+    if (reason.includes("balanced")) return t("decision_nutrients_balanced", lang);
+    if (reason.includes("Harvest")) return t("no_fertigation", lang);
+    return t("no_fertigation", lang);
+  }
+  const h = fert.hint || {};
+  if (h.fertilizer && h.quantity) {
+    return t("apply_fertigation", lang, {
+      fertilizer: h.fertilizer,
+      quantity: h.quantity,
+    });
+  }
+  const reason = String(fert.reason || "");
+  if (reason.includes("Organic")) return t("decision_organic_fert", lang);
+  if (reason.includes("Inorganic")) return t("decision_inorganic_fert", lang);
+  if (reason.includes("Integrated")) return t("decision_integrated_fert", lang);
+  const stageMatch = reason.match(/Apply (.+?) nutrients/i);
+  if (stageMatch) {
+    return t("decision_apply_stage_nutrients", lang, { stage: stageMatch[1] });
+  }
+  return reason || t("decision_apply_stage_nutrients", lang, { stage: "" });
+}
+
+function localizedIrrigationMessage(hints, evidence, lang) {
+  const irr = hints?.irrigation;
+  const req = evidence?.irrigationRequirement || {};
+  if (!irr?.shouldIrrigate && !req.needsIrrigation) {
+    const hintMsg = irr?.hint?.message || req.reason;
+    if (hintMsg && !needsLocalization(hintMsg, lang)) {
+      return hintMsg;
+    }
+    return t("no_irrigation", lang);
+  }
+  const hint = irr?.hint || {};
+  if (hint.message && !needsLocalization(hint.message, lang)) {
+    return hint.message;
+  }
+  if (req.amountHours) {
+    return t("decision_irrigation_open", lang, { hours: req.amountHours });
+  }
+  if (req.amountMinutes) {
+    return t("decision_irrigation_drip", lang, { minutes: req.amountMinutes });
+  }
+  return t("decision_check_soil_moisture", lang);
 }
 
 /**
@@ -129,74 +213,51 @@ export function enforceDecisionHints(activities, evidence) {
 
   const spray = map.get("SPRAY");
   if (spray) {
+    const sprayMsg = localizedSprayMessage(hints, lang);
     if (hints.spray?.shouldSpray === false) {
       map.set(
         "SPRAY",
-        applyHintMessage(
-          spray,
-          hints.spray.reason || t("no_spray", lang),
-          { force: true, language: lang },
-        ),
+        applyHintMessage(spray, sprayMsg, { force: true, language: lang }),
       );
-    } else if (hints.spray?.shouldSpray && hints.spray?.hint?.message) {
-      map.set(
-        "SPRAY",
-        applyHintMessage(spray, hints.spray.hint.message, hintOpts),
-      );
+    } else if (hints.spray?.shouldSpray) {
+      map.set("SPRAY", applyHintMessage(spray, sprayMsg, hintOpts));
     }
   }
 
   const fert = map.get("FERTIGATION");
   if (fert) {
+    const fertMsg = localizedFertigationMessage(hints, lang);
     if (hints.fertigation?.shouldFertigate === false) {
       map.set(
         "FERTIGATION",
-        applyHintMessage(
-          fert,
-          hints.fertigation.reason || t("no_fertigation", lang),
-          { force: true, language: lang },
-        ),
+        applyHintMessage(fert, fertMsg, { force: true, language: lang }),
       );
-    } else if (hints.fertigation?.shouldFertigate && hints.fertigation?.hint) {
-      const h = hints.fertigation.hint;
-      const msg =
-        h.fertilizer && h.quantity
-          ? t("apply_fertigation", lang, {
-              fertilizer: h.fertilizer,
-              quantity: h.quantity,
-            })
-          : hints.fertigation.reason;
-      map.set("FERTIGATION", applyHintMessage(fert, msg, hintOpts));
+    } else if (hints.fertigation?.shouldFertigate) {
+      map.set("FERTIGATION", applyHintMessage(fert, fertMsg, hintOpts));
     }
   }
 
   const irr = map.get("IRRIGATION");
   if (irr) {
-    if (hints.irrigation?.shouldIrrigate === false) {
+    const irrMsg = localizedIrrigationMessage(hints, evidence, lang);
+    if (hints.irrigation?.shouldIrrigate === false && !evidence.irrigationRequirement?.needsIrrigation) {
       map.set(
         "IRRIGATION",
-        applyHintMessage(
-          irr,
-          hints.irrigation.hint?.message ||
-            evidence.irrigationRequirement?.reason ||
-            t("no_irrigation", lang),
-          { force: true, language: lang },
-        ),
+        applyHintMessage(irr, irrMsg, { force: true, language: lang }),
       );
-    } else if (hints.irrigation?.shouldIrrigate && hints.irrigation?.hint?.message) {
-      map.set(
-        "IRRIGATION",
-        applyHintMessage(irr, hints.irrigation.hint.message, hintOpts),
-      );
+    } else if (hints.irrigation?.shouldIrrigate || evidence.irrigationRequirement?.needsIrrigation) {
+      map.set("IRRIGATION", applyHintMessage(irr, irrMsg, hintOpts));
     }
   }
 
   const mon = map.get("MONITORING");
   if (mon && hints.monitoring?.hint?.message) {
-    map.set(
-      "MONITORING",
-      applyHintMessage(mon, hints.monitoring.hint.message, hintOpts),
-    );
+    const monMsg = needsLocalization(hints.monitoring.hint.message, lang)
+      ? t("crop_monitor_default", lang, {
+          checks: hints.monitoring.hint.checks || "leaves, soil moisture, pests",
+        })
+      : hints.monitoring.hint.message;
+    map.set("MONITORING", applyHintMessage(mon, monMsg, hintOpts));
   }
 
   return REQUIRED_TYPES.map((type) => map.get(type)).filter(Boolean);

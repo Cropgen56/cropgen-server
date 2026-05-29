@@ -173,5 +173,8 @@ export async function generateSmartAdvisory({
     }),
   };
 
-  return postProcessAdvisory(fullOutput, evidence);
+  return postProcessAdvisory(fullOutput, {
+    ...evidence,
+    language: languageCode,
+  });
 }

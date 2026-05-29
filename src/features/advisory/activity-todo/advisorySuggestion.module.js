@@ -9,7 +9,11 @@ import { buildEvidencePayloadFromContext } from "../pipeline/buildEvidencePayloa
 import { syncAdvisoryActivitiesToOperations } from "../services/syncAdvisoryToOperations.service.js";
 import { buildActivitiesFromDecisionHints } from "./buildActivitiesFromDecisionHints.js";
 import { buildBarrenLandActivities } from "./buildBarrenLandActivities.js";
-import { mergeLocalizedActivities, t } from "../utils/i18n/advisoryLocale.js";
+import {
+  finalizeAdvisoryLanguage,
+  mergeLocalizedActivities,
+  t,
+} from "../utils/i18n/advisoryLocale.js";
 import { normalizeAdvisoryLanguage } from "../utils/i18n/advisoryLanguages.js";
 import { buildAdvisoryNotificationParameters } from "../utils/notifications/advisoryNotificationParams.js";
 import {
@@ -144,13 +148,19 @@ export async function runAdvisorySuggestionModule(ctx) {
     ctx.logStep("advisory module: using rule-based activities");
     activitiesToDo = ruleBased.activitiesToDo;
     activitiesSource = advisoryResponse ? "hybrid" : "rules";
-  } else if (ctx.language && ctx.language !== "en") {
+  } else if (normalizeAdvisoryLanguage(ctx.language) !== "en") {
     activitiesToDo = mergeLocalizedActivities(
       activitiesToDo,
       ruleBased.activitiesToDo,
       ctx.language,
     );
   }
+
+  activitiesToDo = finalizeAdvisoryLanguage(
+    activitiesToDo,
+    ruleBased.activitiesToDo,
+    ctx.language,
+  );
 
   const carbonData =
     ctx.mode === "barren" ? null : (evidence?.carbonData ?? fertilizerMod?.carbonData ?? null);

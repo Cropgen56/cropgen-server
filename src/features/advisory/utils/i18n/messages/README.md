@@ -8,7 +8,13 @@ Each file is named `<language-code>.json` and must use the same keys as `en.json
 
 ## Status
 
-All 23 locale files should be present. Run `node scripts/translate-advisory-locales.mjs` after adding new keys to `en.json`.
+All 23 locale files should be present. After adding new keys to `en.json`, run:
+
+```bash
+node scripts/merge-crop-advisory-locales.mjs
+```
+
+(or `node scripts/translate-advisory-locales.mjs` if that script exists) to propagate crop-advisory keys to every locale.
 
 English-only copies of `en.json` are ignored at runtime until translated.
 

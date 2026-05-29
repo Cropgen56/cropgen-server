@@ -1,4 +1,5 @@
 import { postProcessAdvisory } from "../llm/postProcessAdvisory.js";
+import { t, normalizeAdvisoryLanguage } from "../i18n/advisoryLocale.js";
 
 const ORDER = [
   "SPRAY",
@@ -10,7 +11,12 @@ const ORDER = [
   "CARBON_TRACKING",
 ];
 
+function langOf(evidence) {
+  return normalizeAdvisoryLanguage(evidence?.language);
+}
+
 function weatherActivity(evidence) {
+  const lang = langOf(evidence);
   const w = evidence.weatherForecast || {};
   const cur = w.current || {};
   const temp = cur.temp != null ? `${Math.round(cur.temp)}°C` : "—";
@@ -20,20 +26,22 @@ function weatherActivity(evidence) {
   const rain7 = w.rainfallForecast7d ?? 0;
   const rainProb = w.rainProbabilityToday === "likely" ? "likely" : "low";
 
-  let advisory = `Current ${temp}, humidity ${humidity}.`;
+  let tailKey = "crop_weather_clear";
   if (rain3 >= 25) {
-    advisory += ` Heavy rain expected in next 3 days (~${Math.round(rain3)} mm) — delay spray and adjust irrigation.`;
+    tailKey = "crop_weather_heavy_rain";
   } else if (rain3 >= 8) {
-    advisory += ` Light to moderate rain in next 3 days (~${Math.round(rain3)} mm).`;
-  } else if (rain7 < 5 && (evidence.irrigationRequirement?.needsIrrigation)) {
-    advisory += " Dry week ahead — plan irrigation per schedule.";
-  } else {
-    advisory += " No major rain risk in the next few days.";
+    tailKey = "crop_weather_light_rain";
+  } else if (rain7 < 5 && evidence.irrigationRequirement?.needsIrrigation) {
+    tailKey = "crop_weather_dry_week";
   }
+
+  const advisory = (
+    t("crop_weather_current", lang, { temp, humidity }) + t(tailKey, lang, { rain3: Math.round(rain3) })
+  ).trim();
 
   return {
     type: "WEATHER",
-    title: "Weather outlook",
+    title: t("title_weather_crop", lang),
     message: advisory,
     details: {
       temperature: temp,
@@ -46,13 +54,61 @@ function weatherActivity(evidence) {
   };
 }
 
+function localizedSprayReason(spray, lang) {
+  if (!spray) return t("no_spray", lang);
+  if (spray.shouldSpray) {
+    return spray.hint?.message && !/^[A-Za-z]/.test(spray.hint.message.slice(0, 8))
+      ? spray.hint.message
+      : t("decision_stress_spray", lang);
+  }
+  const reason = String(spray.reason || "");
+  if (reason.includes("Organic")) return t("decision_organic_no_spray", lang);
+  if (reason.includes("Wind") || reason.includes("rain")) {
+    return t("decision_wind_rain_no_spray", lang);
+  }
+  if (reason.includes("stable") || reason.includes("No spray")) {
+    return t("decision_stable_no_spray", lang);
+  }
+  return t("no_spray", lang);
+}
+
+function localizedFertReason(fert, lang) {
+  if (!fert) return t("no_fertigation", lang);
+  if (fert.shouldFertigate) {
+    const h = fert.hint || {};
+    if (h.fertilizer && h.quantity) {
+      return t("apply_fertigation", lang, {
+        fertilizer: h.fertilizer,
+        quantity: h.quantity,
+      });
+    }
+    const reason = String(fert.reason || "");
+    const stageMatch = reason.match(/Apply (.+?) nutrients/i);
+    if (stageMatch) {
+      return t("decision_apply_stage_nutrients", lang, { stage: stageMatch[1] });
+    }
+    if (reason.includes("Organic")) return t("decision_organic_fert", lang);
+    return t("decision_apply_stage_nutrients", lang, { stage: "" });
+  }
+  const reason = String(fert.reason || "");
+  if (reason.includes("NPK") || reason.includes("baseline")) {
+    return t("decision_npk_missing", lang);
+  }
+  if (reason.includes("BBCH") || reason.includes("window")) {
+    return t("decision_no_fert_window", lang);
+  }
+  if (reason.includes("balanced")) return t("decision_nutrients_balanced", lang);
+  return t("no_fertigation", lang);
+}
+
 function sprayActivity(evidence) {
+  const lang = langOf(evidence);
   const spray = evidence.decisionHints?.spray;
   if (!spray?.shouldSpray) {
     return {
       type: "SPRAY",
-      title: "Spray",
-      message: spray?.reason || "No spray required today.",
+      title: t("title_spray", lang),
+      message: localizedSprayReason(spray, lang),
       details: { recommendedAction: "none" },
     };
   }
@@ -60,12 +116,18 @@ function sprayActivity(evidence) {
   const products = (hint.products || [])
     .map((p) => `${p.name}${p.dose ? ` (${p.dose})` : ""}`)
     .join("; ");
+  const message =
+    products
+      ? t("crop_spray_products", lang, {
+          reason: t("decision_stress_spray", lang),
+          products,
+        })
+      : t("decision_spray_choose", lang);
+
   return {
     type: "SPRAY",
-    title: "Spray advisory",
-    message:
-      hint.message ||
-      `${spray.reason}${products ? `. Products: ${products}` : ""}`,
+    title: t("title_spray_advisory", lang),
+    message,
     details: {
       products: hint.products,
       applicationMethod: hint.method || "foliar spray",
@@ -76,23 +138,23 @@ function sprayActivity(evidence) {
 }
 
 function fertigationActivity(evidence) {
+  const lang = langOf(evidence);
   const fert = evidence.decisionHints?.fertigation;
   if (!fert?.shouldFertigate) {
     return {
       type: "FERTIGATION",
-      title: "Fertigation",
-      message: fert?.reason || "No fertigation needed today.",
+      title: t("title_fertigation", lang),
+      message: localizedFertReason(fert, lang),
       details: {},
     };
   }
+  const message = localizedFertReason(fert, lang);
   const hint = fert.hint || {};
+
   return {
     type: "FERTIGATION",
-    title: "Fertigation",
-    message:
-      hint.fertilizer && hint.quantity
-        ? `Apply ${hint.fertilizer}: ${hint.quantity}. ${hint.time || ""}`.trim()
-        : fert.reason,
+    title: t("title_fertigation", lang),
+    message,
     details: {
       products: fert.products,
       applicationMethod: hint.method,
@@ -104,33 +166,34 @@ function fertigationActivity(evidence) {
 }
 
 function irrigationActivity(evidence) {
+  const lang = langOf(evidence);
   const irr = evidence.decisionHints?.irrigation;
   const req = evidence.irrigationRequirement || {};
   if (!irr?.shouldIrrigate && !req.needsIrrigation) {
     return {
       type: "IRRIGATION",
-      title: "Irrigation",
-      message:
-        irr?.hint?.message ||
-        req.reason ||
-        "Soil moisture adequate. No irrigation today.",
+      title: t("title_irrigation", lang),
+      message: t("no_irrigation", lang),
       details: { shouldIrrigate: false },
     };
   }
   const hint = irr?.hint || {};
+  const hours = req.amountHours;
+  const minutes = req.amountMinutes;
+  const message = hours
+    ? t("decision_irrigation_open", lang, { hours })
+    : t("decision_irrigation_drip", lang, { minutes: minutes || hint.quantity || 0 });
+
   return {
     type: "IRRIGATION",
-    title: "Irrigation",
-    message:
-      hint.message ||
-      req.reason ||
-      `Irrigate: ${req.amountHours ? `${req.amountHours} h` : `${req.amountMinutes || 0} min`}.`,
+    title: t("title_irrigation", lang),
+    message,
     details: {
       applicationMethod: evidence.irrigationType,
       timing: "early morning (6–10 AM) preferred",
-      duration: req.amountHours
-        ? `${req.amountHours} hours`
-        : `${req.amountMinutes || 0} minutes`,
+      duration: hours
+        ? `${hours} hours`
+        : `${minutes || 0} minutes`,
       waterQuantity: hint.quantity,
       reason: req.reason,
       frequency: req.frequency,
@@ -139,6 +202,7 @@ function irrigationActivity(evidence) {
 }
 
 function cropRiskActivity(evidence) {
+  const lang = langOf(evidence);
   const stress = evidence.stressZones || {};
   const health = evidence.cropHealth || {};
   const pressure = stress.diseasePressure || "low";
@@ -149,47 +213,60 @@ function cropRiskActivity(evidence) {
   const causes = [];
   if (waterPct >= 40) {
     riskLevel = "moderate";
-    causes.push("water stress");
+    causes.push(t("crop_risk_water_stress", lang));
   }
   if (nPct >= 35) {
     riskLevel = "moderate";
-    causes.push("nitrogen deficiency signal");
+    causes.push(t("crop_risk_n_deficiency", lang));
   }
   if (pressure === "high") {
     riskLevel = "high";
-    causes.push("elevated pest/disease pressure");
+    causes.push(t("crop_risk_disease_pressure", lang));
   }
   if (health.category === "Poor" || health.category === "Critical") {
     riskLevel = "high";
-    causes.push(`crop health ${health.category}`);
+    causes.push(
+      t("crop_risk_health", lang, { category: health.category }),
+    );
   }
 
-  const cause = causes.length ? causes.join(", ") : "no major stress signals";
+  const cause = causes.length
+    ? causes.join(", ")
+    : t("crop_risk_no_stress", lang);
   const action =
     riskLevel === "high"
-      ? "Scout field within 24 hours; address irrigation and nutrition first."
+      ? t("crop_risk_action_high", lang)
       : riskLevel === "moderate"
-        ? "Monitor stressed zones; confirm irrigation and leaf color."
-        : "Routine monitoring is sufficient.";
+        ? t("crop_risk_action_moderate", lang)
+        : t("crop_risk_action_low", lang);
+  const levelKey =
+    riskLevel === "high"
+      ? "crop_risk_level_high"
+      : riskLevel === "moderate"
+        ? "crop_risk_level_moderate"
+        : "crop_risk_level_low";
 
   return {
     type: "CROP_RISK",
-    title: "Crop risk",
-    message: `${riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1)} risk: ${cause}. ${action}`,
+    title: t("title_crop_risk", lang),
+    message: t("crop_risk_message", lang, {
+      level: t(levelKey, lang),
+      cause,
+      action,
+    }),
     details: { riskLevel, cause, recommendedAction: action },
   };
 }
 
 function monitoringActivity(evidence) {
+  const lang = langOf(evidence);
   const mon = evidence.decisionHints?.monitoring;
   const hint = mon?.hint || {};
   const checks = hint.checks || "leaves, stem base, soil moisture, pests";
   return {
     type: "MONITORING",
-    title: "Field monitoring",
-    message:
-      hint.message ||
-      `Check ${checks}. Repeat every 3–4 days or after rain.`,
+    title: t("title_monitoring_crop", lang),
+    message: t("crop_monitor_default", lang, { checks }),
     details: {
       focusAreas: hint.zone || "whole field",
       whatToCheck: checks,
@@ -199,24 +276,31 @@ function monitoringActivity(evidence) {
 }
 
 function carbonActivity(evidence) {
+  const lang = langOf(evidence);
   const c = evidence.carbonData;
   if (!c) {
     return {
       type: "CARBON_TRACKING",
-      title: "Carbon",
-      message: "Carbon data not available for this cycle.",
+      title: t("title_carbon_crop", lang),
+      message: t("crop_carbon_unavailable", lang),
       details: {},
     };
   }
   const net = c.netBalanceKgCO2 ?? 0;
   const note =
     net < 0
-      ? "Net carbon positive for the farm — maintain residue and organic matter."
-      : "Higher emissions than capture — consider efficient irrigation and balanced fertilizer.";
+      ? t("crop_carbon_positive", lang)
+      : t("crop_carbon_negative", lang);
+
   return {
     type: "CARBON_TRACKING",
-    title: "Carbon update",
-    message: `Estimated emissions ${Math.round(c.emissionKgCO2 || 0)} kg CO₂, capture ${Math.round(c.capturedKgCO2 || 0)} kg CO₂. Net ${Math.round(net)} kg CO₂. ${note}`,
+    title: t("title_carbon_crop", lang),
+    message: t("crop_carbon_message", lang, {
+      emission: Math.round(c.emissionKgCO2 || 0),
+      capture: Math.round(c.capturedKgCO2 || 0),
+      net: Math.round(net),
+      note,
+    }),
     details: {
       emissionKgCO2: c.emissionKgCO2,
       capturedKgCO2: c.capturedKgCO2,
@@ -227,9 +311,10 @@ function carbonActivity(evidence) {
 }
 
 /**
- * Agronomist rule-based activities when LLM is unavailable or returns empty content.
+ * Agronomist rule-based activities when LLM is unavailable or for language merge fallback.
  */
 export function buildActivitiesFromDecisionHints(evidence) {
+  const lang = langOf(evidence);
   const builders = {
     SPRAY: sprayActivity,
     FERTIGATION: fertigationActivity,
@@ -241,26 +326,25 @@ export function buildActivitiesFromDecisionHints(evidence) {
   };
 
   if (evidence.isHarvestStage && evidence.decisionHints?.harvestPlanning) {
-    const hp = evidence.decisionHints.harvestPlanning;
     return postProcessAdvisory(
       {
         activitiesToDo: [
           {
             type: "SPRAY",
-            title: "Harvest stage",
-            message: "No spray at harvest.",
+            title: t("title_harvest_stage", lang),
+            message: t("harvest_no_spray", lang),
             details: {},
           },
           {
             type: "FERTIGATION",
-            title: "Harvest stage",
-            message: "No fertilizer at harvest.",
+            title: t("title_harvest_stage", lang),
+            message: t("harvest_no_fert", lang),
             details: {},
           },
           {
             type: "IRRIGATION",
-            title: "Harvest stage",
-            message: "Reduce irrigation before harvest unless soil is very dry.",
+            title: t("title_harvest_stage", lang),
+            message: t("harvest_reduce_irr", lang),
             details: {},
           },
           weatherActivity(evidence),
