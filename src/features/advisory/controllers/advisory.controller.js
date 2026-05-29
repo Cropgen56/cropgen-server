@@ -354,6 +354,156 @@ export const getFarmAdvisoriesByUser = async (req, res) => {
   }
 };
 
+export const getFarmersWithAdvisories = async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const skip = (page - 1) * limit;
+    const search = (req.query.search || "").trim();
+
+    const pipeline = [
+      {
+        $lookup: {
+          from: "farmfields",
+          localField: "farmFieldId",
+          foreignField: "_id",
+          as: "farmField",
+        },
+      },
+      { $unwind: "$farmField" },
+      {
+        $group: {
+          _id: "$farmField.user",
+          advisoryCount: { $sum: 1 },
+          farmIds: { $addToSet: "$farmFieldId" },
+          latestAdvisoryAt: { $max: "$createdAt" },
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "farmer",
+        },
+      },
+      { $unwind: "$farmer" },
+    ];
+
+    if (search) {
+      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      pipeline.push({
+        $match: {
+          $or: [
+            { "farmer.firstName": regex },
+            { "farmer.lastName": regex },
+            { "farmer.email": regex },
+            { "farmer.phone": regex },
+          ],
+        },
+      });
+    }
+
+    pipeline.push(
+      { $sort: { latestAdvisoryAt: -1 } },
+      {
+        $facet: {
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+            {
+              $project: {
+                _id: 0,
+                farmerId: "$_id",
+                firstName: "$farmer.firstName",
+                lastName: "$farmer.lastName",
+                email: "$farmer.email",
+                avatar: "$farmer.avatar",
+                phone: "$farmer.phone",
+                advisoryCount: 1,
+                farmCount: { $size: "$farmIds" },
+                latestAdvisoryAt: 1,
+              },
+            },
+          ],
+          total: [{ $count: "count" }],
+        },
+      },
+    );
+
+    const [result] = await FarmAdvisory.aggregate(pipeline);
+    const data = result?.data ?? [];
+    const total = result?.total?.[0]?.count ?? 0;
+
+    return res.status(200).json({
+      success: true,
+      data,
+      pagination: {
+        totalRecords: total,
+        totalPages: Math.ceil(total / limit) || 1,
+        currentPage: page,
+        perPage: limit,
+      },
+    });
+  } catch (error) {
+    console.error("Get farmers with advisories error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch farmers with advisories",
+    });
+  }
+};
+
+export const getAdvisoryById = async (req, res) => {
+  try {
+    const { advisoryId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(advisoryId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid advisory ID",
+      });
+    }
+
+    const advisory = await FarmAdvisory.findById(advisoryId)
+      .populate({
+        path: "farmFieldId",
+        select: "fieldName cropName variety sowingDate acre user",
+        populate: {
+          path: "user",
+          select: "firstName lastName email phone",
+        },
+      })
+      .lean();
+
+    if (!advisory) {
+      return res.status(404).json({
+        success: false,
+        message: "Advisory not found",
+      });
+    }
+
+    const notification = await Notification.findOne({
+      referenceId: advisory._id,
+      type: "ADVISORY",
+    }).lean();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        ...advisory,
+        notification: notification || null,
+      },
+    });
+  } catch (error) {
+    console.error("Get advisory by ID error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch advisory",
+    });
+  }
+};
+
 export const getAllFarmAdvisories = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -365,6 +515,10 @@ export const getAllFarmAdvisories = async (req, res) => {
         .populate({
           path: "farmFieldId",
           select: "fieldName cropName variety sowingDate acre user",
+          populate: {
+            path: "user",
+            select: "firstName lastName email phone",
+          },
         })
         .sort({ createdAt: -1 })
         .skip(skip)

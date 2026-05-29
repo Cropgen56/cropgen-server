@@ -5,6 +5,8 @@ import {
   generateFarmAdvisory,
   getFarmAdvisoriesByUser,
   getAllFarmAdvisories,
+  getAdvisoryById,
+  getFarmersWithAdvisories,
   patchAdvisoryActivityProgress,
 } from "../controllers/advisory.controller.js";
 import { isAuthenticated } from "../../../middleware/auth.middleware.js";
@@ -19,6 +21,8 @@ router.patch(
 );
 router.get("/:farmFieldId/npk-breakdown", isAuthenticated, getLatestNpkBreakdown);
 router.get("/", getAllFarmAdvisories);
+router.get("/farmers", getFarmersWithAdvisories);
+router.get("/by-id/:advisoryId", getAdvisoryById);
 router.get("/user/:userId", getFarmAdvisoriesByUser);
 router.get("/:farmFieldId", getFarmAdvisories);
 
