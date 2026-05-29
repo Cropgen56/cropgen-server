@@ -6,6 +6,7 @@ import {
 } from "./irrigationCalculator.js";
 import { calculateFertilizerSchedule } from "./fertilizerCalculator.js";
 import { CROP_CATEGORY_MAP } from "../../../../utils/crop/growth/cropCategoryMap.js";
+import { normalizeAdvisoryLanguage } from "../i18n/advisoryLanguages.js";
 
 function normalizeCropName(name) {
   return (name || "").toLowerCase().replace(/[^a-z]/g, "");
@@ -304,7 +305,7 @@ export function finalizeEvidence({
 
   return {
     ...rawEvidence,
-    language: String(language || "en").toLowerCase().slice(0, 2),
+    language: normalizeAdvisoryLanguage(language),
     decisionHints,
     isHarvestStage,
   };

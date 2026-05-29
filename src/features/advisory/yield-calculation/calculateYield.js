@@ -1,4 +1,6 @@
 import { CROP_YIELD_PROFILE } from "./cropYieldProfile.js";
+import { t } from "../utils/i18n/advisoryLocale.js";
+import { normalizeAdvisoryLanguage } from "../utils/i18n/advisoryLanguages.js";
 
 /* ---------- Helpers ---------- */
 const acreToHectare = (acre) => acre / 2.47105;
@@ -39,11 +41,7 @@ const NDVI_CATEGORY_RANGES = {
 
 /* ---------- Explanation i18n ---------- */
 function getYieldExplanation(language = "en") {
-  if (language === "mr")
-    return "मानक: पिक प्रोफाइलनुसार हेक्टर दर x शेत क्षेत्र. AI: वाढ, आरोग्य, हिरवळ, पाणी, पोषक तत्वे नुसार दुरुस्ती.";
-  if (language === "hi")
-    return "मानक: फसल प्रोफाइल के अनुसार प्रति हेक्टेयर x खेत क्षेत्र। AI: वृद्धि, स्वास्थ्य, हरियाली, पानी, पोषक तत्वों से समायोजन।";
-  return "Standard yield = crop profile benchmark (per hectare) x farm area. AI yield adjusts that using growth, health, greenness, water, and nutrients.";
+  return t("yield_explanation", normalizeAdvisoryLanguage(language));
 }
 
 /* ---------- MAIN ---------- */

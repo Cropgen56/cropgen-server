@@ -87,6 +87,13 @@ function irrigationActivity(evidence) {
   };
 }
 
+function sowingDaysNote(lang, days) {
+  if (days > 0) return t("weather_days_note_future", lang, { days });
+  if (days === 0) return t("weather_days_note_today", lang);
+  if (days != null) return t("weather_days_note_overdue", lang, { days: Math.abs(days) });
+  return "";
+}
+
 function weatherActivity(evidence) {
   const lang = langOf(evidence);
   const w = evidence.weatherForecast || {};
@@ -96,28 +103,15 @@ function weatherActivity(evidence) {
   const sw = evidence.sowingWindow || {};
   const rain3 = w.rainfallForecast3d ?? 0;
   const rain7 = w.rainfallForecast7d ?? 0;
+  const daysNote = sowingDaysNote(lang, days);
 
-  let daysNote = "";
-  if (lang === "hi") {
-    if (days > 0) daysNote = ` अपेक्षित बुवाई ${days} दिन में।`;
-    else if (days === 0) daysNote = " अपेक्षित बुवाई आज है।";
-    else if (days != null) daysNote = ` बुवाई तिथि ${Math.abs(days)} दिन पहले बीत गई — तारीख अपडेट करें या जल्द बोएं।`;
-  } else if (lang === "mr") {
-    if (days > 0) daysNote = ` अपेक्षित पेरणी ${days} दिवसात.`;
-    else if (days === 0) daysNote = " अपेक्षित पेरणी आज आहे.";
-    else if (days != null) daysNote = ` पेरणी तारीख ${Math.abs(days)} दिवसांपूर्वी — तारीख अद्यतनित करा.`;
-  } else {
-    if (days > 0) daysNote = ` Expected sowing in ${days} day(s).`;
-    else if (days === 0) daysNote = " Expected sowing is today.";
-    else if (days != null) daysNote = ` Sowing date was ${Math.abs(days)} day(s) ago — update or sow soon.`;
-  }
-
-  const message =
-    lang === "hi"
-      ? `मौसम: ${temp}. अगले 3 दिन ~${Math.round(rain3)} mm, 7 दिन ~${Math.round(rain7)} mm बारिश.${daysNote} ${sw.reason || ""}`.trim()
-      : lang === "mr"
-        ? `हवामान: ${temp}. पुढील 3 दिवस ~${Math.round(rain3)} mm, 7 दिवस ~${Math.round(rain7)} mm पाऊस.${daysNote} ${sw.reason || ""}`.trim()
-        : `Weather: ${temp}. Next 3d rain ~${Math.round(rain3)} mm, 7d ~${Math.round(rain7)} mm.${daysNote} ${sw.reason || ""}`.trim();
+  const message = t("weather_message", lang, {
+    temp,
+    rain3: Math.round(rain3),
+    rain7: Math.round(rain7),
+    daysNote,
+    reason: sw.reason || "",
+  }).trim();
 
   return {
     type: "WEATHER",
@@ -140,75 +134,44 @@ function cropRiskActivity(evidence) {
   const days = evidence.daysUntilSowing;
   let riskLevel = sw.suitable === false ? "moderate" : "low";
 
-  if (lang === "hi") {
-    const causes = [];
-    if (days != null && days < 0) {
-      riskLevel = "high";
-      causes.push("योजना से बुवाई में देरी");
-    }
-    if ((evidence.weatherForecast?.rainfallForecast3d ?? 0) >= 35) {
-      riskLevel = "high";
-      causes.push("बुवाई से पहले भारी बारिश");
-    }
-    if (evidence.soilMoisture?.status === "WET") causes.push("बुवाई के लिए अत्यधिक गीली मिट्टी");
-    if (evidence.soilMoisture?.status === "DRY" && days != null && days <= 7) {
-      causes.push("सूखा बीज बिस्तर");
-    }
-    const cause = causes.length ? causes.join(", ") : "सामान्य पूर्व-बुवाई जोखिम";
-    const action =
-      riskLevel === "high"
-        ? "बुवाई तिथि या किस्म की खिड़की समायोजित करें; जलभराव वाली मिट्टी में न बोएं।"
-        : "जमीन तैयारी सूची का पालन करें और बुवाई सप्ताह के पास रोज पूर्वानुमान देखें।";
-    return {
-      type: "CROP_RISK",
-      title: t("title_risk_barren", lang),
-      message: `${riskLevel === "high" ? "उच्च" : riskLevel === "moderate" ? "मध्यम" : "कम"} जोखिम: ${cause}. ${action}`,
-      details: { riskLevel, cause, recommendedAction: action },
-    };
-  }
-
-  if (lang === "mr") {
-    const causes = [];
-    if (days != null && days < 0) {
-      riskLevel = "high";
-      causes.push("योजनेपेक्षा पेरणी उशीरा");
-    }
-    if ((evidence.weatherForecast?.rainfallForecast3d ?? 0) >= 35) {
-      riskLevel = "high";
-      causes.push("पेरणीपूर्व जोरदार पाऊस");
-    }
-    if (evidence.soilMoisture?.status === "WET") causes.push("पेरणीसाठी खूप ओली माती");
-    const cause = causes.length ? causes.join(", ") : "सामान्य पेरणीपूर्व धोका";
-    const action =
-      riskLevel === "high"
-        ? "पेरणी तारीख किंवा जात खिडकी समायोजित करा; पाणथळ असलेल्या जमिनीत पेरू नका."
-        : "जमीन तयारी यादी पाळा आणि पेरणी आठवड्याजवळ हवामान पहा.";
-    return {
-      type: "CROP_RISK",
-      title: t("title_risk_barren", lang),
-      message: `${riskLevel} धोका: ${cause}. ${action}`,
-      details: { riskLevel, cause, recommendedAction: action },
-    };
-  }
-
   const causes = [];
   if (days != null && days < 0) {
     riskLevel = "high";
-    causes.push("delayed sowing vs plan");
+    causes.push(t("crop_risk_cause_delayed", lang));
   }
   if ((evidence.weatherForecast?.rainfallForecast3d ?? 0) >= 35) {
     riskLevel = "high";
-    causes.push("heavy rain before sowing");
+    causes.push(t("crop_risk_cause_heavy_rain", lang));
   }
-  const cause = causes.length ? causes.join(", ") : "routine pre-sowing risks";
+  if (evidence.soilMoisture?.status === "WET") {
+    causes.push(t("crop_risk_cause_wet_soil", lang));
+  }
+  if (evidence.soilMoisture?.status === "DRY" && days != null && days <= 7) {
+    causes.push(t("crop_risk_cause_dry_bed", lang));
+  }
+
+  const cause = causes.length
+    ? causes.join(", ")
+    : t("crop_risk_cause_routine", lang);
   const action =
     riskLevel === "high"
-      ? "Adjust sowing date or variety window; do not sow into waterlogged soil."
-      : "Follow land prep checklist and monitor forecast daily near sowing week.";
+      ? t("crop_risk_action_high", lang)
+      : t("crop_risk_action_low", lang);
+  const levelKey =
+    riskLevel === "high"
+      ? "crop_risk_level_high"
+      : riskLevel === "moderate"
+        ? "crop_risk_level_moderate"
+        : "crop_risk_level_low";
+
   return {
     type: "CROP_RISK",
     title: t("title_risk_barren", lang),
-    message: `${riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1)} risk: ${cause}. ${action}`,
+    message: t("crop_risk_message", lang, {
+      level: t(levelKey, lang),
+      cause,
+      action,
+    }),
     details: { riskLevel, cause, recommendedAction: action },
   };
 }
@@ -232,33 +195,15 @@ function monitoringActivity(evidence) {
 function carbonActivity(evidence) {
   const lang = langOf(evidence);
   const farming = evidence.typeOfFarming || "Integrated";
-  let note;
-  if (lang === "hi") {
-    note =
-      farming === "Organic" || farming === "Integrated"
-        ? "बुवाई से पहले सड़ा हुआ FYM/कम्पोस्ट मिलाएं — जैविक पदार्थ और कार्बन संचय बढ़ेगा।"
-        : "पहली फसल चक्र से अवशेष संरक्षण और संतुलित खाद की योजना बनाएं।";
-  } else if (lang === "mr") {
-    note =
-      farming === "Organic" || farming === "Integrated"
-        ? "पेरणीपूर्व सडलेले FYM/कंपोस्ट मिसळा — सेंद्रिय पदार्थ आणि कार्बन वाढेल."
-        : "पहिल्या पिकाच्या चक्रापासून अवशेष आणि खताची योजना करा.";
-  } else {
-    note =
-      farming === "Organic" || farming === "Integrated"
-        ? "Before sowing: add compost/FYM to improve organic matter and long-term carbon capture."
-        : "Plan residue retention and efficient fertilizer use from the first crop cycle.";
-  }
-  const prefix =
-    lang === "hi"
-      ? "अभी फसल कार्बन अवशोषण नहीं। "
-      : lang === "mr"
-        ? "अद्याप पिक कार्बन शोषण नाही. "
-        : "No crop carbon uptake yet. ";
+  const note =
+    farming === "Organic" || farming === "Integrated"
+      ? t("carbon_note_organic", lang)
+      : t("carbon_note_conventional", lang);
+
   return {
     type: "CARBON_TRACKING",
     title: t("title_carbon_barren", lang),
-    message: `${prefix}${note}`,
+    message: `${t("carbon_prefix_no_crop", lang)}${note}`,
     details: {
       emissionKgCO2: 0,
       capturedKgCO2: 0,

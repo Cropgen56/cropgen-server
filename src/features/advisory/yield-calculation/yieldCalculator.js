@@ -1,4 +1,6 @@
 import { CROP_YIELD_PROFILE } from "./cropYieldProfile.js";
+import { t } from "../utils/i18n/advisoryLocale.js";
+import { normalizeAdvisoryLanguage } from "../utils/i18n/advisoryLanguages.js";
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -188,12 +190,10 @@ export function calculateYieldPrecise({
       standardYield: Number(standardYield.toFixed(2)),
       aiYield: Number(aiYield.toFixed(2)),
       unit: profile.unit,
-      explanation:
-        language === "mr"
-          ? "मानक उत्पादन: पिक प्रोफाइलनुसार × क्षेत्र. AI: वाढ, आरोग्य, तापमान, पाणी, माती यावर आधारित."
-          : language === "hi"
-            ? "मानक: प्रोफ़ाइल × क्षेत्र। AI: वृद्धि, स्वास्थ्य, तापमान, पानी, मिट्टी के आधार पर।"
-            : "Standard = crop profile benchmark × farm area. AI adjusts using growth, health, temperature, water, and soil fertility.",
+      explanation: t(
+        "yield_explanation_short",
+        normalizeAdvisoryLanguage(language),
+      ),
     },
     yieldGap: {
       targetYield: Number(targetYield.toFixed(2)),

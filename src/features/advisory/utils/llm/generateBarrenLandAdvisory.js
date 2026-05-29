@@ -1,5 +1,10 @@
 import { callOpenAI } from "./openaiClient.js";
 import { postProcessAdvisory } from "./postProcessAdvisory.js";
+import {
+  getAdvisoryLanguageName,
+  isAdvisoryLanguageSupported,
+  normalizeAdvisoryLanguage,
+} from "../i18n/advisoryLanguages.js";
 
 const REQUIRED_TYPES = [
   "SPRAY",
@@ -11,24 +16,12 @@ const REQUIRED_TYPES = [
   "CARBON_TRACKING",
 ];
 
-const LANGUAGE_MAP = {
-  en: "English",
-  hi: "Hindi",
-  mr: "Marathi",
-  fr: "French",
-  gu: "Gujarati",
-  bn: "Bengali",
-  ta: "Tamil",
-  ur: "Urdu",
-  de: "German",
-  es: "Spanish",
-};
+const DEVANAGARI_LANGS = new Set(["hi", "mr", "mai", "ne", "kok", "doi", "sa"]);
 
 function buildBarrenLandPrompt(languageCode, languageName, evidence) {
-  const scriptNote =
-    languageCode === "hi" || languageCode === "mr"
-      ? "Use Devanagari for Hindi and Marathi."
-      : "Use the standard native script for this language.";
+  const scriptNote = DEVANAGARI_LANGS.has(languageCode)
+    ? "Use the native script (Devanagari where standard for this language)."
+    : "Use the standard native script for this language.";
 
   const langRules =
     languageCode === "en"
@@ -69,8 +62,10 @@ ${JSON.stringify(evidence, null, 2)}
 }
 
 export async function generateBarrenLandAdvisory({ language = "en", evidence }) {
-  const languageCode = LANGUAGE_MAP[language] ? language : "en";
-  const languageName = LANGUAGE_MAP[languageCode] || "English";
+  const languageCode = isAdvisoryLanguageSupported(language)
+    ? normalizeAdvisoryLanguage(language)
+    : "en";
+  const languageName = getAdvisoryLanguageName(languageCode);
   const prompt = buildBarrenLandPrompt(languageCode, languageName, evidence);
   const response = await callOpenAI(prompt);
 

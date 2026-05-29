@@ -258,45 +258,20 @@ export function buildBarrenLandPlantGrowth(
   const phase = getPreSowingPhase(days);
   const crop = farmField?.cropName || "crop";
 
-  const phaseLabels = {
-    en: {
-      planning: "Land planning",
-      preparation: "Land preparation",
-      imminent: "Pre-sowing (sowing soon)",
-      sowing_day: "Sowing day",
-      overdue: "Sowing overdue",
-    },
-    hi: {
-      planning: "जमीन की योजना",
-      preparation: "जमीन की तैयारी",
-      imminent: "बुवाई से पहले (जल्द बुवाई)",
-      sowing_day: "बुवाई का दिन",
-      overdue: "बुवाई में देरी",
-    },
-    mr: {
-      planning: "जमीन नियोजन",
-      preparation: "जमीन तयारी",
-      imminent: "पेरणीपूर्व (लवकर पेरणी)",
-      sowing_day: "पेरणीचा दिवस",
-      overdue: "पेरणी उशीर",
-    },
+  const phaseKeys = {
+    planning: "phase_planning",
+    preparation: "phase_preparation",
+    imminent: "phase_imminent",
+    sowing_day: "phase_sowing_day",
+    overdue: "phase_overdue",
   };
-
-  const labels = phaseLabels[lang] || phaseLabels.en;
-  const stagePrefix =
-    lang === "hi"
-      ? "बुवाई से पहले"
-      : lang === "mr"
-        ? "पेरणीपूर्व"
-        : "Pre-sowing";
-  const stageName = `${stagePrefix} — ${labels[phase] || labels.preparation}`;
-
-  let description = `No standing crop. Preparing for ${crop} (${farmField?.variety || ""}). Expected sowing: ${expectedSowingISO}.`;
-  if (lang === "hi") {
-    description = `खाली खेत। ${crop} (${farmField?.variety || ""}) की बुवाई की तैयारी। अपेक्षित बुवाई: ${expectedSowingISO}।`;
-  } else if (lang === "mr") {
-    description = `रानटी जमीन. ${crop} (${farmField?.variety || ""}) पेरणीपूर्व तयारी. अपेक्षित पेरणी: ${expectedSowingISO}.`;
-  }
+  const phaseLabel = t(phaseKeys[phase] || "phase_preparation", lang);
+  const stageName = `${t("stage_prefix_presowing", lang)} — ${phaseLabel}`;
+  const description = t("plant_growth_description", lang, {
+    crop,
+    variety: farmField?.variety || "",
+    date: expectedSowingISO,
+  });
 
   return {
     bbchStage: 0,
@@ -313,14 +288,11 @@ export function buildBarrenLandPlantGrowth(
 
 export function buildBarrenLandCropHealth(farmField, sowingWindow, language = "en") {
   const crop = farmField?.cropName || "crop";
-  let recommendation =
-    `Barren field — no crop in ground. Follow pre-sowing checklist for ${crop}. ${sowingWindow.reason}`;
-
-  if (language === "hi") {
-    recommendation = `खाली खेत — फसल नहीं है। ${crop} की बुवाई से पहले की तैयारी करें। ${sowingWindow.reason}`;
-  } else if (language === "mr") {
-    recommendation = `रानटी जमीन — पिक नाही. ${crop} पेरणीपूर्व तयारी करा. ${sowingWindow.reason}`;
-  }
+  const lang = normalizeAdvisoryLanguage(language);
+  const recommendation = t("crop_health_recommendation", lang, {
+    crop,
+    reason: sowingWindow.reason || "",
+  });
 
   return {
     score: null,

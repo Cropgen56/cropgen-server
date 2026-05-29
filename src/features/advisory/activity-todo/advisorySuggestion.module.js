@@ -9,7 +9,8 @@ import { buildEvidencePayloadFromContext } from "../pipeline/buildEvidencePayloa
 import { syncAdvisoryActivitiesToOperations } from "../services/syncAdvisoryToOperations.service.js";
 import { buildActivitiesFromDecisionHints } from "./buildActivitiesFromDecisionHints.js";
 import { buildBarrenLandActivities } from "./buildBarrenLandActivities.js";
-import { mergeLocalizedActivities } from "../utils/i18n/advisoryLocale.js";
+import { mergeLocalizedActivities, t } from "../utils/i18n/advisoryLocale.js";
+import { normalizeAdvisoryLanguage } from "../utils/i18n/advisoryLanguages.js";
 import { buildAdvisoryNotificationParameters } from "../utils/notifications/advisoryNotificationParams.js";
 import {
   calculateYieldPrecise,
@@ -21,15 +22,11 @@ import { MODULE_IDS } from "../pipeline/constants.js";
 import { moduleResult } from "../pipeline/moduleResult.js";
 
 function yieldSkippedExplanation(language) {
-  if (language === "mr") return "उत्पादन अंदाज फक्त परिपक्वता/कापणी टप्प्यावर दाखवला जातो.";
-  if (language === "hi") return "उपज अनुमान केवल परिपक्वता/कटाई अवस्था में दिखाया जाता है।";
-  return "Yield estimate is shown only at maturity or harvest stage.";
+  return t("yield_skipped_maturity", normalizeAdvisoryLanguage(language));
 }
 
 function barrenYieldSkippedExplanation(language) {
-  if (language === "mr") return "उत्पादन अंदाज फक्त पिक लागवडीनंतर दाखवला जातो.";
-  if (language === "hi") return "उपज अनुमान बुवाई के बाद दिखाया जाता है।";
-  return "Yield estimate is available after the crop is sown and established.";
+  return t("yield_skipped_barren", normalizeAdvisoryLanguage(language));
 }
 
 export async function runAdvisorySuggestionModule(ctx) {

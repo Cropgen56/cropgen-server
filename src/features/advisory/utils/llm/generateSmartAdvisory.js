@@ -1,6 +1,11 @@
 import { callOpenAI } from "./openaiClient.js";
 import { postProcessAdvisory } from "./postProcessAdvisory.js";
 import { buildCompactEvidence } from "../agronomy/compactEvidence.js";
+import {
+  getAdvisoryLanguageName,
+  isAdvisoryLanguageSupported,
+  normalizeAdvisoryLanguage,
+} from "../i18n/advisoryLanguages.js";
 
 const REQUIRED_TYPES = [
   "SPRAY",
@@ -12,30 +17,18 @@ const REQUIRED_TYPES = [
   "CARBON_TRACKING",
 ];
 
-const LANGUAGE_MAP = {
-  en: "English",
-  hi: "Hindi",
-  mr: "Marathi",
-  fr: "French",
-  gu: "Gujarati",
-  bn: "Bengali",
-  ta: "Tamil",
-  ur: "Urdu",
-  de: "German",
-  es: "Spanish",
-};
+const DEVANAGARI_LANGS = new Set(["hi", "mr", "mai", "ne", "kok", "doi", "sa"]);
 
 function buildLanguageRules(languageCode, languageName) {
   if (languageCode === "en") {
     return `OUTPUT LANGUAGE (MANDATORY):
 - Write EVERY title, message, and details value in English only.
-- Do not use Hindi, Marathi, or any other language in this response.`;
+- Do not use any other language in this response.`;
   }
 
-  const scriptNote =
-    languageCode === "hi" || languageCode === "mr"
-      ? "Use the native script (Devanagari for Hindi and Marathi)."
-      : "Use the standard native script for this language.";
+  const scriptNote = DEVANAGARI_LANGS.has(languageCode)
+    ? "Use the native script (Devanagari where standard for this language)."
+    : "Use the standard native script for this language.";
 
   return `OUTPUT LANGUAGE (MANDATORY):
 - Requested language: ${languageName} (code: ${languageCode}).
@@ -148,8 +141,10 @@ export async function generateSmartAdvisory({
   language = "en",
   evidence,
 }) {
-  const languageCode = LANGUAGE_MAP[language] ? language : "en";
-  const languageName = LANGUAGE_MAP[languageCode] || "English";
+  const languageCode = isAdvisoryLanguageSupported(language)
+    ? normalizeAdvisoryLanguage(language)
+    : "en";
+  const languageName = getAdvisoryLanguageName(languageCode);
   const prompt = buildCompactPrompt(languageCode, languageName, evidence);
   const response = await callOpenAI(prompt);
 
