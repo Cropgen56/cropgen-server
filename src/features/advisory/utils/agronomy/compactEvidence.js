@@ -74,5 +74,6 @@ export function buildCompactEvidence(evidence) {
     yieldGap: evidence.yieldGap,
     dataQuality: evidence.dataQuality,
     decisionHints: hints,
+    biodropsAdvisory: evidence.biodropsAdvisory ?? null,
   };
 }

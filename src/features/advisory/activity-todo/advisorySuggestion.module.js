@@ -21,7 +21,7 @@ import {
   calculateStandardYieldBaseline,
 } from "../yield-calculation/yieldCalculator.js";
 import { isMaturityOrHarvestStage } from "../pipeline/advisoryContext.js";
-import { BIODROPS_BOKASHI_PRODUCT } from "../pipeline/constants.js";
+import { getBiodropsRecommendations } from "../../../clients/biodrops/advisory/getBiodropsRecommendations.js";
 import { MODULE_IDS } from "../pipeline/constants.js";
 import { moduleResult } from "../pipeline/moduleResult.js";
 
@@ -118,6 +118,36 @@ export async function runAdvisorySuggestionModule(ctx) {
     });
   }
 
+  const user = ctx.farmFieldDoc.user
+    ? await User.findById(ctx.farmFieldDoc.user)
+        .populate("organization", "organizationCode")
+        .lean()
+    : null;
+  const organizationCode = String(user?.organization?.organizationCode || "").toUpperCase();
+
+  let biodropsRecommendations = null;
+  if (organizationCode === "BIODROPS") {
+    biodropsRecommendations = getBiodropsRecommendations({
+      cropName: ctx.farmFieldDoc.cropName,
+      acre: ctx.farmFieldDoc.acre,
+      bbchStage: plantGrowthActivity?.bbchStage ?? evidence?.bbchStage ?? 0,
+      typeOfFarming: ctx.farmFieldDoc.typeOfFarming,
+      mode: ctx.mode === "barren" ? "barren" : "crop",
+    });
+    evidence = {
+      ...evidence,
+      biodropsAdvisory: {
+        cropLabel: biodropsRecommendations.cropLabel,
+        applicationNote: biodropsRecommendations.applicationNote,
+        typeOfFarming: biodropsRecommendations.typeOfFarming,
+        productHints: biodropsRecommendations.productHints,
+      },
+    };
+    ctx.logStep(
+      `advisory module: Biodrops products for ${biodropsRecommendations.cropLabel} (${biodropsRecommendations.productHints.length} active hints)`,
+    );
+  }
+
   let advisoryResponse = null;
   let activitiesSource = "rules";
 
@@ -170,14 +200,10 @@ export async function runAdvisorySuggestionModule(ctx) {
   const carbonData =
     ctx.mode === "barren" ? null : (evidence?.carbonData ?? fertilizerMod?.carbonData ?? null);
 
-  const user = ctx.farmFieldDoc.user
-    ? await User.findById(ctx.farmFieldDoc.user)
-        .populate("organization", "organizationCode")
-        .lean()
-    : null;
-  const organizationCode = String(user?.organization?.organizationCode || "").toUpperCase();
   const recommendedProducts =
-    organizationCode === "BIODROPS" ? [BIODROPS_BOKASHI_PRODUCT] : [];
+    organizationCode === "BIODROPS"
+      ? (biodropsRecommendations?.recommendedProducts ?? [])
+      : [];
 
   const activitiesWithProgress = (activitiesToDo || []).map((a) => ({
     ...a,

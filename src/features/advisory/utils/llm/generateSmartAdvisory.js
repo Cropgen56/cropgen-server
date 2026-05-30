@@ -1,6 +1,7 @@
 import { callOpenAI } from "./openaiClient.js";
 import { postProcessAdvisory } from "./postProcessAdvisory.js";
 import { buildCompactEvidence } from "../agronomy/compactEvidence.js";
+import { buildBiodropsAdvisoryPromptBlock } from "../../../../clients/biodrops/advisory/getBiodropsRecommendations.js";
 import {
   getAdvisoryLanguageName,
   getAdvisoryScriptNote,
@@ -37,6 +38,7 @@ function buildLanguageRules(languageCode, languageName) {
 
 function buildLLMPrompt(languageCode, languageName, evidence) {
   const languageRules = buildLanguageRules(languageCode, languageName);
+  const biodropsBlock = buildBiodropsAdvisoryPromptBlock(evidence?.biodropsAdvisory);
 
   return `CROP ADVISORY SYSTEM PROMPT — ACTIVITIES TO DO GENERATOR
 
@@ -44,6 +46,7 @@ Objective:
 Generate a structured activitiesToDo array for a crop advisory system. Each activity must provide clear, actionable, and farmer-friendly guidance.
 
 ${languageRules}
+${biodropsBlock}
 
 STRICT OUTPUT RULES:
 1. Always return an object with key "activitiesToDo" containing exactly 7 activity objects.

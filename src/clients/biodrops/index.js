@@ -20,3 +20,13 @@ export {
   biodropsResendWhatsappOtp,
 } from "./controllers/whatsapp.controller.js";
 export { default as biodropsAuthRoutes } from "./routes/auth.routes.js";
+export {
+  getBiodropsRecommendations,
+  resolveBiodropsCropKey,
+  buildBiodropsAdvisoryPromptBlock,
+} from "./advisory/index.js";
+export {
+  BIODROPS_BOKASHI_PRODUCT,
+  BIODROPS_PRODUCT_CATALOG,
+  KERALA_CROP_DOSAGES,
+} from "./data/precisionFarmingKit.js";

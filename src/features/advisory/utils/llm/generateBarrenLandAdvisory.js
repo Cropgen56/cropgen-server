@@ -1,5 +1,6 @@
 import { callOpenAI } from "./openaiClient.js";
 import { postProcessAdvisory } from "./postProcessAdvisory.js";
+import { buildBiodropsAdvisoryPromptBlock } from "../../../../clients/biodrops/advisory/getBiodropsRecommendations.js";
 import {
   getAdvisoryLanguageName,
   getAdvisoryScriptNote,
@@ -25,6 +26,8 @@ function buildBarrenLandPrompt(languageCode, languageName, evidence) {
       ? "Write ALL farmer-facing text in English only."
       : `Write ALL farmer-facing text in ${languageName} only. ${scriptNote} Do not mix English except product names and units.`;
 
+  const biodropsBlock = buildBiodropsAdvisoryPromptBlock(evidence?.biodropsAdvisory);
+
   return `BARREN LAND / PRE-SOWING ADVISORY — ACTIVITIES GENERATOR
 
 Context:
@@ -38,6 +41,7 @@ Objective:
 Guide the farmer on what to do BEFORE sowing: land preparation, weed/stubble management, basal fertilizer planning, pre-sowing irrigation, seed treatment, sowing window vs weather, risks of delay, field monitoring, and organic matter / carbon practices.
 
 ${langRules}
+${biodropsBlock}
 
 STRICT RULES:
 1. Return JSON: { "activitiesToDo": [ exactly 7 objects ] }.
