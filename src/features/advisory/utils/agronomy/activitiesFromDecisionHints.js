@@ -24,7 +24,10 @@ function weatherActivity(evidence) {
     cur.humidity != null ? `${Math.round(cur.humidity)}%` : "—";
   const rain3 = w.rainfallForecast3d ?? 0;
   const rain7 = w.rainfallForecast7d ?? 0;
-  const rainProb = w.rainProbabilityToday === "likely" ? "likely" : "low";
+  const rainProb =
+    w.rainProbabilityToday === "likely"
+      ? t("detail_rain_prob_likely", lang)
+      : t("detail_rain_prob_low", lang);
 
   let tailKey = "crop_weather_clear";
   if (rain3 >= 25) {
@@ -109,7 +112,7 @@ function sprayActivity(evidence) {
       type: "SPRAY",
       title: t("title_spray", lang),
       message: localizedSprayReason(spray, lang),
-      details: { recommendedAction: "none" },
+      details: { recommendedAction: t("detail_recommended_none", lang) },
     };
   }
   const hint = spray.hint || {};
@@ -130,8 +133,8 @@ function sprayActivity(evidence) {
     message,
     details: {
       products: hint.products,
-      applicationMethod: hint.method || "foliar spray",
-      timing: hint.timing || "early morning or late evening",
+      applicationMethod: hint.method || t("detail_foliar_spray", lang),
+      timing: hint.timing || t("detail_spray_timing_default", lang),
       notes: hint.notes,
     },
   };
@@ -189,11 +192,11 @@ function irrigationActivity(evidence) {
     title: t("title_irrigation", lang),
     message,
     details: {
-      applicationMethod: evidence.irrigationType,
-      timing: "early morning (6–10 AM) preferred",
+      applicationMethod: evidence.irrigationType || t("detail_app_open_irrigation", lang),
+      timing: t("detail_irr_timing_morning", lang),
       duration: hours
-        ? `${hours} hours`
-        : `${minutes || 0} minutes`,
+        ? t("detail_duration_hours", lang, { hours })
+        : t("detail_duration_minutes", lang, { minutes: minutes || 0 }),
       waterQuantity: hint.quantity,
       reason: req.reason,
       frequency: req.frequency,
@@ -262,15 +265,15 @@ function monitoringActivity(evidence) {
   const lang = langOf(evidence);
   const mon = evidence.decisionHints?.monitoring;
   const hint = mon?.hint || {};
-  const checks = hint.checks || "leaves, stem base, soil moisture, pests";
+  const checks = hint.checks || t("detail_monitor_checks", lang);
   return {
     type: "MONITORING",
     title: t("title_monitoring_crop", lang),
     message: t("crop_monitor_default", lang, { checks }),
     details: {
-      focusAreas: hint.zone || "whole field",
+      focusAreas: hint.zone || t("detail_focus_whole_field", lang),
       whatToCheck: checks,
-      frequency: "every 3–4 days",
+      frequency: t("detail_monitor_frequency", lang),
     },
   };
 }

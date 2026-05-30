@@ -2,6 +2,11 @@ import { CROP_PROFILES } from "./cropProfiles.js";
 import { STAGE_RANGES } from "./stageRanges.js";
 import { CROP_CATEGORY_MAP } from "../crop/growth/cropCategoryMap.js";
 import { acresToHectares } from "./npkArea.js";
+import {
+  t,
+  normalizeAdvisoryLanguage,
+  localizeGrowStageName,
+} from "../../features/advisory/utils/i18n/advisoryLocale.js";
 
 /* ------------------ Helpers ------------------ */
 
@@ -52,34 +57,13 @@ function calculateHSI({ ndvi, waterIndex, bbchStage, expectedNDVI }) {
 /* ------------------ Recommendations ------------------ */
 
 function getNPKRecommendation({ cropName, stageName, areaAcre, language }) {
-  switch (language) {
-    case "mr":
-      return `पीक: ${cropName}
-वाढीची अवस्था: ${stageName}
-क्षेत्रफळ: ${areaAcre.toFixed(2)} एकर
-
-उपग्रह माहितीनुसार पिकावर ताण दिसत आहे.
-पिकाच्या सध्याच्या अवस्थेनुसार नत्र, स्फुरद व पालाश नियोजनबद्ध पद्धतीने द्या.
-सिंचनासोबतच खत व्यवस्थापन केल्यास उत्पादन सुधारेल.`;
-
-    case "hi":
-      return `फसल: ${cropName}
-विकास अवस्था: ${stageName}
-क्षेत्रफल: ${areaAcre.toFixed(2)} एकड़
-
-उपग्रह आंकड़ों के अनुसार फसल पर तनाव दिखाई दे रहा है।
-फसल की अवस्था के अनुसार नाइट्रोजन, फॉस्फोरस और पोटाश दें।
-सिंचाई के साथ संतुलित पोषण प्रबंधन करें।`;
-
-    default:
-      return `Crop: ${cropName}
-Growth stage: ${stageName}
-Area: ${areaAcre.toFixed(2)} acres
-
-Satellite data indicates nutrient stress in the crop.
-Apply nitrogen, phosphorus, and potassium as per the current growth stage.
-Balanced fertilization along with proper irrigation will improve yield.`;
-  }
+  const lang = normalizeAdvisoryLanguage(language);
+  const localizedStage = localizeGrowStageName(stageName, lang);
+  return t("npk_standing_crop", lang, {
+    cropName,
+    stageName: localizedStage,
+    areaAcre: Number(areaAcre).toFixed(2),
+  });
 }
 
 /**
@@ -91,43 +75,16 @@ export function getBarrenLandNPKRecommendation({
   areaAcre,
   language = "en",
 }) {
+  const lang = normalizeAdvisoryLanguage(language);
   const acre = Number(areaAcre);
   const acreStr = Number.isFinite(acre) ? acre.toFixed(2) : "0.00";
+  const localizedStage = localizeGrowStageName(stageName, lang);
 
-  switch (language) {
-    case "mr":
-      return `पीक: ${cropName}
-वाढीची अवस्था: ${stageName}
-क्षेत्रफळ: ${acreStr} एकर
-
-शेतात सध्या उभी पिक नाही (रानटी जमीन).
-योजित पीक: ${cropName} — पेरणीपूर्व बेसल खताची तयारी करा.
-सडलेले FYM/कंपोस्ट (एकात्मिक/सेंद्रिय शेती) आणि DAP/SSP/युरिया/MOP माती चाचणीनुसार.
-पेरणीच्या 1–3 दिवस आधी किंवा पेरणीसोबत बियाणे खोलीवर मिसळा.
-हलके सिंचन; पाणथळ टाळा.`;
-
-    case "hi":
-      return `फसल: ${cropName}
-विकास अवस्था: ${stageName}
-क्षेत्रफल: ${acreStr} एकड़
-
-खेत में अभी खड़ी फसल नहीं है (खाली/रानटी खेत)।
-योजित फसल: ${cropName} — बुवाई से पहले बेसल उर्वरक की तैयारी करें।
-सड़ा हुआ FYM/कम्पोस्ट (एकीकृत या जैविक खेती) और DAP/SSP/यूरिया/MOP मिट्टी परीक्षण के अनुसार।
-बुवाई के 1–3 दिन पहले या बुवाई के समय बीज बिस्तर में मिलाएं।
-हल्की सिंचाई के साथ; जलभराव से बचें।`;
-
-    default:
-      return `Crop: ${cropName}
-Growth stage: ${stageName}
-Area: ${acreStr} acres
-
-No standing crop in the field (barren / fallow).
-Planned crop: ${cropName} — prepare basal fertilizer before sowing.
-Apply well-decomposed FYM/compost (integrated/organic farms) and DAP/SSP/Urea/MOP per soil test.
-Incorporate 1–3 days before sowing or at sowing in the seedbed.
-Light irrigation if needed; avoid waterlogging.`;
-  }
+  return t("npk_barren_land", lang, {
+    cropName,
+    stageName: localizedStage,
+    areaAcre: acreStr,
+  });
 }
 
 /**
@@ -180,34 +137,13 @@ export function buildBarrenLandNpkFromField({
 }
 
 function getHarvestStageRecommendation({ cropName, stageName, areaAcre, language }) {
-  switch (language) {
-    case "mr":
-      return `पीक: ${cropName}
-अवस्था: ${stageName}
-क्षेत्रफळ: ${areaAcre.toFixed(2)} एकर
-
-पीक काढणीस तयार आहे.
-या टप्प्यावर कोणतेही रासायनिक खत देऊ नका.
-योग्य वेळेत काढणी करून साठवण व विक्रीची तयारी करा.`;
-
-    case "hi":
-      return `फसल: ${cropName}
-अवस्था: ${stageName}
-क्षेत्रफल: ${areaAcre.toFixed(2)} एकड़
-
-फसल कटाई के लिए तैयार है।
-इस अवस्था में कोई भी उर्वरक न दें।
-समय पर कटाई और भंडारण की तैयारी करें।`;
-
-    default:
-      return `Crop: ${cropName}
-Stage: ${stageName}
-Area: ${areaAcre.toFixed(2)} acres
-
-The crop is ready for harvest.
-Do not apply fertilizers at this stage.
-Plan timely harvesting and post-harvest handling.`;
-  }
+  const lang = normalizeAdvisoryLanguage(language);
+  const localizedStage = localizeGrowStageName(stageName, lang);
+  return t("npk_harvest_stage", lang, {
+    cropName,
+    stageName: localizedStage,
+    areaAcre: Number(areaAcre).toFixed(2),
+  });
 }
 
 /* ------------------ MAIN FUNCTION ------------------ */

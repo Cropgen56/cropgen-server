@@ -1,4 +1,8 @@
 import { CROP_CATEGORY_MAP } from "../growth/cropCategoryMap.js";
+import {
+  t,
+  normalizeAdvisoryLanguage,
+} from "../../../features/advisory/utils/i18n/advisoryLocale.js";
 
 /* =========================================================
    CONSTANTS (SCIENCE-BASED, SIMPLE)
@@ -245,35 +249,9 @@ function getHealthCategory(score) {
 }
 
 function getHealthRecommendation(category, language = "en") {
-  const messages = {
-    Excellent: {
-      en: "The crop is very healthy. Continue the current farming practices.",
-      hi: "फसल की स्थिति बहुत अच्छी है। वर्तमान खेती पद्धति जारी रखें।",
-      mr: "पिकाची स्थिती उत्कृष्ट आहे. सध्याची शेती पद्धत सुरू ठेवा.",
-    },
-    Good: {
-      en: "Crop health is good. Ensure timely irrigation and regular care.",
-      hi: "फसल की सेहत अच्छी है। समय पर सिंचाई और देखभाल करें।",
-      mr: "पिकाची तब्येत चांगली आहे. वेळेवर पाणी आणि निगा ठेवा.",
-    },
-    Moderate: {
-      en: "The crop is under mild stress. Review irrigation and nutrient management.",
-      hi: "फसल पर हल्का तनाव है। सिंचाई और पोषण प्रबंधन जांचें।",
-      mr: "पिकावर थोडा ताण आहे. पाणी व खत व्यवस्थापन तपासा.",
-    },
-    Poor: {
-      en: "Crop stress detected. Immediate corrective action is required.",
-      hi: "फसल कमजोर है। तुरंत सुधारात्मक उपाय करें।",
-      mr: "पिकाची स्थिती कमजोर आहे. त्वरित उपाय करा.",
-    },
-    Critical: {
-      en: "Severe crop stress detected. Urgent intervention is required.",
-      hi: "फसल पर गंभीर तनाव है। तुरंत कार्रवाई आवश्यक है।",
-      mr: "पिकावर तीव्र ताण आहे. त्वरित हस्तक्षेप आवश्यक आहे.",
-    },
-  };
-
-  return messages[category]?.[language] || messages[category]?.en;
+  const lang = normalizeAdvisoryLanguage(language);
+  const key = `health_recommendation_${String(category).toLowerCase()}`;
+  return t(key, lang);
 }
 
 /* =========================================================

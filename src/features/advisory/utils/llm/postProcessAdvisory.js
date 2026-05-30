@@ -101,10 +101,19 @@ function enrichActivityMessage(activity) {
   };
 }
 
-function applyHintMessage(activity, hintMessage, { force = false, language = "en" } = {}) {
+function applyHintMessage(
+  activity,
+  hintMessage,
+  { force = false, language = "en", preferLlmText = false } = {},
+) {
   if (!hintMessage) return activity;
   const msg = (activity.message || "").trim();
   const lang = normalizeAdvisoryLanguage(language);
+
+  // LLM path: keep any substantive farmer-facing text the model produced.
+  if (preferLlmText && msg.length > 10) {
+    return activity;
+  }
 
   // Keep good localized LLM text; never overwrite with English hints
   if (lang !== "en" && msg.length > 12 && !needsLocalization(msg, lang)) {
@@ -208,8 +217,10 @@ export function enforceDecisionHints(activities, evidence) {
   if (!hints || !Array.isArray(activities)) return activities;
 
   const lang = normalizeAdvisoryLanguage(evidence?.language);
+  const preferLlmText = evidence?.preferLlmText === true;
   const map = new Map(activities.map((a) => [a.type, { ...a }]));
-  const hintOpts = { language: lang };
+  const hintOpts = { language: lang, preferLlmText };
+  const forceHints = !preferLlmText;
 
   const spray = map.get("SPRAY");
   if (spray) {
@@ -217,7 +228,7 @@ export function enforceDecisionHints(activities, evidence) {
     if (hints.spray?.shouldSpray === false) {
       map.set(
         "SPRAY",
-        applyHintMessage(spray, sprayMsg, { force: true, language: lang }),
+        applyHintMessage(spray, sprayMsg, { force: forceHints, language: lang, preferLlmText }),
       );
     } else if (hints.spray?.shouldSpray) {
       map.set("SPRAY", applyHintMessage(spray, sprayMsg, hintOpts));
@@ -230,7 +241,7 @@ export function enforceDecisionHints(activities, evidence) {
     if (hints.fertigation?.shouldFertigate === false) {
       map.set(
         "FERTIGATION",
-        applyHintMessage(fert, fertMsg, { force: true, language: lang }),
+        applyHintMessage(fert, fertMsg, { force: forceHints, language: lang, preferLlmText }),
       );
     } else if (hints.fertigation?.shouldFertigate) {
       map.set("FERTIGATION", applyHintMessage(fert, fertMsg, hintOpts));
@@ -243,7 +254,7 @@ export function enforceDecisionHints(activities, evidence) {
     if (hints.irrigation?.shouldIrrigate === false && !evidence.irrigationRequirement?.needsIrrigation) {
       map.set(
         "IRRIGATION",
-        applyHintMessage(irr, irrMsg, { force: true, language: lang }),
+        applyHintMessage(irr, irrMsg, { force: forceHints, language: lang, preferLlmText }),
       );
     } else if (hints.irrigation?.shouldIrrigate || evidence.irrigationRequirement?.needsIrrigation) {
       map.set("IRRIGATION", applyHintMessage(irr, irrMsg, hintOpts));
@@ -257,7 +268,7 @@ export function enforceDecisionHints(activities, evidence) {
           checks: hints.monitoring.hint.checks || "leaves, soil moisture, pests",
         })
       : hints.monitoring.hint.message;
-    map.set("MONITORING", applyHintMessage(mon, monMsg, hintOpts));
+    map.set("MONITORING", applyHintMessage(mon, monMsg, { ...hintOpts, preferLlmText }));
   }
 
   return REQUIRED_TYPES.map((type) => map.get(type)).filter(Boolean);
@@ -284,9 +295,13 @@ export function postProcessAdvisory(llmOutput, evidence) {
     }
   });
 
+  const lang = normalizeAdvisoryLanguage(evidence?.language);
   let ordered = REQUIRED_TYPES.map((type) => activityMap.get(type));
   ordered = enforceDecisionHints(ordered, evidence);
-  ordered = ordered.map(enrichActivityMessage);
+  // Appending raw English detail fragments (e.g. " - 2.3 hours") breaks localized messages.
+  if (lang === "en") {
+    ordered = ordered.map(enrichActivityMessage);
+  }
 
   return { activitiesToDo: ordered };
 }

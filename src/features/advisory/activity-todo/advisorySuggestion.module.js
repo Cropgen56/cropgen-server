@@ -10,8 +10,8 @@ import { syncAdvisoryActivitiesToOperations } from "../services/syncAdvisoryToOp
 import { buildActivitiesFromDecisionHints } from "./buildActivitiesFromDecisionHints.js";
 import { buildBarrenLandActivities } from "./buildBarrenLandActivities.js";
 import {
-  finalizeAdvisoryLanguage,
-  mergeLocalizedActivities,
+  localizeAdvisoryMetadata,
+  sanitizeLlmActivities,
   t,
 } from "../utils/i18n/advisoryLocale.js";
 import { normalizeAdvisoryLanguage } from "../utils/i18n/advisoryLanguages.js";
@@ -145,22 +145,27 @@ export async function runAdvisorySuggestionModule(ctx) {
       : buildActivitiesFromDecisionHints(evidence);
 
   if (!hasUsableLlm) {
-    ctx.logStep("advisory module: using rule-based activities");
+    ctx.logStep("advisory module: using rule-based activities (LLM unavailable)");
     activitiesToDo = ruleBased.activitiesToDo;
     activitiesSource = advisoryResponse ? "hybrid" : "rules";
-  } else if (normalizeAdvisoryLanguage(ctx.language) !== "en") {
-    activitiesToDo = mergeLocalizedActivities(
+  } else {
+    ctx.logStep("advisory module: using LLM-generated activities");
+    activitiesToDo = sanitizeLlmActivities(
       activitiesToDo,
       ruleBased.activitiesToDo,
       ctx.language,
     );
   }
 
-  activitiesToDo = finalizeAdvisoryLanguage(
-    activitiesToDo,
-    ruleBased.activitiesToDo,
-    ctx.language,
-  );
+  const localizedMeta = localizeAdvisoryMetadata({
+    plantGrowthActivity,
+    cropHealth,
+    npkManagement,
+    language: ctx.language,
+  });
+  const localizedPlantGrowth = localizedMeta.plantGrowthActivity;
+  const localizedCropHealth = localizedMeta.cropHealth;
+  const localizedNpkManagement = localizedMeta.npkManagement;
 
   const carbonData =
     ctx.mode === "barren" ? null : (evidence?.carbonData ?? fertilizerMod?.carbonData ?? null);
@@ -184,9 +189,9 @@ export async function runAdvisorySuggestionModule(ctx) {
     yield: safeYield,
     activitiesToDo: activitiesWithProgress,
     activitiesSource,
-    cropHealth,
-    plantGrowthActivity,
-    npkManagement,
+    cropHealth: localizedCropHealth,
+    plantGrowthActivity: localizedPlantGrowth,
+    npkManagement: localizedNpkManagement,
     carbonData,
     recommendedProducts,
     opticalIndicesSummary: satellite?.opticalIndicesSummary ?? null,

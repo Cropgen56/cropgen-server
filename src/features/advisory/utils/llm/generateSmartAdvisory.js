@@ -3,6 +3,7 @@ import { postProcessAdvisory } from "./postProcessAdvisory.js";
 import { buildCompactEvidence } from "../agronomy/compactEvidence.js";
 import {
   getAdvisoryLanguageName,
+  getAdvisoryScriptNote,
   isAdvisoryLanguageSupported,
   normalizeAdvisoryLanguage,
 } from "../i18n/advisoryLanguages.js";
@@ -17,8 +18,6 @@ const REQUIRED_TYPES = [
   "CARBON_TRACKING",
 ];
 
-const DEVANAGARI_LANGS = new Set(["hi", "mr", "mai", "ne", "kok", "doi", "sa"]);
-
 function buildLanguageRules(languageCode, languageName) {
   if (languageCode === "en") {
     return `OUTPUT LANGUAGE (MANDATORY):
@@ -26,9 +25,7 @@ function buildLanguageRules(languageCode, languageName) {
 - Do not use any other language in this response.`;
   }
 
-  const scriptNote = DEVANAGARI_LANGS.has(languageCode)
-    ? "Use the native script (Devanagari where standard for this language)."
-    : "Use the standard native script for this language.";
+  const scriptNote = getAdvisoryScriptNote(languageCode);
 
   return `OUTPUT LANGUAGE (MANDATORY):
 - Requested language: ${languageName} (code: ${languageCode}).
@@ -176,5 +173,6 @@ export async function generateSmartAdvisory({
   return postProcessAdvisory(fullOutput, {
     ...evidence,
     language: languageCode,
+    preferLlmText: true,
   });
 }

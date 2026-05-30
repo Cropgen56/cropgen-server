@@ -2,6 +2,7 @@ import { callOpenAI } from "./openaiClient.js";
 import { postProcessAdvisory } from "./postProcessAdvisory.js";
 import {
   getAdvisoryLanguageName,
+  getAdvisoryScriptNote,
   isAdvisoryLanguageSupported,
   normalizeAdvisoryLanguage,
 } from "../i18n/advisoryLanguages.js";
@@ -16,12 +17,8 @@ const REQUIRED_TYPES = [
   "CARBON_TRACKING",
 ];
 
-const DEVANAGARI_LANGS = new Set(["hi", "mr", "mai", "ne", "kok", "doi", "sa"]);
-
 function buildBarrenLandPrompt(languageCode, languageName, evidence) {
-  const scriptNote = DEVANAGARI_LANGS.has(languageCode)
-    ? "Use the native script (Devanagari where standard for this language)."
-    : "Use the standard native script for this language.";
+  const scriptNote = getAdvisoryScriptNote(languageCode);
 
   const langRules =
     languageCode === "en"
@@ -90,5 +87,9 @@ export async function generateBarrenLandAdvisory({ language = "en", evidence }) 
     ),
   };
 
-  return postProcessAdvisory(fullOutput, evidence);
+  return postProcessAdvisory(fullOutput, {
+    ...evidence,
+    language: languageCode,
+    preferLlmText: true,
+  });
 }
