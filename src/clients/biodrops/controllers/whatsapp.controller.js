@@ -3,8 +3,10 @@ import crypto from "crypto";
 import User from "../../../models/user.model.js";
 import {
   generateRefreshId,
+  resolveClientAppKey,
   resolveClientSource,
   resolveOrganizationByCode,
+  setClientRefreshId,
   setRefreshCookie,
   signAccessToken,
   signRefreshToken,
@@ -310,7 +312,7 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
     const onboardingRequired = !isExisting;
 
     const refreshId = generateRefreshId();
-    user.refreshTokenId = refreshId;
+    setClientRefreshId(user, resolveClientAppKey(req) || "biodrops_web", refreshId);
     await user.save();
 
     const payload = {

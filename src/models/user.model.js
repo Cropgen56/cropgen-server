@@ -125,7 +125,14 @@ const userSchema = new Schema(
       type: Date,
     },
 
+    /** @deprecated Use refreshTokenIds per X-Client-App; kept for legacy clients without the header */
     refreshTokenId: { type: String, default: null },
+    /** Per-app refresh sessions (biodrops_web, admin, cropgen_web, …) */
+    refreshTokenIds: {
+      type: Map,
+      of: String,
+      default: undefined,
+    },
 
     firebaseUid: {
       type: String,

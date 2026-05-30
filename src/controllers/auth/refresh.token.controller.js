@@ -7,6 +7,10 @@ import {
   signRefreshToken,
   setRefreshCookie,
   getRefreshTokenFromRequest,
+  resolveClientAppKey,
+  getClientRefreshId,
+  setClientRefreshId,
+  clearClientRefreshId,
 } from "../../utils/auth/authUtils.js";
 
 export const refreshTokenHandler = async (req, res) => {
@@ -39,16 +43,19 @@ export const refreshTokenHandler = async (req, res) => {
     }
 
     const user = await User.findById(userId);
-    if (!user || !user.refreshTokenId) {
+    const clientAppKey = resolveClientAppKey(req);
+    const storedRid = getClientRefreshId(user, clientAppKey);
+
+    if (!user || !storedRid) {
       clearRefreshCookie(res, req);
       return res
         .status(403)
         .json({ success: false, message: "Refresh token not recognized" });
     }
 
-    if (user.refreshTokenId !== tokenRid) {
-      // token replay or revoked - revoke server-side
-      user.refreshTokenId = null;
+    if (storedRid !== tokenRid) {
+      // token replay or revoked for this app only
+      clearClientRefreshId(user, clientAppKey);
       await user.save();
       clearRefreshCookie(res, req);
       return res
@@ -58,7 +65,7 @@ export const refreshTokenHandler = async (req, res) => {
 
     // Rotate refresh id for better security
     const newRefreshId = generateRefreshId();
-    user.refreshTokenId = newRefreshId;
+    setClientRefreshId(user, clientAppKey, newRefreshId);
     await user.save();
 
     const payload = {

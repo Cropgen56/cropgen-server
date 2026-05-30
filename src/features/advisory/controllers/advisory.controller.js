@@ -5,6 +5,14 @@ import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
 import { generateAdvisoryForField } from "../services/advisory.service.js";
 import { updateAdvisoryActivityProgress } from "../services/updateAdvisoryActivityProgress.service.js";
 import Notification from "../../../models/notification.model.js";
+import {
+  enrichAdvisoryForClient,
+  enrichAdvisoriesForClient,
+} from "../utils/enrichAdvisoryForClient.js";
+
+function resolveResponseLanguage(req) {
+  return req.query.language || req.user?.language || "en";
+}
 
 export const getFarmAdvisories = async (req, res) => {
   try {
@@ -52,10 +60,13 @@ export const getFarmAdvisories = async (req, res) => {
       notifications.forEach((n) => {
         notificationMap[n.referenceId.toString()] = n;
       });
-      const advisoriesWithNotification = advisories.map((advisory) => ({
-        ...advisory,
-        notification: notificationMap[advisory._id.toString()] || null,
-      }));
+      const advisoriesWithNotification = enrichAdvisoriesForClient(
+        advisories.map((advisory) => ({
+          ...advisory,
+          notification: notificationMap[advisory._id.toString()] || null,
+        })),
+        { language: resolveResponseLanguage(req) },
+      );
 
       return res.status(200).json({
         status: "ok",
@@ -85,10 +96,13 @@ export const getFarmAdvisories = async (req, res) => {
       notificationMap[n.referenceId.toString()] = n;
     });
 
-    const advisoriesWithNotification = advisories.map((advisory) => ({
-      ...advisory,
-      notification: notificationMap[advisory._id.toString()] || null,
-    }));
+    const advisoriesWithNotification = enrichAdvisoriesForClient(
+      advisories.map((advisory) => ({
+        ...advisory,
+        notification: notificationMap[advisory._id.toString()] || null,
+      })),
+      { language: resolveResponseLanguage(req) },
+    );
 
     return res.status(200).json({
       status: "ok",
@@ -187,10 +201,21 @@ export const getLatestNpkBreakdown = async (req, res) => {
       },
     };
 
+    const language = resolveResponseLanguage(req);
+    const enriched = enrichAdvisoryForClient(advisory, {
+      language,
+      farmField: advisory.farmFieldId,
+    });
+
     return res.status(200).json({
       success: true,
       message: "Latest NPK breakdown fetched successfully.",
-      data: response,
+      data: {
+        ...response,
+        stage: enriched.plantGrowthActivity ?? response.stage,
+        cropStage: enriched.cropStage ?? null,
+        npkDisplay: enriched.npkManagement?.display ?? null,
+      },
     });
   } catch (error) {
     console.error("Latest NPK breakdown fetch error:", error);
@@ -232,7 +257,9 @@ export const patchAdvisoryActivityProgress = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Activity progress updated",
-      advisory: doc,
+      advisory: enrichAdvisoryForClient(doc, {
+        language: resolveResponseLanguage(req),
+      }),
     });
   } catch (error) {
     const status =
@@ -339,12 +366,13 @@ export const getFarmAdvisoriesByUser = async (req, res) => {
     ];
 
     const data = await FarmAdvisory.aggregate(pipeline);
+    const language = resolveResponseLanguage(req);
 
     return res.status(200).json({
       success: true,
       page,
       limit,
-      data,
+      data: enrichAdvisoriesForClient(data, { language }),
     });
   } catch (error) {
     return res.status(500).json({
@@ -490,10 +518,13 @@ export const getAdvisoryById = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: {
-        ...advisory,
-        notification: notification || null,
-      },
+      data: enrichAdvisoryForClient(
+        {
+          ...advisory,
+          notification: notification || null,
+        },
+        { language: resolveResponseLanguage(req) },
+      ),
     });
   } catch (error) {
     console.error("Get advisory by ID error:", error);
@@ -541,10 +572,13 @@ export const getAllFarmAdvisories = async (req, res) => {
       notificationMap[n.referenceId.toString()] = n;
     });
 
-    const data = advisories.map((advisory) => ({
-      ...advisory,
-      notification: notificationMap[advisory._id.toString()] || null,
-    }));
+    const data = enrichAdvisoriesForClient(
+      advisories.map((advisory) => ({
+        ...advisory,
+        notification: notificationMap[advisory._id.toString()] || null,
+      })),
+      { language: resolveResponseLanguage(req) },
+    );
 
     return res.status(200).json({
       success: true,

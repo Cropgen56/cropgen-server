@@ -2,6 +2,8 @@ import User from "../../models/user.model.js";
 import { OAuth2Client } from "google-auth-library";
 import {
   generateRefreshId,
+  resolveClientAppKey,
+  setClientRefreshId,
   signAccessToken,
   signRefreshToken,
   setRefreshCookie,
@@ -176,7 +178,7 @@ const runGoogleWebLogin = async (
 
     // Generate refreshId and update user
     const refreshId = generateRefreshId();
-    user.refreshTokenId = refreshId;
+    setClientRefreshId(user, resolveClientAppKey(req), refreshId);
     if (wasFullyRegistered) user.lastLoginAt = new Date();
     await user.save();
 

@@ -3,6 +3,8 @@ import {
   verifyRefreshToken,
   clearRefreshCookie,
   getRefreshTokenFromRequest,
+  resolveClientAppKey,
+  clearClientRefreshId,
 } from "../../utils/auth/authUtils.js";
 
 export const logoutHandler = async (req, res) => {
@@ -15,7 +17,7 @@ export const logoutHandler = async (req, res) => {
         if (userId) {
           const user = await User.findById(userId);
           if (user) {
-            user.refreshTokenId = null;
+            clearClientRefreshId(user, resolveClientAppKey(req));
             await user.save();
           }
         }

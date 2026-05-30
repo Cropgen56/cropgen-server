@@ -5,6 +5,8 @@ import {
   signRefreshToken,
   setRefreshCookie,
   compare,
+  resolveClientAppKey,
+  setClientRefreshId,
 } from "../../utils/auth/authUtils.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
 import {
@@ -87,9 +89,9 @@ export const verifyOtp = async (req, res) => {
 
     const isExisting = !!user.organization && user.terms === true;
 
-    // generate refreshId & store on user for revocation/rotation
+    // generate refreshId & store per client app (admin vs biodrops do not clobber each other)
     const refreshId = generateRefreshId();
-    user.refreshTokenId = refreshId;
+    setClientRefreshId(user, resolveClientAppKey(req), refreshId);
     if (isExisting) user.lastLoginAt = new Date();
     await user.save();
 

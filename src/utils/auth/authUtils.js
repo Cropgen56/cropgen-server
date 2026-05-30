@@ -188,3 +188,37 @@ export function verifyRefreshToken(token) {
     throw err;
   }
 }
+
+/** Read per-app refresh id; falls back to legacy `refreshTokenId` when no app key. */
+export function getClientRefreshId(user, clientAppKey) {
+  if (!user) return null;
+  if (clientAppKey) {
+    const fromMap =
+      user.refreshTokenIds?.get?.(clientAppKey) ??
+      user.refreshTokenIds?.[clientAppKey];
+    if (fromMap) return fromMap;
+  }
+  return user.refreshTokenId || null;
+}
+
+/** Store refresh id for this app only (admin vs biodrops can stay signed in together). */
+export function setClientRefreshId(user, clientAppKey, refreshId) {
+  if (!user) return;
+  if (clientAppKey) {
+    if (!user.refreshTokenIds) {
+      user.refreshTokenIds = new Map();
+    }
+    user.refreshTokenIds.set(clientAppKey, refreshId);
+    return;
+  }
+  user.refreshTokenId = refreshId;
+}
+
+export function clearClientRefreshId(user, clientAppKey) {
+  if (!user) return;
+  if (clientAppKey && user.refreshTokenIds) {
+    user.refreshTokenIds.delete(clientAppKey);
+    return;
+  }
+  user.refreshTokenId = null;
+}

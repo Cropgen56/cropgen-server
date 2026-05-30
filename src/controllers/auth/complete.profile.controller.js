@@ -1,6 +1,8 @@
 import User from "../../models/user.model.js";
 import {
   generateRefreshId,
+  resolveClientAppKey,
+  setClientRefreshId,
   signAccessToken,
   signRefreshToken,
   setRefreshCookie,
@@ -97,7 +99,7 @@ export const completeProfile = async (req, res) => {
 
     // Generate refreshId and store it
     const refreshId = generateRefreshId();
-    user.refreshTokenId = refreshId;
+    setClientRefreshId(user, resolveClientAppKey(req), refreshId);
 
     await user.save();
 

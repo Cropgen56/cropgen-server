@@ -21,6 +21,7 @@ import {
   calculateStandardYieldBaseline,
 } from "../yield-calculation/yieldCalculator.js";
 import { isMaturityOrHarvestStage } from "../pipeline/advisoryContext.js";
+import { enrichAdvisoryForClient } from "../utils/enrichAdvisoryForClient.js";
 import { getBiodropsRecommendations } from "../../../clients/biodrops/advisory/getBiodropsRecommendations.js";
 import { MODULE_IDS } from "../pipeline/constants.js";
 import { moduleResult } from "../pipeline/moduleResult.js";
@@ -197,6 +198,16 @@ export async function runAdvisorySuggestionModule(ctx) {
   const localizedCropHealth = localizedMeta.cropHealth;
   const localizedNpkManagement = localizedMeta.npkManagement;
 
+  const enrichedForClient = enrichAdvisoryForClient(
+    {
+      plantGrowthActivity: localizedPlantGrowth,
+      npkManagement: localizedNpkManagement,
+    },
+    { language: ctx.language, farmField: ctx.farmFieldDoc },
+  );
+  const clientNpkManagement = enrichedForClient.npkManagement;
+  const clientPlantGrowth = enrichedForClient.plantGrowthActivity;
+
   const carbonData =
     ctx.mode === "barren" ? null : (evidence?.carbonData ?? fertilizerMod?.carbonData ?? null);
 
@@ -216,8 +227,8 @@ export async function runAdvisorySuggestionModule(ctx) {
     activitiesToDo: activitiesWithProgress,
     activitiesSource,
     cropHealth: localizedCropHealth,
-    plantGrowthActivity: localizedPlantGrowth,
-    npkManagement: localizedNpkManagement,
+    plantGrowthActivity: clientPlantGrowth,
+    npkManagement: clientNpkManagement,
     carbonData,
     recommendedProducts,
     opticalIndicesSummary: satellite?.opticalIndicesSummary ?? null,
