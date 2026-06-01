@@ -71,7 +71,11 @@ function extractChemicalFields(activity) {
   };
 }
 
-function buildOperationFromActivity(activity, index, { farmFieldId, advisoryId, operationDate }) {
+export function getTodayDateISO(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+export function buildOperationFromActivity(activity, index, { farmFieldId, advisoryId, operationDate }) {
   const { chemicalUsed, chemicalQuantity } = extractChemicalFields(activity);
   const operationType =
     ACTIVITY_TO_OPERATION_TYPE[activity.type] || "other";
@@ -145,4 +149,95 @@ export async function syncAdvisoryActivitiesToOperations({
     deleted: deleteResult.deletedCount ?? 0,
     operationIds: inserted.map((op) => op._id),
   };
+}
+
+/**
+ * Create or update a single advisory activity on the Operations calendar.
+ * Uses today's date so tasks appear in the month the farmer is viewing.
+ */
+export async function upsertAdvisoryActivityOperation({
+  farmFieldId,
+  advisoryId,
+  activity,
+  index = 0,
+  operationDate = getTodayDateISO(),
+}) {
+  if (!farmFieldId || !advisoryId || !activity?.type) {
+    return null;
+  }
+
+  const payload = buildOperationFromActivity(activity, index, {
+    farmFieldId,
+    advisoryId,
+    operationDate,
+  });
+
+  return Operation.findOneAndUpdate(
+    {
+      farmField: farmFieldId,
+      advisoryId,
+      advisoryActivityType: activity.type,
+    },
+    { $set: payload },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+}
+
+/**
+ * Ensure each activity on the latest advisory has a calendar operation (non-destructive).
+ */
+export async function ensureAdvisoryOperationsSynced({
+  farmFieldId,
+  advisoryId,
+  activitiesToDo = [],
+}) {
+  if (!farmFieldId || !advisoryId) {
+    return { created: 0, updated: 0 };
+  }
+
+  const activities = Array.isArray(activitiesToDo) ? activitiesToDo : [];
+  const operationDate = getTodayDateISO();
+  let created = 0;
+  let updated = 0;
+
+  for (let i = 0; i < activities.length; i++) {
+    const activity = activities[i];
+    if (!activity?.type) continue;
+
+    const existing = await Operation.findOne({
+      farmField: farmFieldId,
+      advisoryId,
+      advisoryActivityType: activity.type,
+    });
+
+    if (!existing) {
+      await upsertAdvisoryActivityOperation({
+        farmFieldId,
+        advisoryId,
+        activity,
+        index: i,
+        operationDate,
+      });
+      created++;
+      continue;
+    }
+
+    const progress = activity.progress ?? null;
+    const updates = {};
+    if (progress != null && existing.progress !== progress) {
+      updates.progress = progress;
+    }
+    if (
+      existing.progress !== "completed" &&
+      existing.operationDate !== operationDate
+    ) {
+      updates.operationDate = operationDate;
+    }
+    if (Object.keys(updates).length) {
+      await Operation.findByIdAndUpdate(existing._id, { $set: updates });
+      updated++;
+    }
+  }
+
+  return { created, updated };
 }

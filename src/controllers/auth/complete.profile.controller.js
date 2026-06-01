@@ -138,6 +138,7 @@ export const completeProfile = async (req, res) => {
       success: true,
       message: "Registered & signed in successfully.",
       accessToken: accessToken,
+      refreshToken,
       role: user.role,
       user: {
         id: user._id,

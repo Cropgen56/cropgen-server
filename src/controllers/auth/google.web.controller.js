@@ -207,6 +207,7 @@ const runGoogleWebLogin = async (
         ? "Signed in successfully"
         : "Google login successful",
       accessToken,
+      refreshToken,
       role: user.role,
       user: profileComplete
         ? {

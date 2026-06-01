@@ -278,6 +278,7 @@ export function buildBarrenLandPlantGrowth(
     stageName,
     description,
     cumulativeGDD: 0,
+    cropAgeDays: 0,
     gddSource: "not_applicable",
     farmStatus: "barren",
     daysUntilSowing: days,

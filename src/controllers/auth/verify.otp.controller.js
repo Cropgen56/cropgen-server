@@ -134,6 +134,7 @@ export const verifyOtp = async (req, res) => {
         ? "signed in successfully"
         : "OTP verified successfully",
       accessToken: accessToken,
+      refreshToken,
       role: user.role,
       user: isExisting
         ? {

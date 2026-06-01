@@ -4,6 +4,7 @@ import FarmField from "../../../models/field.model.js";
 import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
 import { generateAdvisoryForField } from "../services/advisory.service.js";
 import { updateAdvisoryActivityProgress } from "../services/updateAdvisoryActivityProgress.service.js";
+import { ensureAdvisoryOperationsSynced } from "../services/syncAdvisoryToOperations.service.js";
 import Notification from "../../../models/notification.model.js";
 import {
   enrichAdvisoryForClient,
@@ -51,6 +52,20 @@ export const getFarmAdvisories = async (req, res) => {
 
     if (latest === "true") {
       const advisories = await advisoryQuery.limit(1);
+
+      if (advisories.length) {
+        const latest = advisories[0];
+        try {
+          await ensureAdvisoryOperationsSynced({
+            farmFieldId: latest.farmFieldId,
+            advisoryId: latest._id,
+            activitiesToDo: latest.activitiesToDo,
+          });
+        } catch (syncErr) {
+          console.error("ensureAdvisoryOperationsSynced:", syncErr.message);
+        }
+      }
+
       const advisoryIds = advisories.map((a) => a._id);
       const notifications = await Notification.find({
         referenceId: { $in: advisoryIds },

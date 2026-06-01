@@ -1,5 +1,8 @@
 import FarmAdvisory from "../models/farmAdvisory.model.js";
-import Operation from "../../../models/operation.model.js";
+import {
+  getTodayDateISO,
+  upsertAdvisoryActivityOperation,
+} from "./syncAdvisoryToOperations.service.js";
 
 const VALID_PROGRESS = ["started", "in_progress", "completed"];
 
@@ -47,17 +50,14 @@ export async function updateAdvisoryActivityProgress({
   advisory.markModified("activitiesToDo");
   await advisory.save();
 
-  await Operation.findOneAndUpdate(
-    {
-      advisoryId: advisory._id,
-      advisoryActivityType: activityType,
-      farmField: advisory.farmFieldId,
-    },
-    {
-      progress,
-    },
-    { new: true }
-  );
+  const activity = advisory.activitiesToDo[activityIndex];
+  await upsertAdvisoryActivityOperation({
+    farmFieldId: advisory.farmFieldId,
+    advisoryId: advisory._id,
+    activity,
+    index: activityIndex,
+    operationDate: getTodayDateISO(),
+  });
 
   return advisory;
 }

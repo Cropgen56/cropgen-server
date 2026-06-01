@@ -122,7 +122,7 @@ export async function runSatelliteEnrichmentModule(ctx) {
 
   const satelliteRange =
     ctx.mode === "barren"
-      ? limitRangeEndDaysBack(ctx.nowISO, ctx.lightweight ? 30 : 45)
+      ? limitRangeEndDaysBack(ctx.nowISO, 14)
       : limitSatelliteRange(ctx.sowingDateISO, ctx.nowISO, 90);
 
   let ndvi = { ndviLatest: null, ndviMean: null, trend: 0, ndviTrend: 0, values: [] };
