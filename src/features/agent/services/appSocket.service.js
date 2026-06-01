@@ -5,6 +5,10 @@ import FarmField from "../../../models/field.model.js";
 import FarmAdvisory from "../../advisory/models/farmAdvisory.model.js";
 import AppUserChat from "../../../models/app-user-chat.model.js";
 import { formatAcresTwoDecimals } from "../../../utils/format/acres.js";
+import {
+  getFarmerLanguagePromptDescriptor,
+  normalizeFarmerLanguage,
+} from "../../../utils/language/farmerLanguages.js";
 
 const userAgents = new Map();
 
@@ -29,6 +33,37 @@ async function getLatestAdvisoryByFarmId(farms) {
   return map;
 }
 
+function fallbackWelcome({ userName, profile, farms }) {
+  if (farms.length === 0) {
+    return `Hi ${userName}! I'm your ${profile.assistantTitle}. You haven't added any farms yet — add one from the dashboard to get personalised crop advice. In the meantime, feel free to ask me anything about farming!`;
+  }
+  const farmNames = farms.map((f) => f.fieldName).join(", ");
+  return `Hi ${userName}! I can see your farm${farms.length > 1 ? "s" : ""}: ${farmNames}. Use the farm buttons above to focus on one field, or keep All farms for general advice. Ask me anything about your crops — pest management, irrigation, growth stage, yield estimates, or advisory insights.`;
+}
+
+async function generateLocalizedWelcome(agent, { userName, profile, farms, language }) {
+  const langDesc = getFarmerLanguagePromptDescriptor(language);
+  let scenario;
+  if (!farms.length) {
+    scenario =
+      "They have no farms registered yet; encourage adding one from the dashboard. They can still ask general farming questions.";
+  } else {
+    const farmNames = farms.map((f) => f.fieldName).join(", ");
+    scenario = `They have farm(s): ${farmNames}. Mention the farm buttons above to focus one field or All farms for general advice.`;
+  }
+  const input = `[Session greeting — plain text only, no markdown]
+Write a warm welcome in ${langDesc} for ${userName}. You are their ${profile.assistantTitle}. ${scenario} Keep under 85 words.`;
+
+  try {
+    const res = await agent.call({ input });
+    const text = String(res?.response || "").trim();
+    if (text.length > 10) return text;
+  } catch (err) {
+    console.error("Localized welcome failed:", err);
+  }
+  return fallbackWelcome({ userName, profile, farms });
+}
+
 class AppSocketService {
   /**
    * Load user profile + farms, build a personalised agent, return welcome message.
@@ -44,20 +79,22 @@ class AppSocketService {
 
     const orgCode = user?.organization?.organizationCode || "CROPGEN";
     const profile = getAgentOrgProfile(orgCode);
+    const language = normalizeFarmerLanguage(user?.language);
 
     const advisoryByFarmId = await getLatestAdvisoryByFarmId(farms);
     const agent = createAppAgent(userName, farms, {
       advisoryByFarmId,
       organizationCode: orgCode,
+      language,
     });
     userAgents.set(userId, agent);
 
-    if (farms.length === 0) {
-      return `Hi ${userName}! I'm your ${profile.assistantTitle}. You haven't added any farms yet — add one from the dashboard to get personalised crop advice. In the meantime, feel free to ask me anything about farming!`;
-    }
-
-    const farmNames = farms.map((f) => f.fieldName).join(", ");
-    return `Hi ${userName}! I can see your farm${farms.length > 1 ? "s" : ""}: ${farmNames}. Ask me anything about your crops — pest management, irrigation, growth stage, yield estimates, or advisory insights.`;
+    return generateLocalizedWelcome(agent, {
+      userName,
+      profile,
+      farms,
+      language,
+    });
   }
 
   async handleMessage(userId, message) {
@@ -144,10 +181,12 @@ class AppSocketService {
       }
     }
 
+    const language = normalizeFarmerLanguage(user?.language);
     const advisoryByFarmId = await getLatestAdvisoryByFarmId(farmsForAgent);
     const agent = createAppAgent(userName, farmsForAgent, {
       advisoryByFarmId,
       organizationCode: orgCode,
+      language,
     });
     userAgents.set(userId, agent);
 

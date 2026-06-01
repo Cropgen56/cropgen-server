@@ -1,5 +1,7 @@
 import User from "../../models/user.model.js";
 import Organization from "../../models/organization.model.js";
+import appSocketService from "../../features/agent/services/appSocket.service.js";
+import { clearWhatsAppAgentCache } from "../../features/agent/services/whatsappAgent.service.js";
 
 /** Profile fields admins may update (excludes OTP, tokens, activity timestamps). */
 const ALLOWED_USER_UPDATE_FIELDS = new Set([
@@ -118,6 +120,11 @@ export const updateUserById = async (req, res) => {
         success: false,
         message: "User not found",
       });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updateData, "language")) {
+      appSocketService.cleanupUser(String(id));
+      clearWhatsAppAgentCache(String(id));
     }
 
     return res.status(200).json({

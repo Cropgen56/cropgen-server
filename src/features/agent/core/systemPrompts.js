@@ -1,4 +1,6 @@
 import { formatAcresTwoDecimals } from "../../../utils/format/acres.js";
+import { buildFarmerLanguageRules } from "../../../utils/language/farmerLanguages.js";
+import { buildBiodropsAgentProductBlock } from "../../../clients/biodrops/agent/biodropsAgentProducts.js";
 import {
   describeTimelineForPrompt,
   getCropTimelineStatus,
@@ -26,7 +28,7 @@ export function getAgentOrgProfile(organizationCode) {
       anonymousUserLabel: "a Satagro user",
       companyBlock: COMPANY_BLOCK_BIODROPS,
       mentionRule:
-        "Mention Satagro only when the product or dashboard truly helps — one short line.",
+        "When the farmer asks for suggestions, recommendations, or what to apply, include Biodrops Bokashi and relevant Precision Farming bio-inputs (exact product names and doses). Otherwise mention Satagro only when the dashboard truly helps.",
       farmAppLine:
         "Encourage the user to add their farm in the Satagro app for personalised insights.",
       dashboardApp: "Satagro",
@@ -61,7 +63,15 @@ export function getAgentOrgProfile(organizationCode) {
   };
 }
 
-function buildFormatRules(profile) {
+function buildFormatRules(profile, languageOptions = {}) {
+  const languageBlock =
+    languageOptions.mode === "public_auto"
+      ? buildFarmerLanguageRules({ mode: "public_auto" })
+      : buildFarmerLanguageRules({
+          mode: "profile",
+          language: languageOptions.language ?? "en",
+        });
+
   return `=== OUTPUT — PLAIN TEXT ONLY (critical) ===
 • The chat app shows plain text. NEVER use markdown: no ** asterisks, no * for bullets, no # headings, no backticks.
 • Use short labels Do: Check: Avoid: only when each is followed by full sentences or • lines.
@@ -73,9 +83,7 @@ function buildFormatRules(profile) {
 • Step-by-step plans: ~75–110 words max.
 • 3–6 lines with • bullets under each section when helpful.
 
-=== LANGUAGE (mandatory) ===
-• Always respond in English only — simple, clear English that farmers can follow.
-• Even if user writes in Hindi, Marathi, or any other language, respond in English.
+${languageBlock}
 
 === RULES ===
 • ${profile.mentionRule}
@@ -86,7 +94,7 @@ export const PUBLIC_SYSTEM_PROMPT = `You are CropGen's field advisor for Indian 
 
 ${COMPANY_BLOCK_CROPGEN}
 
-${buildFormatRules(getAgentOrgProfile("CROPGEN"))}
+${buildFormatRules(getAgentOrgProfile("CROPGEN"), { mode: "public_auto" })}
 
 === FARMER-FIRST (every answer) ===
 • Lead with action: what the farmer should do today or this week (irrigate, scout, fertilizer, drainage, spacing, harvest window).
@@ -104,7 +112,7 @@ export function buildPublicSystemPrompt(organizationCode) {
 
 ${profile.companyBlock}
 
-${buildFormatRules(profile)}
+${buildFormatRules(profile, { mode: "public_auto" })}
 
 === FARMER-FIRST (every answer) ===
 • Lead with action: what the farmer should do today or this week (irrigate, scout, fertilizer, drainage, spacing, harvest window).
@@ -114,7 +122,9 @@ ${buildFormatRules(profile)}
 • For emergencies (widespread wilt, total failure): urge an on-ground expert briefly.
 
 === WEATHER ===
-Ask once for location (Village/City, District, State) in ~25–35 words if missing. Then short weather-relevant farm actions.`;
+Ask once for location (Village/City, District, State) in ~25–35 words if missing. Then short weather-relevant farm actions.
+
+${profile.kind === "biodrops" ? buildBiodropsAgentProductBlock([]) : ""}`;
 }
 
 /**
@@ -126,6 +136,7 @@ Ask once for location (Village/City, District, State) in ~25–35 words if missi
  * @param {{
  *   advisoryByFarmId?: Record<string, object>,
  *   organizationCode?: string,
+ *   language?: string,
  *   agentProfile?: ReturnType<typeof getAgentOrgProfile>,
  * }} [options]
  */
@@ -166,7 +177,10 @@ export function buildAppSystemPrompt(userName, farms, options = {}) {
     farmBlock = `\n=== USER'S FARMS ===\nNo farms registered yet. ${profile.farmAppLine}\n`;
   }
 
-  const formatRules = buildFormatRules(profile);
+  const formatRules = buildFormatRules(profile, {
+    mode: "profile",
+    language: options.language,
+  });
 
   const whatsappBlock =
     options.channel === "whatsapp"
@@ -176,6 +190,11 @@ export function buildAppSystemPrompt(userName, farms, options = {}) {
 • One clear question at a time if you need more info.
 • Do not mention the mobile app socket or "refresh the page".
 `
+      : "";
+
+  const biodropsProductBlock =
+    profile.kind === "biodrops"
+      ? buildBiodropsAgentProductBlock(farms, { today })
       : "";
 
   return `You are ${profile.assistantName} — the personal farm assistant for ${who}. You have access to this user's farm data and should give specific, actionable advice based on their actual crops and conditions.
@@ -208,5 +227,6 @@ ${whatsappBlock}
 • Irrigation and fertigation scheduling
 • Weather-based action recommendations
 • Yield estimation context
-• Advisory interpretation (explain what their latest advisory snapshot means)`;
+• Advisory interpretation (explain what their latest advisory snapshot means)
+${biodropsProductBlock}`;
 }

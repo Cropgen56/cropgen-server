@@ -9,6 +9,7 @@ import {
   getGlobalReplyMode,
   isAutomationActive,
 } from "./whatsappSettings.service.js";
+import { normalizeFarmerLanguage } from "../../../utils/language/farmerLanguages.js";
 
 const WHATSAPP_TEXT_MAX = 4096;
 const HISTORY_LIMIT = 20;
@@ -139,6 +140,7 @@ async function getOrCreateAgent(farmer) {
     advisoryByFarmId,
     organizationCode: orgCode,
     channel: "whatsapp",
+    language: normalizeFarmerLanguage(user?.language),
   });
 
   farmerAgents.set(farmerId, agent);
