@@ -23,6 +23,7 @@ import emailRoutes from "./src/routes/email.routes.js";
 // Smart advisory routes
 import advisoryRoutes from "./src/features/advisory/routes/advisory.routes.js";
 import carbonRoutes from "./src/routes/carbon.routes.js";
+import soilHealthRoutes from "./src/features/soil-health/soilHealth.routes.js";
 
 // Agent chat routes
 import chatRoutes from "./src/routes/chat.routes.js";
@@ -216,8 +217,10 @@ app.use("/v1/api/whatsapp", whatsappRoutes);
 // Smart advisory routes (v2 matches mobile/web client expectations)
 app.use("/v1/api/advisory", advisoryRoutes);
 app.use("/v1/api/carbon", carbonRoutes);
+app.use("/v1/api/soil-health", soilHealthRoutes);
 app.use("/v2/api/advisory", advisoryRoutes);
 app.use("/v2/api/carbon", carbonRoutes);
+app.use("/v2/api/soil-health", soilHealthRoutes);
 
 // Agent chat API routes
 app.use("/api/chats", chatRoutes);

@@ -37,6 +37,7 @@ export async function getVegetationTimeseries(
   startDate,
   endDate,
   index = "NDVI",
+  { provider = "aws", satellite = "s2", maxItems = 25 } = {},
 ) {
   const url = `${CROPGEN_TS_BASE}/timeseries/vegetation/vegetation`;
   const body = {
@@ -44,9 +45,9 @@ export async function getVegetationTimeseries(
     start_date: startDate,
     end_date: endDate,
     index: index.toLowerCase(),
-    provider: "aws",
-    satellite: "s2",
-    max_items: 25,
+    provider,
+    satellite,
+    max_items: maxItems,
   };
   const { data } = await satelliteHttp.post(url, body, {
     headers: getSatelliteHeaders(),
@@ -59,6 +60,7 @@ export async function getWaterTimeseries(
   startDate,
   endDate,
   index = "NDMI",
+  { provider = "aws", satellite = "s2", maxItems = 25 } = {},
 ) {
   const url = `${CROPGEN_TS_BASE}/timeseries/water/water`;
   const body = {
@@ -66,9 +68,9 @@ export async function getWaterTimeseries(
     start_date: startDate,
     end_date: endDate,
     index: index.toLowerCase(),
-    provider: "aws",
-    satellite: "s2",
-    max_items: 25,
+    provider,
+    satellite,
+    max_items: maxItems,
   };
   const { data } = await satelliteHttp.post(url, body, {
     headers: getSatelliteHeaders(),
