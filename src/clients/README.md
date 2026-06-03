@@ -25,7 +25,7 @@ HTTP paths are **not** derived from folder names. Client routes are registered i
 
 | Client     | Folder                      | Org code              | Auth routes |
 | ---------- | --------------------------- | --------------------- | ----------- |
-| Biodrops   | `src/clients/biodrops/`     | `BIODROPS` (fixed)    | `/biodrops/*` |
+| Biodrops   | `src/clients/biodrops/`     | `BIODROPS` (fixed)    | `/biodrops/*`, `/crm/*`, `/admin-assignments/*` |
 | CropyDeals | `src/clients/cropydeals/`   | From request body     | `POST /cropydeal-register-login` |
 
 LFP auth routes remain in `src/routes/auth.routes.js` for now; they can move to `src/clients/lfp/` later using the same pattern.

@@ -20,6 +20,7 @@ export {
   biodropsResendWhatsappOtp,
 } from "./controllers/whatsapp.controller.js";
 export { default as biodropsAuthRoutes } from "./routes/auth.routes.js";
+export { default as biodropsRoutes } from "./routes/index.js";
 export {
   getBiodropsRecommendations,
   resolveBiodropsCropKey,

@@ -24,7 +24,7 @@ import {
   verifyWhatsappOtp,
   resendWhatsappOtp,
 } from "../controllers/auth/index.js";
-import biodropsAuthRoutes from "../clients/biodrops/routes/auth.routes.js";
+import biodropsRoutes from "../clients/biodrops/routes/index.js";
 import cropydealsAuthRoutes from "../clients/cropydeals/routes/auth.routes.js";
 
 import {
@@ -95,7 +95,7 @@ router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
 router.post("/google", loginWithGoogleWebCropgen);
 
-router.use(biodropsAuthRoutes);
+router.use(biodropsRoutes);
 router.use(cropydealsAuthRoutes);
 
 // lfp app dedicated auth routes (separate API surface)

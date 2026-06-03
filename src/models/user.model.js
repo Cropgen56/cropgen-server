@@ -66,9 +66,17 @@ const userSchema = new Schema(
       default: null,
     },
 
+    district: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxlength: 32,
+      default: null,
+    },
+
     role: {
       type: String,
-      enum: ["farmer", "admin", "developer", "client"],
+      enum: ["farmer", "staff", "admin", "developer", "client"],
       default: "farmer",
     },
 
@@ -159,6 +167,8 @@ const userSchema = new Schema(
 userSchema.index({ createdAt: 1 });
 userSchema.index({ lastActiveAt: 1 });
 userSchema.index({ role: 1 });
+userSchema.index({ country: 1, state: 1, district: 1 });
+userSchema.index({ organization: 1, country: 1, state: 1, district: 1 });
 userSchema.index(
   { phone: 1 },
   {

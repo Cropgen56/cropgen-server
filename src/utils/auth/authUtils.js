@@ -19,6 +19,7 @@ const CLIENT_APP_COOKIE_NAMES = {
   cropgen_web: "refreshToken_cropgen_web",
   admin: "refreshToken_admin",
   biodrops_web: "refreshToken_biodrops_web",
+  satagro_crm: "refreshToken_satagro_crm",
   cropydeals_web: "refreshToken_cropydeals_web",
 };
 

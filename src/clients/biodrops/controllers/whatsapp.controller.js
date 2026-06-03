@@ -11,6 +11,7 @@ import {
   signAccessToken,
   signRefreshToken,
 } from "../../../utils/auth/authUtils.js";
+import { buildBiodropsAuthTokenPayload } from "../utils/authPayload.js";
 import { ORGANIZATION_CODE } from "../constants.js";
 import {
   BIODROPS_DEMO_USER_PROFILE,
@@ -315,12 +316,7 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
     setClientRefreshId(user, resolveClientAppKey(req) || "biodrops_web", refreshId);
     await user.save();
 
-    const payload = {
-      id: user._id,
-      role: user.role,
-      // organization was populated above; keep JWT compact by using the id only.
-      organization: user.organization?._id || user.organization,
-    };
+    const payload = await buildBiodropsAuthTokenPayload(user);
 
     const accessToken = signAccessToken({ ...payload, onboardingRequired });
     const refreshTokenJwt = signRefreshToken(payload, refreshId);

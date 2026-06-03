@@ -8,6 +8,7 @@ import {
   resolveClientAppKey,
   setClientRefreshId,
 } from "../../utils/auth/authUtils.js";
+import { enrichBiodropsAuthPayload } from "../../clients/biodrops/utils/authPayload.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
 import {
   getEmailBrand,
@@ -95,12 +96,14 @@ export const verifyOtp = async (req, res) => {
     if (isExisting) user.lastLoginAt = new Date();
     await user.save();
 
-    // minimal payload for access token
-    const payload = {
+    let payload = {
       id: user._id,
       role: user.role,
-      organization: user.organization,
+      organization: user.organization?._id || user.organization,
     };
+    if (isBiodropsBrand) {
+      payload = await enrichBiodropsAuthPayload(payload, user);
+    }
 
     const onboardingRequired = !isExisting;
     const accessToken = signAccessToken({ ...payload, onboardingRequired });

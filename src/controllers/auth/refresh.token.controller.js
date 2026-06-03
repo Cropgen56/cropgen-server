@@ -12,6 +12,8 @@ import {
   setClientRefreshId,
   clearClientRefreshId,
 } from "../../utils/auth/authUtils.js";
+import { enrichBiodropsAuthPayload } from "../../clients/biodrops/utils/authPayload.js";
+import { isBiodropsOrganizationCode } from "../../clients/biodrops/utils/adminScope.js";
 
 export const refreshTokenHandler = async (req, res) => {
   try {
@@ -42,7 +44,10 @@ export const refreshTokenHandler = async (req, res) => {
         .json({ success: false, message: "Invalid refresh token payload" });
     }
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).populate(
+      "organization",
+      "organizationCode",
+    );
     const clientAppKey = resolveClientAppKey(req);
     const storedRid = getClientRefreshId(user, clientAppKey);
 
@@ -68,11 +73,14 @@ export const refreshTokenHandler = async (req, res) => {
     setClientRefreshId(user, clientAppKey, newRefreshId);
     await user.save();
 
-    const payload = {
+    let payload = {
       id: user._id,
       role: user.role,
-      organization: user.organization,
+      organization: user.organization?._id || user.organization,
     };
+    if (isBiodropsOrganizationCode(user.organization?.organizationCode)) {
+      payload = await enrichBiodropsAuthPayload(payload, user);
+    }
     const newAccessToken = signAccessToken(payload);
     const newRefreshToken = signRefreshToken(payload, newRefreshId);
 
@@ -83,7 +91,12 @@ export const refreshTokenHandler = async (req, res) => {
       success: true,
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
-      user: { id: user._id, role: user.role, organization: user.organization },
+      user: {
+        id: user._id,
+        role: user.role,
+        organization: user.organization,
+        adminAssignments: payload.adminAssignments,
+      },
     });
   } catch (err) {
     console.error("refreshToken error:", err);

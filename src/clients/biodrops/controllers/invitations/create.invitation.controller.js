@@ -1,0 +1,261 @@
+import User from "../../../../models/user.model.js";
+import BiodropsAdminAssignment from "../../models/admin-assignment.model.js";
+import CrmInvitation from "../../models/crm-invitation.model.js";
+import { ORGANIZATION_CODE } from "../../constants.js";
+import { resolveBiodropsTenantId } from "../../utils/authPayload.js";
+import {
+  canCreateAssignment,
+  validateAssignmentFields,
+} from "../../utils/adminScope.js";
+import { resolveOrganizationByCode } from "../../../../utils/auth/authUtils.js";
+import { generateInvitationToken } from "../../utils/invitationToken.js";
+import { sendCrmInvitationEmail } from "../../services/crmInvitationEmail.service.js";
+
+const INVITE_EXPIRY_DAYS = 7;
+
+function splitFullName(fullName) {
+  const parts = String(fullName || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return { firstName: "User", lastName: "" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
+function normalizePhone(phone) {
+  if (!phone) return null;
+  const raw = String(phone).trim();
+  if (raw.startsWith("+")) return raw;
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.length === 10) return `+91${digits}`;
+  return `+${digits}`;
+}
+
+export const createCrmInvitation = async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      phone,
+      level,
+      countryCode,
+      stateCode,
+      districtCode,
+      reportsToUserId,
+      sendEmail = true,
+    } = req.body || {};
+
+    const shouldSendEmail = sendEmail !== false && sendEmail !== "false";
+
+    if (!fullName?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Full name is required.",
+      });
+    }
+    if (!level) {
+      return res.status(400).json({
+        success: false,
+        message: "Admin level is required.",
+      });
+    }
+    if (!email?.trim() && !phone?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Email or phone is required.",
+      });
+    }
+
+    if (shouldSendEmail && !email?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required to send an invitation link.",
+      });
+    }
+
+    if (!phone?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Mobile number is required. Invited users sign in to CRM with WhatsApp OTP.",
+      });
+    }
+
+    const tenantId = await resolveBiodropsTenantId();
+    const normalizedPhone = normalizePhone(phone);
+    const normalizedEmail = email?.trim().toLowerCase() || null;
+
+    let user =
+      (normalizedPhone
+        ? await User.findOne({ phone: normalizedPhone })
+        : null) ||
+      (normalizedEmail ? await User.findOne({ email: normalizedEmail }) : null);
+
+    const { firstName, lastName } = splitFullName(fullName);
+
+    if (!user) {
+      user = await User.create({
+        firstName,
+        lastName,
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        role: "staff",
+        terms: false,
+        organization: tenantId,
+        clientSource: "web",
+      });
+    } else {
+      user.firstName = user.firstName || firstName;
+      user.lastName = user.lastName || lastName;
+      if (normalizedEmail && !user.email) user.email = normalizedEmail;
+      if (normalizedPhone && !user.phone) user.phone = normalizedPhone;
+      if (!user.organization) user.organization = tenantId;
+      if (user.role === "farmer") user.role = "staff";
+      await user.save();
+    }
+
+    const geoCountry = level === "super" ? null : countryCode || null;
+    const geoState = level === "super" || level === "country" ? null : stateCode || null;
+    const geoDistrict =
+      level === "super" || level === "country" || level === "state"
+        ? null
+        : districtCode || null;
+
+    const newAssignmentShape = {
+      level,
+      tenantId,
+      countryCode: geoCountry,
+      stateCode: geoState,
+      districtCode: geoDistrict,
+      managedOrganizationId: null,
+    };
+
+    const fieldCheck = validateAssignmentFields(level, {
+      tenantId,
+      countryCode: newAssignmentShape.countryCode,
+      stateCode: newAssignmentShape.stateCode,
+      districtCode: newAssignmentShape.districtCode,
+      managedOrganizationId: null,
+    });
+
+    if (!fieldCheck.ok) {
+      return res.status(400).json({ success: false, message: fieldCheck.message });
+    }
+
+    if (!canCreateAssignment(req.adminActor, newAssignmentShape)) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "You cannot create this admin assignment. A higher-level BioDrops admin is required.",
+      });
+    }
+
+    const assignment = await BiodropsAdminAssignment.create({
+      userId: user._id,
+      level,
+      tenantId,
+      countryCode: fieldCheck.countryCode,
+      stateCode: fieldCheck.stateCode,
+      districtCode: fieldCheck.districtCode,
+      managedOrganizationId: null,
+      appointedBy: reportsToUserId || req.adminActor?.id || null,
+      status: "active",
+    });
+
+    if (fieldCheck.countryCode) user.country = fieldCheck.countryCode;
+    if (fieldCheck.stateCode) user.state = fieldCheck.stateCode;
+    if (fieldCheck.districtCode) user.district = fieldCheck.districtCode;
+    await user.save();
+
+    const { org } = await resolveOrganizationByCode(ORGANIZATION_CODE);
+
+    let emailInvitation = null;
+    let emailSent = false;
+    let emailError = null;
+
+    if (shouldSendEmail && normalizedEmail) {
+      const { token, tokenHash } = generateInvitationToken();
+      const expiresAt = new Date(
+        Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+      );
+
+      await CrmInvitation.updateMany(
+        { userId: user._id, status: "pending" },
+        { status: "cancelled" },
+      );
+
+      emailInvitation = await CrmInvitation.create({
+        userId: user._id,
+        assignmentId: assignment._id,
+        tenantId,
+        email: normalizedEmail,
+        level,
+        tokenHash,
+        status: "pending",
+        invitedBy: req.adminActor?.id || null,
+        expiresAt,
+      });
+
+      const inviter = await User.findById(req.adminActor?.id).select(
+        "firstName lastName",
+      );
+      const inviterName = [inviter?.firstName, inviter?.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      try {
+        await sendCrmInvitationEmail({
+          to: normalizedEmail,
+          inviteeName: [user.firstName, user.lastName].filter(Boolean).join(" "),
+          inviterName,
+          roleLevel: level,
+          token,
+          expiresAt,
+        });
+        emailInvitation.emailSentAt = new Date();
+        await emailInvitation.save();
+        emailSent = true;
+      } catch (mailErr) {
+        console.error("createCrmInvitation email:", mailErr);
+        emailError = mailErr.message || "Failed to send invitation email.";
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: emailSent
+        ? "Invitation created and verification email sent."
+        : emailError
+          ? `User created but email failed: ${emailError}`
+          : "Invitation created successfully.",
+      emailSent,
+      emailError,
+      invitation: {
+        id: String(assignment._id),
+        userId: String(user._id),
+        crmInvitationId: emailInvitation ? String(emailInvitation._id) : null,
+        level,
+        organizationCode: org.organizationCode,
+      },
+    });
+  } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "An active BioDrops admin already exists for this level and scope.",
+      });
+    }
+    console.error("createCrmInvitation:", err);
+    return res.status(err.status || 500).json({
+      success: false,
+      message: err.message || "Failed to create invitation.",
+    });
+  }
+};
