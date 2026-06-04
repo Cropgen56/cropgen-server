@@ -223,3 +223,11 @@ export function clearClientRefreshId(user, clientAppKey) {
   }
   user.refreshTokenId = null;
 }
+
+/** Biodrops mobile / web client (`X-Client-Brand: biodrops`). */
+export function isBiodropsClientBrand(req) {
+  const clientBrand = String(
+    req?.headers?.["x-client-brand"] || req?.headers?.["X-Client-Brand"] || "",
+  ).toLowerCase();
+  return clientBrand === "biodrops";
+}

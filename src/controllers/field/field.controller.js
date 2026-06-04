@@ -4,6 +4,13 @@ import User from "../../models/user.model.js";
 import UserSubscription from "../../models/user-subscription.model.js";
 import { triggerInitialAdvisoryForNewField } from "../../features/advisory/services/triggerInitialAdvisory.service.js";
 import MonitoringRequest from "../../models/monitoring-request.model.js";
+import { isBiodropsClientBrand } from "../../utils/auth/authUtils.js";
+
+const BIODROPS_INCLUDED_SUBSCRIPTION = {
+  hasActiveSubscription: true,
+  status: "active",
+  billingCycle: "included",
+};
 
 // Add a new farm field for a particular user
 export const addField = async (req, res) => {
@@ -113,6 +120,18 @@ export const getField = async (req, res) => {
       return res.status(200).json({
         message: "Farm fields retrieved successfully",
         farmFields: [],
+      });
+    }
+
+    if (isBiodropsClientBrand(req)) {
+      const farmFields = fields.map((field) => ({
+        ...field,
+        trialEligible: false,
+        subscription: { ...BIODROPS_INCLUDED_SUBSCRIPTION },
+      }));
+      return res.status(200).json({
+        message: "Farm fields retrieved successfully",
+        farmFields,
       });
     }
 

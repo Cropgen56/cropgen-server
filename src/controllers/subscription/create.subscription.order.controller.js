@@ -19,6 +19,7 @@ import {
   resolveRazorpayChargeMinor,
   resolveDisplayPricing,
 } from "../../utils/subscription/pricing.js";
+import { isBiodropsClientBrand } from "../../utils/auth/authUtils.js";
 
 const razorpay = getRazorpay();
 
@@ -105,6 +106,13 @@ async function createUserSubscriptionTrialDocWithRetry(userId, fieldId, doc) {
 
 export const createSubscriptionOrder = async (req, res) => {
   try {
+    if (isBiodropsClientBrand(req)) {
+      return res.status(403).json({
+        success: false,
+        message: "Subscriptions are not required for the Biodrops app.",
+      });
+    }
+
     const userId = req.user?.id || req.user?._id;
     const {
       farmId,

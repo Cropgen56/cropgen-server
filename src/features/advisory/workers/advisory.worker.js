@@ -1,8 +1,10 @@
 import FarmField from "../../../models/field.model.js";
+import User from "../../../models/user.model.js";
 import UserSubscription from "../../../models/user-subscription.model.js";
 import FarmAdvisory from "../models/farmAdvisory.model.js";
 import "../../../models/user.model.js";
 import cron from "node-cron";
+import { resolveOrganizationByCode } from "../../../utils/auth/authUtils.js";
 
 import { generateAdvisoryForField } from "../services/advisory.service.js";
 import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
@@ -127,12 +129,33 @@ export const runAdvisoryJob = async () => {
         $or: [{ endDate: null }, { endDate: { $gte: new Date() } }],
       }).select("fieldId");
 
-      if (!subscriptions.length) {
-        console.log("No active subscriptions found");
+      const fieldIdSet = new Set(
+        subscriptions.map((s) => String(s.fieldId)),
+      );
+
+      try {
+        const { org } = await resolveOrganizationByCode("BIODROPS");
+        const biodropsUserIds = await User.find({ organization: org._id })
+          .select("_id")
+          .lean();
+        if (biodropsUserIds.length) {
+          const biodropsFields = await FarmField.find({
+            user: { $in: biodropsUserIds.map((u) => u._id) },
+          })
+            .select("_id")
+            .lean();
+          biodropsFields.forEach((f) => fieldIdSet.add(String(f._id)));
+        }
+      } catch (orgErr) {
+        console.error("[Advisory] BIODROPS org field lookup failed:", orgErr);
+      }
+
+      const fieldIds = [...fieldIdSet];
+      if (!fieldIds.length) {
+        console.log("No fields eligible for advisory");
         return;
       }
 
-      const fieldIds = subscriptions.map((s) => s.fieldId);
       const farms = await FarmField.find({
         _id: { $in: fieldIds },
       }).populate("user");
