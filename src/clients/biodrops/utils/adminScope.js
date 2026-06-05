@@ -1,4 +1,5 @@
 import {
+  ADMIN_LEVELS,
   ADMIN_LEVEL_RANK,
   ADMIN_PARENT_LEVEL,
   CROPGEN_PLATFORM_ROLES,
@@ -170,6 +171,14 @@ export function canCreateAssignment(actor, newAssignment) {
     parentTarget.districtCode = null;
   }
 
+  // Country admin's parent is super — same rank as the actor, so use tenant check.
+  if (parentLevel === "super") {
+    const tid = tenantKey(newAssignment.tenantId);
+    return assignments.some(
+      (a) => a.level === "super" && tenantKey(a.tenantId) === tid,
+    );
+  }
+
   return canManageAssignment(actor, parentTarget);
 }
 
@@ -294,4 +303,167 @@ export function validateAssignmentFields(level, fields) {
 
 export function isBiodropsOrganizationCode(code) {
   return String(code || "").toUpperCase() === ORGANIZATION_CODE;
+}
+
+function buildAssignmentShape(level, tenantId, geo = {}) {
+  const tid = tenantId == null ? null : String(tenantId);
+  const countryCode =
+    level === "super" ? null : normalizeCode(geo.countryCode) || null;
+  const stateCode =
+    level === "super" || level === "country"
+      ? null
+      : normalizeCode(geo.stateCode) || null;
+  const districtCode =
+    level === "super" || level === "country" || level === "state"
+      ? null
+      : normalizeCode(geo.districtCode) || null;
+
+  return {
+    level,
+    tenantId: tid,
+    countryCode,
+    stateCode,
+    districtCode,
+    managedOrganizationId: geo.managedOrganizationId ?? null,
+  };
+}
+
+function probeGeosForCreatableCheck(actor) {
+  const geos = [{ countryCode: null, stateCode: null, districtCode: null }];
+  for (const a of actor?.adminAssignments || []) {
+    geos.push({
+      countryCode: a.countryCode || null,
+      stateCode: a.stateCode || null,
+      districtCode: a.districtCode || null,
+    });
+  }
+  return geos;
+}
+
+/** Admin levels the actor may invite or assign (any matching geo probe). */
+export function getCreatableLevels(actor, tenantId) {
+  if (!actor) return [];
+  if (CROPGEN_PLATFORM_ROLES.has(actor.role)) return [...ADMIN_LEVELS];
+
+  const tid = String(tenantId);
+  const creatable = new Set();
+
+  for (const level of ADMIN_LEVELS) {
+    for (const geo of probeGeosForCreatableCheck(actor)) {
+      const shape = buildAssignmentShape(level, tid, geo);
+      if (canCreateAssignment(actor, shape)) {
+        creatable.add(level);
+        break;
+      }
+    }
+  }
+
+  return ADMIN_LEVELS.filter((level) => creatable.has(level));
+}
+
+export function summarizeActorGeoScope(actor) {
+  if (CROPGEN_PLATFORM_ROLES.has(actor?.role)) {
+    return { mode: "unrestricted", highestLevel: null };
+  }
+
+  const assignments = actor?.adminAssignments || [];
+  if (assignments.some((a) => a.level === "super")) {
+    return { mode: "unrestricted", highestLevel: "super" };
+  }
+
+  const countries = new Set();
+  const states = [];
+  const districts = [];
+  const stateKeys = new Set();
+  const districtKeys = new Set();
+
+  for (const a of assignments) {
+    const cc = normalizeCode(a.countryCode);
+    const st = normalizeCode(a.stateCode);
+    const dt = normalizeCode(a.districtCode);
+
+    if (cc) countries.add(cc);
+    if (cc && st) {
+      const key = `${cc}:${st}`;
+      if (!stateKeys.has(key)) {
+        stateKeys.add(key);
+        states.push({ countryCode: cc, stateCode: st });
+      }
+    }
+    if (cc && st && dt) {
+      const key = `${cc}:${st}:${dt}`;
+      if (!districtKeys.has(key)) {
+        districtKeys.add(key);
+        districts.push({ countryCode: cc, stateCode: st, districtCode: dt });
+      }
+    }
+  }
+
+  return {
+    mode: "scoped",
+    highestLevel: getHighestAdminLevel(assignments),
+    countries: [...countries],
+    states,
+    districts,
+  };
+}
+
+export function buildHierarchyCapabilities(actor, tenantId) {
+  const highestLevel = getHighestAdminLevel(actor?.adminAssignments || []);
+  let creatableLevels = getCreatableLevels(actor, tenantId);
+
+  if (highestLevel === "super") {
+    creatableLevels = creatableLevels.filter((level) => level !== "super");
+  }
+
+  return {
+    highestLevel,
+    isPlatformAdmin: CROPGEN_PLATFORM_ROLES.has(actor?.role),
+    creatableLevels,
+    geoScope: summarizeActorGeoScope(actor),
+  };
+}
+
+export function canManageUserAssignment(actor, assignment, tenantId) {
+  if (CROPGEN_PLATFORM_ROLES.has(actor?.role)) return true;
+  if (!assignment?.level) return false;
+
+  return canManageAssignment(
+    actor,
+    buildAssignmentShape(assignment.level, tenantId || assignment.tenantId, {
+      countryCode: assignment.countryCode,
+      stateCode: assignment.stateCode,
+      districtCode: assignment.districtCode,
+      managedOrganizationId: assignment.managedOrganizationId,
+    }),
+  );
+}
+
+/** Valid "reports to" managers for an invitee level and region. */
+export function filterManagersForInvite(actor, candidates, inviteeShape) {
+  if (!inviteeShape?.level) return [];
+
+  const inviteeRank = ADMIN_LEVEL_RANK[inviteeShape.level] || 0;
+  const target = buildAssignmentShape(
+    inviteeShape.level,
+    inviteeShape.tenantId,
+    inviteeShape,
+  );
+
+  return (candidates || []).filter((candidate) => {
+    const managerRank = ADMIN_LEVEL_RANK[candidate.level] || 0;
+    if (managerRank <= inviteeRank) return false;
+
+    const managerShape = buildAssignmentShape(
+      candidate.level,
+      inviteeShape.tenantId,
+      {
+        countryCode: candidate.countryCode,
+        stateCode: candidate.stateCode,
+        districtCode: candidate.districtCode,
+      },
+    );
+
+    return assignmentCoversTarget(managerShape, target);
+  });
 }

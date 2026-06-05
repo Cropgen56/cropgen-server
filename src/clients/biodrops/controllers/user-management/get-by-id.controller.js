@@ -7,17 +7,21 @@ import {
   loadAllAssignmentsForUser,
   loadLatestInvitationsByUserId,
 } from "../../utils/crmUserFormat.js";
-import { resolveCrmUserBaseQuery, buildCrmTeamUserQuery } from "../../utils/crmUserQuery.js";
+import {
+  resolveCrmUserBaseQuery,
+  buildCrmTeamUserQuery,
+  buildCrmTeamUserByIdQuery,
+} from "../../utils/crmUserQuery.js";
+import { canManageUserAssignment } from "../../utils/adminScope.js";
 
 export const getUserManagementById = async (req, res) => {
   try {
     const { baseQuery, org } = await resolveCrmUserBaseQuery(req);
     const teamQuery = await buildCrmTeamUserQuery(baseQuery, org._id);
 
-    const user = await User.findOne({
-      _id: req.params.id,
-      ...teamQuery,
-    })
+    const user = await User.findOne(
+      buildCrmTeamUserByIdQuery(teamQuery, req.params.id),
+    )
       .select("-password -otp -__v")
       .lean();
 
@@ -34,9 +38,16 @@ export const getUserManagementById = async (req, res) => {
     const invitation = invitationMap.get(String(user._id)) || null;
     const allAssignments = await loadAllAssignmentsForUser(user._id);
 
+    const formattedUser = formatCrmUser(user, assignment, invitation);
+    formattedUser.canManage = canManageUserAssignment(
+      req.adminActor,
+      assignment,
+      org._id,
+    );
+
     return res.status(200).json({
       success: true,
-      user: formatCrmUser(user, assignment, invitation),
+      user: formattedUser,
       assignments: allAssignments.map((a) => ({
         id: String(a._id),
         level: a.level,

@@ -5,15 +5,18 @@ import {
   getCrmAppBaseUrl,
 } from "../../utils/invitationToken.js";
 import { sendCrmInvitationEmail } from "../../services/crmInvitationEmail.service.js";
-import { resolveCrmUserBaseQuery } from "../../utils/crmUserQuery.js";
+import {
+  assertCanManageCrmUser,
+  loadCrmTeamUserForManage,
+} from "../../utils/crmUserManage.js";
 
 const INVITE_EXPIRY_DAYS = 7;
 
 export const resendCrmInvitation = async (req, res) => {
   try {
-    await resolveCrmUserBaseQuery(req);
-
     const { userId } = req.params;
+    const { primaryAssignment } = await loadCrmTeamUserForManage(req, userId);
+    assertCanManageCrmUser(req.adminActor, primaryAssignment, userId);
     const invitation = await CrmInvitation.findOne({
       userId,
       status: { $in: ["pending", "expired"] },

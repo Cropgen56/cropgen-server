@@ -3,6 +3,7 @@ import BiodropsAdminAssignment from "../models/admin-assignment.model.js";
 import {
   resolveCrmUserBaseQuery,
   buildCrmTeamUserQuery,
+  buildCrmTeamUserByIdQuery,
 } from "./crmUserQuery.js";
 import {
   canManageAssignment,
@@ -51,10 +52,7 @@ export async function loadCrmTeamUserForManage(req, userId) {
   const { baseQuery, org } = await resolveCrmUserBaseQuery(req);
   const teamQuery = await buildCrmTeamUserQuery(baseQuery, org._id);
 
-  const user = await User.findOne({
-    _id: userId,
-    ...teamQuery,
-  });
+  const user = await User.findOne(buildCrmTeamUserByIdQuery(teamQuery, userId));
 
   if (!user) {
     const err = new Error("User not found in your CRM scope.");
@@ -86,7 +84,9 @@ export function assertCanManageCrmUser(actor, assignment, targetUserId) {
   }
 
   if (String(actor?.id) === String(targetUserId)) {
-    const err = new Error("You cannot perform this action on your own account.");
+    const err = new Error(
+      "You cannot remove your own CRM access. Sign in as another Super Admin, or ask a teammate with Super Admin rights to remove this account.",
+    );
     err.status = 400;
     throw err;
   }

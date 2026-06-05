@@ -14,9 +14,11 @@ import {
   deleteCrmUser,
   listCrmAdminsForPicker,
   listPendingCrmInvitations,
+  getHierarchyCapabilities,
 } from "../controllers/user-management/index.js";
 import { suspendBiodropsAdminAssignment } from "../controllers/admin-assignment/suspend.admin-assignment.controller.js";
 import { createCrmInvitation } from "../controllers/invitations/create.invitation.controller.js";
+import { checkCrmAssignmentAvailability } from "../controllers/invitations/check.assignment-availability.controller.js";
 import { getCrmInvitationByToken } from "../controllers/invitations/get-by-token.controller.js";
 import { acceptCrmInvitation } from "../controllers/invitations/accept.invitation.controller.js";
 import { resendCrmInvitation } from "../controllers/invitations/resend.invitation.controller.js";
@@ -43,6 +45,11 @@ const crmGuards = [
 ];
 
 router.get("/user-management/stats", ...crmGuards, getUserManagementStats);
+router.get(
+  "/user-management/hierarchy",
+  ...crmGuards,
+  getHierarchyCapabilities,
+);
 router.get("/user-management/admins", ...crmGuards, listCrmAdminsForPicker);
 router.get("/user-management/pending", ...crmGuards, listPendingCrmInvitations);
 router.get("/user-management", ...crmGuards, listUserManagement);
@@ -56,6 +63,11 @@ router.patch(
   suspendBiodropsAdminAssignment,
 );
 
+router.get(
+  "/invitations/check-availability",
+  ...crmGuards,
+  checkCrmAssignmentAvailability,
+);
 router.post("/invitations", ...crmGuards, createCrmInvitation);
 router.post(
   "/invitations/resend/:userId",

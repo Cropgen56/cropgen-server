@@ -1,7 +1,10 @@
 import User from "../../../models/user.model.js";
 import BiodropsAdminAssignment from "../models/admin-assignment.model.js";
 import { ORGANIZATION_CODE } from "../constants.js";
-import { buildUserScopeFilter } from "./adminScope.js";
+import {
+  buildUserScopeFilter,
+  canManageUserAssignment,
+} from "./adminScope.js";
 import { CROPGEN_PLATFORM_ROLES } from "../constants/adminLevels.js";
 import { resolveOrganizationByCode } from "../../../utils/auth/authUtils.js";
 import {
@@ -11,7 +14,10 @@ import {
 } from "./crmUserFormat.js";
 
 export async function resolveCrmUserBaseQuery(req) {
-  const { role, adminAssignments = [] } = req.user;
+  const actor = req.adminActor || req.user || {};
+  const { role } = actor;
+  const adminAssignments =
+    actor.adminAssignments || req.user?.adminAssignments || [];
   const isCropgenOps = CROPGEN_PLATFORM_ROLES.has(role);
   const isGeoStaff =
     role === "staff" &&
@@ -61,6 +67,14 @@ export async function buildCrmTeamUserQuery(baseQuery, orgId) {
   };
 }
 
+/** Single-user lookup — teamQuery's `$in` must not overwrite the requested id. */
+export function buildCrmTeamUserByIdQuery(teamQuery, userId) {
+  return {
+    ...teamQuery,
+    _id: userId,
+  };
+}
+
 function buildSearchFilter(search) {
   if (!search?.trim()) return null;
   const q = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -81,6 +95,7 @@ export async function fetchCrmScopedUsers({
   limit,
   status,
   search,
+  actor = null,
 }) {
   const parsedLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
   const parsedPage = Math.max(1, parseInt(page, 10) || 1);
@@ -130,11 +145,16 @@ export async function fetchCrmScopedUsers({
 
   let formatted = allUsers.map((user) => {
     const key = String(user._id);
-    return formatCrmUser(
+    const assignment = assignmentByUser.get(key) || null;
+    const row = formatCrmUser(
       user,
-      assignmentByUser.get(key) || null,
+      assignment,
       invitationByUser.get(key) || null,
     );
+    if (actor) {
+      row.canManage = canManageUserAssignment(actor, assignment, org._id);
+    }
+    return row;
   });
 
   if (status && status !== "all") {

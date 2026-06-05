@@ -11,13 +11,15 @@ const isAuthenticated = (req, res, next) => {
 
   if (!token) {
     return res
-      .status(403)
-      .json({ message: "Access denied. No token provided." });
+      .status(401)
+      .json({ success: false, message: "Access denied. No token provided." });
   }
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
-      return res.status(403).json({ message: "Invalid or expired token." });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid or expired token." });
     }
 
     req.user = user;

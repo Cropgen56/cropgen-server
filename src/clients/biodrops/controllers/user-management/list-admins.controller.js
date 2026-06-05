@@ -2,6 +2,7 @@ import User from "../../../../models/user.model.js";
 import BiodropsAdminAssignment from "../../models/admin-assignment.model.js";
 import { resolveCrmUserBaseQuery } from "../../utils/crmUserQuery.js";
 import { formatCrmUser, loadActiveAssignmentsByUserId } from "../../utils/crmUserFormat.js";
+import { filterManagersForInvite } from "../../utils/adminScope.js";
 
 /** Lightweight list for manager / reports-to pickers. */
 export const listCrmAdminsForPicker = async (req, res) => {
@@ -23,15 +24,31 @@ export const listCrmAdminsForPicker = async (req, res) => {
 
     const map = await loadActiveAssignmentsByUserId(users.map((u) => u._id));
 
-    const admins = users.map((u) => {
-      const formatted = formatCrmUser(u, map.get(String(u._id)) || null);
+    const { forLevel, countryCode, stateCode, districtCode } = req.query || {};
+
+    let admins = users.map((u) => {
+      const assignment = map.get(String(u._id)) || null;
+      const formatted = formatCrmUser(u, assignment);
       return {
         id: formatted.id,
         name: formatted.name,
         role: formatted.role,
         level: formatted.adminLevel,
+        countryCode: assignment?.countryCode || null,
+        stateCode: assignment?.stateCode || null,
+        districtCode: assignment?.districtCode || null,
       };
     });
+
+    if (forLevel) {
+      admins = filterManagersForInvite(req.adminActor, admins, {
+        level: forLevel,
+        tenantId: String(org._id),
+        countryCode: countryCode || null,
+        stateCode: stateCode || null,
+        districtCode: districtCode || null,
+      });
+    }
 
     return res.status(200).json({ success: true, admins });
   } catch (error) {

@@ -25,7 +25,10 @@ export const getProfile = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "User fetched successfully.",
-      user,
+      user: {
+        ...user,
+        id: String(user._id),
+      },
     });
   } catch (error) {
     console.error(`Error fetching user with ID ${id}:`, error);

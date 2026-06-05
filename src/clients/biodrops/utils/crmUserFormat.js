@@ -70,11 +70,18 @@ export function formatCrmUser(user, assignment = null, invitation = null) {
   const territory = user.district || user.city || "—";
   const status = deriveCrmUserStatus(user, assignment, invitation);
 
+  const invitationEmail =
+    invitation?.email && invitation.status === "pending"
+      ? invitation.email
+      : null;
+
   return {
     id: String(user._id),
     uid: `BD-${String(user._id).slice(-6).toUpperCase()}`,
     name,
     email: user.email || null,
+    invitationEmail,
+    contactEmail: invitationEmail || user.email || null,
     phone: user.phone || null,
     avatar: user.avatar || null,
     role: displayRole,

@@ -1,6 +1,5 @@
 import User from "../../../../models/user.model.js";
 import FarmField from "../../../../models/field.model.js";
-import UserSubscription from "../../../../models/user-subscription.model.js";
 import { resolveCrmUserBaseQuery } from "../../utils/crmUserQuery.js";
 import { formatCrmFarmer } from "../../utils/formatFarmer.js";
 
@@ -63,15 +62,10 @@ export const listBiodropsFarmers = async (req, res) => {
 
     const userIds = farmers.map((u) => u._id);
 
-    const [fields, subscriptions] = await Promise.all([
-      FarmField.find({ user: { $in: userIds } })
-        .select("user cropName acre fieldName updatedAt")
-        .sort({ updatedAt: -1 })
-        .lean(),
-      UserSubscription.find({ userId: { $in: userIds } })
-        .sort({ updatedAt: -1 })
-        .lean(),
-    ]);
+    const fields = await FarmField.find({ user: { $in: userIds } })
+      .select("user cropName acre fieldName updatedAt")
+      .sort({ updatedAt: -1 })
+      .lean();
 
     const fieldsByUser = new Map();
     for (const field of fields) {
@@ -80,25 +74,9 @@ export const listBiodropsFarmers = async (req, res) => {
       fieldsByUser.get(key).push(field);
     }
 
-    const subscriptionByUser = new Map();
-    for (const sub of subscriptions) {
-      const key = String(sub.userId);
-      const existing = subscriptionByUser.get(key);
-      if (!existing) {
-        subscriptionByUser.set(key, sub);
-        continue;
-      }
-      const rank = (s) =>
-        s.status === "active" ? 3 : s.status === "pending" ? 2 : 1;
-      if (rank(sub) > rank(existing)) {
-        subscriptionByUser.set(key, sub);
-      }
-    }
-
     const formatted = farmers.map((user) =>
       formatCrmFarmer(user, {
         fields: fieldsByUser.get(String(user._id)) || [],
-        subscription: subscriptionByUser.get(String(user._id)) || null,
       }),
     );
 
@@ -142,17 +120,22 @@ export const getBiodropsFarmerStats = async (req, res) => {
         success: true,
         stats: {
           total: 0,
-          active: 0,
+          recentlyActive: 0,
           withFields: 0,
           totalAcres: 0,
         },
       });
     }
 
-    const [activeSubs, fieldAgg] = await Promise.all([
-      UserSubscription.countDocuments({
-        userId: { $in: userIds },
-        status: "active",
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
+
+    const [recentlyActive, fieldAgg] = await Promise.all([
+      User.countDocuments({
+        _id: { $in: userIds },
+        $or: [
+          { lastActiveAt: { $gte: thirtyDaysAgo } },
+          { lastLoginAt: { $gte: thirtyDaysAgo } },
+        ],
       }),
       FarmField.aggregate([
         { $match: { user: { $in: userIds } } },
@@ -178,7 +161,7 @@ export const getBiodropsFarmerStats = async (req, res) => {
       success: true,
       stats: {
         total,
-        active: activeSubs,
+        recentlyActive,
         withFields: agg.farmersWithFields || 0,
         totalAcres: Math.round((agg.totalAcres || 0) * 10) / 10,
       },

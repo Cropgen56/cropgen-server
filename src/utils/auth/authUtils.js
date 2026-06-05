@@ -30,6 +30,10 @@ const PRODUCTION_ORIGIN_TO_CLIENT_APP = {
   "https://biodrops.cropgenapp.com": "biodrops_web",
   "https://cropydeals.cropgenapp.com": "cropydeals_web",
   "https://test.cropgenapp.com": "cropgen_web",
+  "https://satagro.ai": "satagro_crm",
+  "https://www.satagro.ai": "satagro_crm",
+  "https://app.satagro.ai": "satagro_crm",
+  "https://www.app.satagro.ai": "satagro_crm",
 };
 
 export const hash = (s) => bcrypt.hash(s, 10);
@@ -106,6 +110,7 @@ const WEB_CLIENT_APP_KEYS = new Set([
   "biodrops_web",
   "cropydeals_web",
   "admin",
+  "satagro_crm",
 ]);
 
 /**

@@ -5,3 +5,4 @@ export { updateCrmUser } from "./update.controller.js";
 export { deleteCrmUser } from "./delete.controller.js";
 export { listCrmAdminsForPicker } from "./list-admins.controller.js";
 export { listPendingCrmInvitations } from "./list-pending.controller.js";
+export { getHierarchyCapabilities } from "./hierarchy.controller.js";

@@ -11,6 +11,7 @@ export const listUserManagement = async (req, res) => {
       limit,
       status,
       search: search || q,
+      actor: req.adminActor,
     });
 
     return res.status(200).json({

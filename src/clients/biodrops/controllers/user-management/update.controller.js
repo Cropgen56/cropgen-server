@@ -10,6 +10,7 @@ import {
   validateLevelGeo,
 } from "../../utils/crmUserManage.js";
 import { canCreateAssignment } from "../../utils/adminScope.js";
+import { checkAssignmentAvailability } from "../../utils/assignmentAvailability.js";
 import {
   formatCrmUser,
   loadLatestInvitationsByUserId,
@@ -114,17 +115,38 @@ export const updateCrmUser = async (req, res) => {
       managedOrganizationId: null,
     };
 
-    if (
+    const scopeChanged =
       nextLevel !== primaryAssignment.level ||
       fieldCheck.countryCode !== (primaryAssignment.countryCode || null) ||
       fieldCheck.stateCode !== (primaryAssignment.stateCode || null) ||
-      fieldCheck.districtCode !== (primaryAssignment.districtCode || null)
-    ) {
+      fieldCheck.districtCode !== (primaryAssignment.districtCode || null);
+
+    if (scopeChanged) {
       if (!canCreateAssignment(req.adminActor, newShape)) {
         return res.status(403).json({
           success: false,
           message: "You cannot assign this admin level or region scope.",
         });
+      }
+
+      const nextStatus =
+        assignmentStatus === "suspended" ? "suspended" : "active";
+      if (nextStatus === "active") {
+        const availability = await checkAssignmentAvailability({
+          level: nextLevel,
+          tenantId: org._id,
+          countryCode: fieldCheck.countryCode,
+          stateCode: fieldCheck.stateCode,
+          districtCode: fieldCheck.districtCode,
+          excludeUserId: user._id,
+        });
+
+        if (!availability.canAssign) {
+          return res.status(409).json({
+            success: false,
+            message: availability.message,
+          });
+        }
       }
     }
 

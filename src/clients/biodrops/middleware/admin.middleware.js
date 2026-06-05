@@ -3,9 +3,9 @@ import {
   CROPGEN_PLATFORM_ROLES,
 } from "../constants/adminLevels.js";
 import { getHighestAdminLevel } from "../utils/adminScope.js";
+import { loadBiodropsAssignmentsForUser } from "../utils/authPayload.js";
 
-function enrichActor(req) {
-  const user = req.user || {};
+function enrichActor(user = {}) {
   const adminAssignments = user.adminAssignments || [];
   return {
     id: user.id || user._id,
@@ -17,13 +17,26 @@ function enrichActor(req) {
   };
 }
 
-export function attachBiodropsAdminActor(req, res, next) {
+/** Load active admin assignments from DB — JWT copies go stale after role changes. */
+export async function attachBiodropsAdminActor(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
-  req.biodropsAdminActor = enrichActor(req);
-  req.adminActor = req.biodropsAdminActor;
-  next();
+
+  try {
+    const userId = req.user.id || req.user._id;
+    const adminAssignments = await loadBiodropsAssignmentsForUser(userId);
+    const actorUser = { ...req.user, adminAssignments };
+    req.biodropsAdminActor = enrichActor(actorUser);
+    req.adminActor = req.biodropsAdminActor;
+    next();
+  } catch (err) {
+    console.error("attachBiodropsAdminActor:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to resolve admin permissions.",
+    });
+  }
 }
 
 export function requireBiodropsAdminAccess(options = {}) {
@@ -31,7 +44,7 @@ export function requireBiodropsAdminAccess(options = {}) {
   const minRank = minLevel ? ADMIN_LEVEL_RANK[minLevel] || 0 : 0;
 
   return (req, res, next) => {
-    const actor = enrichActor(req);
+    const actor = req.biodropsAdminActor || enrichActor(req.user || {});
     req.biodropsAdminActor = actor;
     req.adminActor = actor;
 

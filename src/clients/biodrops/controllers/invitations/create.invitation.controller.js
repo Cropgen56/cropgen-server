@@ -10,6 +10,7 @@ import {
 import { resolveOrganizationByCode } from "../../../../utils/auth/authUtils.js";
 import { generateInvitationToken } from "../../utils/invitationToken.js";
 import { sendCrmInvitationEmail } from "../../services/crmInvitationEmail.service.js";
+import { checkAssignmentAvailability } from "../../utils/assignmentAvailability.js";
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -34,6 +35,67 @@ function normalizePhone(phone) {
   if (!digits) return null;
   if (digits.length === 10) return `+91${digits}`;
   return `+${digits}`;
+}
+
+async function resolveInviteUser({ normalizedPhone, normalizedEmail, tenantId }) {
+  const userByPhone = normalizedPhone
+    ? await User.findOne({ phone: normalizedPhone })
+    : null;
+  const userByEmail = normalizedEmail
+    ? await User.findOne({ email: normalizedEmail })
+    : null;
+
+  if (
+    userByPhone &&
+    userByEmail &&
+    String(userByPhone._id) !== String(userByEmail._id)
+  ) {
+    return {
+      error: {
+        status: 409,
+        message:
+          "This email and mobile number belong to different accounts. Use matching credentials or contact support.",
+      },
+    };
+  }
+
+  const user = userByPhone || userByEmail || null;
+  if (!user) return { user: null };
+
+  const activeAssignment = await BiodropsAdminAssignment.findOne({
+    userId: user._id,
+    tenantId,
+    status: "active",
+  }).lean();
+
+  if (activeAssignment) {
+    return {
+      error: {
+        status: 409,
+        message:
+          "This user is already registered in CRM. Update their profile or resend the invitation from user management.",
+      },
+    };
+  }
+
+  const pendingInvitation = await CrmInvitation.findOne({
+    userId: user._id,
+    tenantId,
+    status: "pending",
+    expiresAt: { $gt: new Date() },
+  }).lean();
+
+  if (pendingInvitation) {
+    return {
+      error: {
+        status: 409,
+        message:
+          "An invitation is already pending for this user. Use resend invitation instead.",
+      },
+    };
+  }
+
+  return { user };
 }
 
 export const createCrmInvitation = async (req, res) => {
@@ -90,12 +152,19 @@ export const createCrmInvitation = async (req, res) => {
     const normalizedPhone = normalizePhone(phone);
     const normalizedEmail = email?.trim().toLowerCase() || null;
 
-    let user =
-      (normalizedPhone
-        ? await User.findOne({ phone: normalizedPhone })
-        : null) ||
-      (normalizedEmail ? await User.findOne({ email: normalizedEmail }) : null);
+    const resolved = await resolveInviteUser({
+      normalizedPhone,
+      normalizedEmail,
+      tenantId,
+    });
+    if (resolved.error) {
+      return res.status(resolved.error.status).json({
+        success: false,
+        message: resolved.error.message,
+      });
+    }
 
+    let user = resolved.user;
     const { firstName, lastName } = splitFullName(fullName);
 
     if (!user) {
@@ -110,10 +179,39 @@ export const createCrmInvitation = async (req, res) => {
         clientSource: "web",
       });
     } else {
-      user.firstName = user.firstName || firstName;
-      user.lastName = user.lastName || lastName;
-      if (normalizedEmail && !user.email) user.email = normalizedEmail;
-      if (normalizedPhone && !user.phone) user.phone = normalizedPhone;
+      // Reused an existing platform account (matched by phone or email).
+      // Apply the invited profile so CRM list/edit match what the admin entered.
+      user.firstName = firstName;
+      user.lastName = lastName;
+
+      if (normalizedEmail) {
+        const emailTaken = await User.findOne({
+          email: normalizedEmail,
+          _id: { $ne: user._id },
+        });
+        if (emailTaken) {
+          return res.status(409).json({
+            success: false,
+            message: "This email is already linked to another account.",
+          });
+        }
+        user.email = normalizedEmail;
+      }
+
+      if (normalizedPhone) {
+        const phoneTaken = await User.findOne({
+          phone: normalizedPhone,
+          _id: { $ne: user._id },
+        });
+        if (phoneTaken) {
+          return res.status(409).json({
+            success: false,
+            message: "This mobile number is already linked to another account.",
+          });
+        }
+        user.phone = normalizedPhone;
+      }
+
       if (!user.organization) user.organization = tenantId;
       if (user.role === "farmer") user.role = "staff";
       await user.save();
@@ -128,7 +226,7 @@ export const createCrmInvitation = async (req, res) => {
 
     const newAssignmentShape = {
       level,
-      tenantId,
+      tenantId: String(tenantId),
       countryCode: geoCountry,
       stateCode: geoState,
       districtCode: geoDistrict,
@@ -147,11 +245,39 @@ export const createCrmInvitation = async (req, res) => {
       return res.status(400).json({ success: false, message: fieldCheck.message });
     }
 
-    if (!canCreateAssignment(req.adminActor, newAssignmentShape)) {
+    let allowBootstrapSuperCreation = false;
+    if (level === "super") {
+      const activeSuperExists = await BiodropsAdminAssignment.exists({
+        tenantId,
+        level: "super",
+        status: "active",
+      });
+      allowBootstrapSuperCreation = !activeSuperExists;
+    }
+
+    if (
+      !allowBootstrapSuperCreation &&
+      !canCreateAssignment(req.adminActor, newAssignmentShape)
+    ) {
       return res.status(403).json({
         success: false,
         message:
           "You cannot create this admin assignment. A higher-level BioDrops admin is required.",
+      });
+    }
+
+    const availability = await checkAssignmentAvailability({
+      level,
+      tenantId,
+      countryCode: fieldCheck.countryCode,
+      stateCode: fieldCheck.stateCode,
+      districtCode: fieldCheck.districtCode,
+    });
+
+    if (!availability.canAssign) {
+      return res.status(409).json({
+        success: false,
+        message: availability.message,
       });
     }
 

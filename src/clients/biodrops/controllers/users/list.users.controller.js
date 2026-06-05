@@ -1,5 +1,4 @@
 import User from "../../../../models/user.model.js";
-import UserSubscription from "../../../../models/user-subscription.model.js";
 import { ORGANIZATION_CODE } from "../../constants.js";
 import { buildUserScopeFilter } from "../../utils/adminScope.js";
 import { CROPGEN_PLATFORM_ROLES } from "../../constants/adminLevels.js";
@@ -88,40 +87,10 @@ export const listBiodropsUsers = async (req, res) => {
       });
     }
 
-    const userIds = users.map((u) => u._id);
-    const activeSubscriptions = await UserSubscription.find({
-      userId: { $in: userIds },
-      status: "active",
-    })
-      .populate({ path: "planId", select: "name slug platform" })
-      .select("userId planId billingCycle startDate endDate status")
-      .lean();
-
-    const subscriptionMap = new Map(
-      activeSubscriptions.map((s) => [s.userId.toString(), s]),
-    );
-
-    const usersWithSubscription = users.map((user) => {
-      const sub = subscriptionMap.get(user._id.toString());
-      return {
-        ...user,
-        subscription: sub
-          ? {
-              hasActiveSubscription: true,
-              plan: sub.planId,
-              billingCycle: sub.billingCycle,
-              startDate: sub.startDate,
-              endDate: sub.endDate,
-              status: sub.status,
-            }
-          : { hasActiveSubscription: false },
-      };
-    });
-
     return res.status(200).json({
       success: true,
       message: "BioDrops users fetched successfully.",
-      users: usersWithSubscription,
+      users,
       pagination: wantsAll
         ? { returned: users.length, totalUsers }
         : {

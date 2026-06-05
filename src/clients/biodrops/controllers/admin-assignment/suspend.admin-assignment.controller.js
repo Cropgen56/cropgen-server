@@ -3,6 +3,7 @@ import {
   canManageAssignment,
   serializeAssignment,
 } from "../../utils/adminScope.js";
+import { assertNotLastSuperAdmin } from "../../utils/crmUserManage.js";
 
 export const suspendBiodropsAdminAssignment = async (req, res) => {
   try {
@@ -30,6 +31,8 @@ export const suspendBiodropsAdminAssignment = async (req, res) => {
         message: "You cannot suspend this admin assignment.",
       });
     }
+
+    await assertNotLastSuperAdmin(assignment.tenantId, assignment);
 
     assignment.status = "suspended";
     await assignment.save();

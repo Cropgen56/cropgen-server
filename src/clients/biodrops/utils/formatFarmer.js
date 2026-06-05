@@ -16,22 +16,13 @@ function formatLastActive(date) {
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-export function deriveFarmerDisplayStatus(subscription) {
-  if (!subscription) return "trial";
-  if (subscription.status === "active") {
-    if (subscription.endDate) {
-      const daysLeft =
-        (new Date(subscription.endDate).getTime() - Date.now()) / 86400000;
-      if (daysLeft > 0 && daysLeft <= 14) return "expiring";
-    }
-    return "active";
-  }
-  if (subscription.status === "expired") return "expired";
-  if (subscription.billingCycle === "trial") return "trial";
-  return "trial";
+/** BIODROPS farmers do not use paid subscriptions — status reflects onboarding progress. */
+export function deriveFarmerDisplayStatus({ fields = [] } = {}) {
+  if (fields.length > 0) return "active";
+  return "registered";
 }
 
-export function formatCrmFarmer(user, { fields = [], subscription = null } = {}) {
+export function formatCrmFarmer(user, { fields = [] } = {}) {
   const name =
     [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
     user.phone ||
@@ -52,7 +43,7 @@ export function formatCrmFarmer(user, { fields = [], subscription = null } = {})
     landSize: totalAcre > 0 ? `${totalAcre.toFixed(1)} ac` : "—",
     fieldCount: fields.length,
     crop: crops.length ? crops.slice(0, 2).join(", ") : "—",
-    status: deriveFarmerDisplayStatus(subscription),
+    status: deriveFarmerDisplayStatus({ fields }),
     lastAdvisory: formatLastActive(
       user.lastActiveAt || user.lastLoginAt || user.updatedAt,
     ),

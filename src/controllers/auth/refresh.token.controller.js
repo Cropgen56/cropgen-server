@@ -49,7 +49,13 @@ export const refreshTokenHandler = async (req, res) => {
       "organizationCode",
     );
     const clientAppKey = resolveClientAppKey(req);
-    const storedRid = getClientRefreshId(user, clientAppKey);
+    let storedRid = getClientRefreshId(user, clientAppKey);
+
+    // Satagro CRM users may have refresh ids stored under biodrops_web or legacy key.
+    if (!storedRid && clientAppKey === "satagro_crm") {
+      storedRid =
+        getClientRefreshId(user, "biodrops_web") || user?.refreshTokenId || null;
+    }
 
     if (!user || !storedRid) {
       clearRefreshCookie(res, req);
