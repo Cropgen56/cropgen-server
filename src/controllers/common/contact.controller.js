@@ -1,4 +1,8 @@
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import {
+  getThreedotContactMailConfig,
+  getThreedotContactRecipients,
+} from "../../clients/threedot/brand/contact.preset.js";
 
 const sesClient = new SESClient({
   region:
@@ -17,7 +21,10 @@ const sesClient = new SESClient({
   },
 });
 
-const CONTACT_RECIPIENTS = ["cropgenapp@gmail.com", "support@biodrops.ai"];
+const DEFAULT_CONTACT_RECIPIENTS = [
+  "cropgenapp@gmail.com",
+  "support@biodrops.ai",
+];
 
 const escapeHtml = (value = "") =>
   String(value)
@@ -27,13 +34,20 @@ const escapeHtml = (value = "") =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-/** cropgen → SES_FROM_* ; satagro / biodrops → SES_FROM_*_BIODROPS */
+/** cropgen → SES_FROM_* ; satagro / biodrops → SES_FROM_*_BIODROPS ; threedot → SES_FROM_*_THREEDOTT */
 function resolveContactBrand(rawSource) {
   const key = String(rawSource || "")
     .trim()
     .toLowerCase();
   if (key === "satagro" || key === "biodrops" || key === "satagro.ai") {
     return "satagro";
+  }
+  if (
+    key === "threedot" ||
+    key === "threedott.com" ||
+    key === "www.threedott.com"
+  ) {
+    return "threedot";
   }
   return "cropgen";
 }
@@ -50,6 +64,10 @@ function getBrandMailConfig(brand) {
     };
   }
 
+  if (brand === "threedot") {
+    return getThreedotContactMailConfig();
+  }
+
   return {
     fromEmail: process.env.SES_FROM_EMAIL,
     fromName: process.env.SES_FROM_NAME || "CropGen",
@@ -60,7 +78,24 @@ function getBrandMailConfig(brand) {
   };
 }
 
-export const contactUs = async (req, res) => {
+function getContactRecipients(brand) {
+  if (brand === "threedot") {
+    return getThreedotContactRecipients();
+  }
+  return DEFAULT_CONTACT_RECIPIENTS;
+}
+
+function getMissingSenderMessage(brand) {
+  if (brand === "satagro") {
+    return "SatAgro mail sender is not configured (SES_FROM_EMAIL_BIODROPS).";
+  }
+  if (brand === "threedot") {
+    return "ThreeDott mail sender is not configured (SES_FROM_EMAIL_THREEDOTT).";
+  }
+  return "CropGen mail sender is not configured (SES_FROM_EMAIL).";
+}
+
+export const handleContactUs = async (req, res, { forcedBrand } = {}) => {
   try {
     const {
       firstName,
@@ -76,10 +111,13 @@ export const contactUs = async (req, res) => {
       website,
     } = req.body;
 
-    const brand = resolveContactBrand(
-      source || website || req.headers["x-contact-source"],
-    );
+    const brand =
+      forcedBrand ||
+      resolveContactBrand(
+        source || website || req.headers["x-contact-source"],
+      );
     const mailConfig = getBrandMailConfig(brand);
+    const recipients = getContactRecipients(brand);
 
     const messageBody = String(message || content || "").trim();
     if (!messageBody) {
@@ -138,16 +176,13 @@ ${messageBody}
     if (!fromEmail) {
       return res.status(500).json({
         success: false,
-        message:
-          brand === "satagro"
-            ? "SatAgro mail sender is not configured (SES_FROM_EMAIL_BIODROPS)."
-            : "CropGen mail sender is not configured (SES_FROM_EMAIL).",
+        message: getMissingSenderMessage(brand),
       });
     }
 
     const command = new SendEmailCommand({
       Source: fromName ? `${fromName} <${fromEmail}>` : fromEmail,
-      Destination: { ToAddresses: CONTACT_RECIPIENTS },
+      Destination: { ToAddresses: recipients },
       ReplyToAddresses: replyToEmail ? [replyToEmail] : undefined,
       Message: {
         Subject: { Data: mailConfig.subject, Charset: "UTF-8" },
@@ -163,7 +198,7 @@ ${messageBody}
       success: true,
       message: "Message sent successfully.",
       messageId: result.MessageId,
-      sentTo: CONTACT_RECIPIENTS,
+      sentTo: recipients,
       brand,
     });
   } catch (error) {
@@ -176,3 +211,5 @@ ${messageBody}
     });
   }
 };
+
+export const contactUs = (req, res) => handleContactUs(req, res);

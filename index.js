@@ -90,6 +90,8 @@ const defaultProductionOrigins = [
   "https://app.satagro.ai",
   "https://www.app.satagro.ai",
   "https://www.satagro.ai",
+  "https://threedott.com",
+  "https://www.threedott.com",
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:5173",

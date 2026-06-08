@@ -27,5 +27,15 @@ HTTP paths are **not** derived from folder names. Client routes are registered i
 | ---------- | --------------------------- | --------------------- | ----------- |
 | Biodrops   | `src/clients/biodrops/`     | `BIODROPS` (fixed)    | `/biodrops/*`, `/crm/*`, `/admin-assignments/*` |
 | CropyDeals | `src/clients/cropydeals/`   | From request body     | `POST /cropydeal-register-login` |
+| ThreeDott  | `src/clients/threedot/`     | N/A (contact-only)    | `POST /v1/api/common/threedot/contact-us` |
 
 LFP auth routes remain in `src/routes/auth.routes.js` for now; they can move to `src/clients/lfp/` later using the same pattern.
+
+### ThreeDott env vars (contact form)
+
+| Variable | Purpose |
+| -------- | ------- |
+| `SES_FROM_EMAIL_THREEDOTT` | Verified SES sender (e.g. `contact@threedott.com`) |
+| `SES_FROM_NAME_THREEDOTT` | Display name (default: `ThreeDott`) |
+| `SES_REPLY_TO_THREEDOTT` | Fallback reply-to when submitter email is missing |
+| `CONTACT_RECIPIENT_THREEDOTT` | Inbox for form submissions (default: `contact@threedott.com`) |
