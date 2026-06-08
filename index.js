@@ -85,6 +85,7 @@ const defaultProductionOrigins = [
   "https://cropydeals.cropgenapp.com",
   "https://test.cropgenapp.com",
   "https://biodrops.cropgenapp.com",
+  "https://crm.cropgenapp.com",
   "https://satagro.ai",
   "https://app.satagro.ai",
   "https://www.app.satagro.ai",
@@ -102,6 +103,7 @@ const defaultDevelopmentOrigins = [
   "http://localhost:5173",
   "http://10.0.2.2:7070",
   "http://localhost:5176",
+  "http://localhost:5174",
 ];
 
 const allowedOrigins = [
