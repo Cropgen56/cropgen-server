@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import UserSubscription from "../models/user-subscription.model.js";
+import BiodropsAdminAssignment from "../clients/biodrops/models/admin-assignment.model.js";
 
 dotenv.config();
 
@@ -64,13 +65,34 @@ async function dropLegacyUserSubscriptionIndexes() {
   }
 }
 
+async function dropLegacyBiodropsSuperAdminUniqueIndex() {
+  const coll = mongoose.connection.collection("biodropsadminassignments");
+  const legacyNames = ["tenantId_1_level_1"];
+
+  for (const name of legacyNames) {
+    try {
+      await coll.dropIndex(name);
+      console.log(`Dropped legacy biodropsadminassignments index: ${name}`);
+    } catch (e) {
+      const code = e?.code;
+      const msg = String(e?.message || "").toLowerCase();
+      if (code === 27 || msg.includes("index not found") || msg.includes("ns not found")) {
+        continue;
+      }
+      console.warn(`Could not drop index ${name}:`, e?.message || e);
+    }
+  }
+}
+
 // Create MongoDB connection
 export const connectToDatabase = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("Successfully connected to the database");
     await dropLegacyUserSubscriptionIndexes();
+    await dropLegacyBiodropsSuperAdminUniqueIndex();
     await UserSubscription.syncIndexes();
+    await BiodropsAdminAssignment.syncIndexes();
   } catch (error) {
     console.error("Unable to connect to the database:", error);
   }

@@ -1,3 +1,6 @@
+/** Maximum active Super Admins allowed per BioDrops tenant. */
+export const MAX_SUPER_ADMINS = 5;
+
 /** BioDrops CRM admin hierarchy (highest rank first). */
 export const ADMIN_LEVELS = [
   "super",

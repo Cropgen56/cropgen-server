@@ -1,13 +1,9 @@
 import User from "../../../models/user.model.js";
 import BiodropsAdminAssignment from "../models/admin-assignment.model.js";
+import { MAX_SUPER_ADMINS } from "../constants/adminLevels.js";
 import { validateAssignmentFields } from "./adminScope.js";
 
-const UNIQUE_ASSIGNMENT_LEVELS = new Set([
-  "super",
-  "country",
-  "state",
-  "district",
-]);
+const UNIQUE_ASSIGNMENT_LEVELS = new Set(["country", "state", "district"]);
 
 const LEVEL_LABELS = {
   super: "Super Admin",
@@ -59,6 +55,41 @@ export function buildActiveAssignmentScopeQuery(
   return query;
 }
 
+async function checkSuperAdminAvailability({ tenantId, excludeUserId = null }) {
+  const countQuery = {
+    tenantId,
+    level: "super",
+    status: "active",
+  };
+  if (excludeUserId) {
+    countQuery.userId = { $ne: excludeUserId };
+  }
+
+  const activeCount = await BiodropsAdminAssignment.countDocuments(countQuery);
+  const remaining = Math.max(0, MAX_SUPER_ADMINS - activeCount);
+  const slots = {
+    max: MAX_SUPER_ADMINS,
+    used: activeCount,
+    remaining,
+  };
+
+  if (activeCount < MAX_SUPER_ADMINS) {
+    return {
+      available: true,
+      canAssign: true,
+      message: `Super Admin slot is available (${activeCount}/${MAX_SUPER_ADMINS} used).`,
+      superAdminSlots: slots,
+    };
+  }
+
+  return {
+    available: false,
+    canAssign: false,
+    message: `Maximum of ${MAX_SUPER_ADMINS} active Super Admins reached for this organization.`,
+    superAdminSlots: slots,
+  };
+}
+
 export async function checkAssignmentAvailability({
   level,
   tenantId,
@@ -73,6 +104,10 @@ export async function checkAssignmentAvailability({
       canAssign: false,
       message: "Admin level is required.",
     };
+  }
+
+  if (level === "super") {
+    return checkSuperAdminAvailability({ tenantId, excludeUserId });
   }
 
   if (!UNIQUE_ASSIGNMENT_LEVELS.has(level)) {

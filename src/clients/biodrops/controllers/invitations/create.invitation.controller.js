@@ -180,12 +180,12 @@ export const createCrmInvitation = async (req, res) => {
 
     let allowBootstrapSuperCreation = false;
     if (level === "super") {
-      const activeSuperExists = await BiodropsAdminAssignment.exists({
+      const activeSuperCount = await BiodropsAdminAssignment.countDocuments({
         tenantId,
         level: "super",
         status: "active",
       });
-      allowBootstrapSuperCreation = !activeSuperExists;
+      allowBootstrapSuperCreation = activeSuperCount === 0;
     }
 
     if (

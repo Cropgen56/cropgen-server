@@ -4,7 +4,7 @@ import { buildHierarchyCapabilities } from "../../utils/adminScope.js";
 export const getHierarchyCapabilities = async (req, res) => {
   try {
     const { org } = await resolveCrmUserBaseQuery(req);
-    const hierarchy = buildHierarchyCapabilities(req.adminActor, org._id);
+    const hierarchy = await buildHierarchyCapabilities(req.adminActor, org._id);
 
     return res.status(200).json({
       success: true,

@@ -22,6 +22,52 @@ export function deriveFarmerDisplayStatus({ fields = [] } = {}) {
   return "registered";
 }
 
+function formatField(field) {
+  return {
+    id: String(field._id),
+    fieldName: field.fieldName || "—",
+    cropName: field.cropName || "—",
+    variety: field.variety || "—",
+    acre: field.acre || 0,
+    sowingDate: field.sowingDate || "—",
+    typeOfIrrigation: field.typeOfIrrigation || "—",
+    typeOfFarming: field.typeOfFarming || "—",
+    isBarrenLand: Boolean(field.isBarrenLand),
+    createdAt: field.createdAt || null,
+    updatedAt: field.updatedAt || null,
+  };
+}
+
+export function formatCrmFarmerDetail(user, { fields = [] } = {}) {
+  const summary = formatCrmFarmer(user, { fields });
+  const formattedFields = fields.map(formatField);
+  const crops = [...new Set(fields.map((f) => f.cropName).filter(Boolean))];
+  const irrigationTypes = [
+    ...new Set(fields.map((f) => f.typeOfIrrigation).filter(Boolean)),
+  ];
+
+  return {
+    ...summary,
+    email: user.email || null,
+    country: user.country || null,
+    state: user.state || null,
+    district: user.district || null,
+    city: user.city || null,
+    village: user.village || null,
+    language: user.language || null,
+    clientSource: user.clientSource || null,
+    termsAccepted: user.terms === true,
+    lastLoginAt: user.lastLoginAt || null,
+    lastActiveAt: user.lastActiveAt || user.lastLoginAt || user.updatedAt || null,
+    createdAt: user.createdAt || null,
+    updatedAt: user.updatedAt || null,
+    totalAcre: formattedFields.reduce((sum, field) => sum + (field.acre || 0), 0),
+    crops,
+    irrigationTypes,
+    fields: formattedFields,
+  };
+}
+
 export function formatCrmFarmer(user, { fields = [] } = {}) {
   const name =
     [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||

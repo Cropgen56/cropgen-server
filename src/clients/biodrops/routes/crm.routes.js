@@ -26,6 +26,7 @@ import { resendCrmInvitation } from "../controllers/invitations/resend.invitatio
 import {
   listBiodropsFarmers,
   getBiodropsFarmerStats,
+  getBiodropsFarmerById,
 } from "../controllers/farmers/index.js";
 
 const router = express.Router();
@@ -80,6 +81,7 @@ router.post(
 router.get("/users", ...crmGuards, listBiodropsUsers);
 
 router.get("/farmers/stats", ...crmGuards, getBiodropsFarmerStats);
+router.get("/farmers/:id", ...crmGuards, getBiodropsFarmerById);
 router.get("/farmers", ...crmGuards, listBiodropsFarmers);
 
 export default router;

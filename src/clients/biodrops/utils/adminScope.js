@@ -1,8 +1,10 @@
+import BiodropsAdminAssignment from "../models/admin-assignment.model.js";
 import {
   ADMIN_LEVELS,
   ADMIN_LEVEL_RANK,
   ADMIN_PARENT_LEVEL,
   CROPGEN_PLATFORM_ROLES,
+  MAX_SUPER_ADMINS,
 } from "../constants/adminLevels.js";
 import { ORGANIZATION_CODE } from "../constants.js";
 
@@ -408,11 +410,17 @@ export function summarizeActorGeoScope(actor) {
   };
 }
 
-export function buildHierarchyCapabilities(actor, tenantId) {
+export async function buildHierarchyCapabilities(actor, tenantId) {
   const highestLevel = getHighestAdminLevel(actor?.adminAssignments || []);
   let creatableLevels = getCreatableLevels(actor, tenantId);
 
-  if (highestLevel === "super") {
+  const superCount = await BiodropsAdminAssignment.countDocuments({
+    tenantId,
+    level: "super",
+    status: "active",
+  });
+
+  if (highestLevel === "super" && superCount >= MAX_SUPER_ADMINS) {
     creatableLevels = creatableLevels.filter((level) => level !== "super");
   }
 
@@ -421,6 +429,11 @@ export function buildHierarchyCapabilities(actor, tenantId) {
     isPlatformAdmin: CROPGEN_PLATFORM_ROLES.has(actor?.role),
     creatableLevels,
     geoScope: summarizeActorGeoScope(actor),
+    superAdminSlots: {
+      max: MAX_SUPER_ADMINS,
+      used: superCount,
+      remaining: Math.max(0, MAX_SUPER_ADMINS - superCount),
+    },
   };
 }
 

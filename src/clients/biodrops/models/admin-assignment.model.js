@@ -70,14 +70,6 @@ const adminAssignmentSchema = new Schema(
 const activePartial = { status: "active" };
 
 adminAssignmentSchema.index(
-  { tenantId: 1, level: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { ...activePartial, level: "super" },
-  },
-);
-
-adminAssignmentSchema.index(
   { tenantId: 1, countryCode: 1 },
   {
     unique: true,

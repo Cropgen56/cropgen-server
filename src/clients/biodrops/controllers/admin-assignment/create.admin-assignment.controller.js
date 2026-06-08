@@ -7,6 +7,7 @@ import {
   canCreateAssignment,
   validateAssignmentFields,
 } from "../../utils/adminScope.js";
+import { checkAssignmentAvailability } from "../../utils/assignmentAvailability.js";
 import { resolveBiodropsTenantId } from "../../utils/authPayload.js";
 
 async function resolveManagedOrganizationId({
@@ -101,6 +102,22 @@ export const createBiodropsAdminAssignment = async (req, res) => {
         success: false,
         message:
           "You cannot create this admin assignment. A higher-level BioDrops admin is required.",
+      });
+    }
+
+    const availability = await checkAssignmentAvailability({
+      level: value.level,
+      tenantId,
+      countryCode: fieldCheck.countryCode,
+      stateCode: fieldCheck.stateCode,
+      districtCode: fieldCheck.districtCode,
+      excludeUserId: value.userId,
+    });
+
+    if (!availability.canAssign) {
+      return res.status(409).json({
+        success: false,
+        message: availability.message,
       });
     }
 

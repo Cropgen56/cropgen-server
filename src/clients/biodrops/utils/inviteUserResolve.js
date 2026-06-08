@@ -42,6 +42,18 @@ export async function resolveInviteUser({
   const user = userByPhone || userByEmail || null;
   if (!user) return { user: null };
 
+  const userOrgId = user.organization?._id || user.organization || null;
+  if (userOrgId && String(userOrgId) !== String(tenantId)) {
+    return {
+      error: {
+        status: 409,
+        reason: "different_organization",
+        message:
+          "This phone or email is linked to another organization. Access cannot be granted in this CRM.",
+      },
+    };
+  }
+
   const activeAssignment = await BiodropsAdminAssignment.findOne({
     userId: user._id,
     tenantId,

@@ -11,6 +11,7 @@ import { connectToDatabase } from "../../../config/db.js";
 import User from "../../../models/user.model.js";
 import { resolveOrganizationByCode } from "../../../utils/auth/authUtils.js";
 import BiodropsAdminAssignment from "../models/admin-assignment.model.js";
+import { MAX_SUPER_ADMINS } from "../constants/adminLevels.js";
 import { ORGANIZATION_CODE } from "../constants.js";
 
 dotenv.config();
@@ -64,15 +65,20 @@ if (!user) {
   process.exit(1);
 }
 
-const existing = await BiodropsAdminAssignment.findOne({
+const existingForUser = await BiodropsAdminAssignment.findOne({
+  userId: user._id,
   level: "super",
   tenantId: org._id,
   status: "active",
 });
-if (existing && String(existing.userId) !== String(user._id)) {
+const activeSuperCount = await BiodropsAdminAssignment.countDocuments({
+  level: "super",
+  tenantId: org._id,
+  status: "active",
+});
+if (!existingForUser && activeSuperCount >= MAX_SUPER_ADMINS) {
   console.error(
-    "Another BioDrops super admin already exists:",
-    existing.userId.toString(),
+    `Maximum of ${MAX_SUPER_ADMINS} BioDrops super admins already exist for this tenant.`,
   );
   process.exit(1);
 }
