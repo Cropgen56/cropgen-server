@@ -5,6 +5,7 @@ import FarmAdvisory from "../models/farmAdvisory.model.js";
 import "../../../models/user.model.js";
 import cron from "node-cron";
 import { resolveOrganizationByCode } from "../../../utils/auth/authUtils.js";
+import { getCropgenOrganizationUserIds } from "../utils/advisoryOrganization.js";
 
 import { generateAdvisoryForField } from "../services/advisory.service.js";
 import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
@@ -124,31 +125,22 @@ export const runAdvisoryJob = async () => {
   console.log("🌾 Advisory cron worker scheduled (daily 4:00 AM)");
   cron.schedule("0 4 * * *", async () => {
     try {
+      const cropgenUserIds = await getCropgenOrganizationUserIds(
+        User,
+        resolveOrganizationByCode,
+      );
+      const cropgenUserIdSet = new Set(cropgenUserIds.map((id) => String(id)));
+
       const subscriptions = await UserSubscription.find({
         status: "active",
         $or: [{ endDate: null }, { endDate: { $gte: new Date() } }],
-      }).select("fieldId");
+      }).select("fieldId userId");
 
       const fieldIdSet = new Set(
-        subscriptions.map((s) => String(s.fieldId)),
+        subscriptions
+          .filter((s) => cropgenUserIdSet.has(String(s.userId)))
+          .map((s) => String(s.fieldId)),
       );
-
-      try {
-        const { org } = await resolveOrganizationByCode("BIODROPS");
-        const biodropsUserIds = await User.find({ organization: org._id })
-          .select("_id")
-          .lean();
-        if (biodropsUserIds.length) {
-          const biodropsFields = await FarmField.find({
-            user: { $in: biodropsUserIds.map((u) => u._id) },
-          })
-            .select("_id")
-            .lean();
-          biodropsFields.forEach((f) => fieldIdSet.add(String(f._id)));
-        }
-      } catch (orgErr) {
-        console.error("[Advisory] BIODROPS org field lookup failed:", orgErr);
-      }
 
       const fieldIds = [...fieldIdSet];
       if (!fieldIds.length) {

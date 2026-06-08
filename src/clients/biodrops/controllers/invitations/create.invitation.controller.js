@@ -11,6 +11,10 @@ import { resolveOrganizationByCode } from "../../../../utils/auth/authUtils.js";
 import { generateInvitationToken } from "../../utils/invitationToken.js";
 import { sendCrmInvitationEmail } from "../../services/crmInvitationEmail.service.js";
 import { checkAssignmentAvailability } from "../../utils/assignmentAvailability.js";
+import {
+  normalizeInvitePhone,
+  resolveInviteUser,
+} from "../../utils/inviteUserResolve.js";
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -25,77 +29,6 @@ function splitFullName(fullName) {
     firstName: parts[0],
     lastName: parts.slice(1).join(" "),
   };
-}
-
-function normalizePhone(phone) {
-  if (!phone) return null;
-  const raw = String(phone).trim();
-  if (raw.startsWith("+")) return raw;
-  const digits = raw.replace(/\D/g, "");
-  if (!digits) return null;
-  if (digits.length === 10) return `+91${digits}`;
-  return `+${digits}`;
-}
-
-async function resolveInviteUser({ normalizedPhone, normalizedEmail, tenantId }) {
-  const userByPhone = normalizedPhone
-    ? await User.findOne({ phone: normalizedPhone })
-    : null;
-  const userByEmail = normalizedEmail
-    ? await User.findOne({ email: normalizedEmail })
-    : null;
-
-  if (
-    userByPhone &&
-    userByEmail &&
-    String(userByPhone._id) !== String(userByEmail._id)
-  ) {
-    return {
-      error: {
-        status: 409,
-        message:
-          "This email and mobile number belong to different accounts. Use matching credentials or contact support.",
-      },
-    };
-  }
-
-  const user = userByPhone || userByEmail || null;
-  if (!user) return { user: null };
-
-  const activeAssignment = await BiodropsAdminAssignment.findOne({
-    userId: user._id,
-    tenantId,
-    status: "active",
-  }).lean();
-
-  if (activeAssignment) {
-    return {
-      error: {
-        status: 409,
-        message:
-          "This user is already registered in CRM. Update their profile or resend the invitation from user management.",
-      },
-    };
-  }
-
-  const pendingInvitation = await CrmInvitation.findOne({
-    userId: user._id,
-    tenantId,
-    status: "pending",
-    expiresAt: { $gt: new Date() },
-  }).lean();
-
-  if (pendingInvitation) {
-    return {
-      error: {
-        status: 409,
-        message:
-          "An invitation is already pending for this user. Use resend invitation instead.",
-      },
-    };
-  }
-
-  return { user };
 }
 
 export const createCrmInvitation = async (req, res) => {
@@ -149,7 +82,7 @@ export const createCrmInvitation = async (req, res) => {
     }
 
     const tenantId = await resolveBiodropsTenantId();
-    const normalizedPhone = normalizePhone(phone);
+    const normalizedPhone = normalizeInvitePhone(phone);
     const normalizedEmail = email?.trim().toLowerCase() || null;
 
     const resolved = await resolveInviteUser({

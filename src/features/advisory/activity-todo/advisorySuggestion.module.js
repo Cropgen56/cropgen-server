@@ -23,6 +23,7 @@ import {
 import { isMaturityOrHarvestStage } from "../pipeline/advisoryContext.js";
 import { enrichAdvisoryForClient } from "../utils/enrichAdvisoryForClient.js";
 import { getBiodropsRecommendations } from "../../../clients/biodrops/advisory/getBiodropsRecommendations.js";
+import { isCropgenOrganizationCode } from "../utils/advisoryOrganization.js";
 import { MODULE_IDS } from "../pipeline/constants.js";
 import { moduleResult } from "../pipeline/moduleResult.js";
 
@@ -266,7 +267,7 @@ export async function runAdvisorySuggestionModule(ctx) {
   }
 
   let notified = false;
-  if (user) {
+  if (user && isCropgenOrganizationCode(organizationCode)) {
     const notificationParameters = buildAdvisoryNotificationParameters(
       user,
       ctx.farmFieldDoc,
