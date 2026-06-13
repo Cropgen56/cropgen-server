@@ -26,24 +26,12 @@ export function createRedisConnection() {
     connectionName: `app-${process.pid}`,
   });
 
-  client.on("connect", () => {
-    console.info(`[redis] connecting to ${host}:${port}`);
-  });
-
-  client.on("ready", () => {
-    console.info("[redis] ready");
-  });
-
   client.on("error", (err) => {
     console.error("[redis] error:", err?.message || err);
   });
 
   client.on("close", () => {
     console.warn("[redis] connection closed");
-  });
-
-  client.on("reconnecting", (delay) => {
-    console.info(`[redis] reconnecting in ${delay}ms`);
   });
 
   return client;

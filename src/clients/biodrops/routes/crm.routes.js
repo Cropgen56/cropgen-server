@@ -28,6 +28,32 @@ import {
   getBiodropsFarmerStats,
   getBiodropsFarmerById,
 } from "../controllers/farmers/index.js";
+import {
+  generateAccessCards,
+  listAccessCards,
+  getAccessCardById,
+  getAccessCardEvents,
+} from "../controllers/access-cards/crm-generate.controller.js";
+import { listCrmFarmerAccessCards } from "../controllers/access-cards/list-crm-farmer-cards.controller.js";
+import {
+  createSubscriptionPlan,
+  getAllSubscriptionPlans,
+  getSubscriptionPlanById,
+  updateSubscriptionPlan,
+  deleteSubscriptionPlan,
+} from "../../../controllers/subscription-plan/index.js";
+import {
+  listCrmSubscriptions,
+  listCrmFarmerSubscriptions,
+  activateCrmFarmerSubscription,
+  cancelCrmSubscription,
+  approveCrmCardRemainder,
+} from "../controllers/subscriptions/index.js";
+import {
+  forceBiodropsPlanBrand,
+  ensureBiodropsPlanParam,
+} from "../middleware/subscriptionPlan.middleware.js";
+import { listCrmFarmerAdvisories } from "../controllers/advisories/index.js";
 
 const router = express.Router();
 
@@ -83,5 +109,72 @@ router.get("/users", ...crmGuards, listBiodropsUsers);
 router.get("/farmers/stats", ...crmGuards, getBiodropsFarmerStats);
 router.get("/farmers/:id", ...crmGuards, getBiodropsFarmerById);
 router.get("/farmers", ...crmGuards, listBiodropsFarmers);
+
+router.post("/access-cards/generate", ...crmGuards, generateAccessCards);
+router.get("/access-cards", ...crmGuards, listAccessCards);
+router.get("/access-cards/:id/events", ...crmGuards, getAccessCardEvents);
+router.get("/access-cards/:id", ...crmGuards, getAccessCardById);
+
+router.get("/subscriptions", ...crmGuards, listCrmSubscriptions);
+router.post(
+  "/subscriptions/:id/cancel",
+  ...crmGuards,
+  cancelCrmSubscription,
+);
+router.post(
+  "/subscriptions/:id/approve-card-remainder",
+  ...crmGuards,
+  approveCrmCardRemainder,
+);
+
+router.get(
+  "/farmers/:id/access-cards",
+  ...crmGuards,
+  listCrmFarmerAccessCards,
+);
+
+router.get(
+  "/farmers/:id/subscriptions",
+  ...crmGuards,
+  listCrmFarmerSubscriptions,
+);
+router.post(
+  "/farmers/:id/subscriptions/activate",
+  ...crmGuards,
+  activateCrmFarmerSubscription,
+);
+
+router.get(
+  "/farmers/:id/advisories",
+  ...crmGuards,
+  listCrmFarmerAdvisories,
+);
+
+router.get("/subscription-plans", ...crmGuards, getAllSubscriptionPlans);
+router.post(
+  "/subscription-plans",
+  ...crmGuards,
+  forceBiodropsPlanBrand,
+  createSubscriptionPlan,
+);
+router.get(
+  "/subscription-plans/:id",
+  ...crmGuards,
+  ensureBiodropsPlanParam,
+  getSubscriptionPlanById,
+);
+router.patch(
+  "/subscription-plans/:id",
+  ...crmGuards,
+  ensureBiodropsPlanParam,
+  forceBiodropsPlanBrand,
+  updateSubscriptionPlan,
+);
+router.delete(
+  "/subscription-plans/:id",
+  ...crmGuards,
+  ensureBiodropsPlanParam,
+  deleteSubscriptionPlan,
+);
 
 export default router;

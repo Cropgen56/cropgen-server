@@ -1,4 +1,5 @@
 import WhatsAppSettings from "../../../models/whatsapp-settings.model.js";
+import { log } from "../../../utils/logger.js";
 
 function isEnvAgentEnabled() {
   const flag = String(process.env.WHATSAPP_AGENT_AUTO_REPLY ?? "")
@@ -92,7 +93,7 @@ export async function setGlobalReplyMode(mode, adminUserId = null) {
   );
 
   invalidateWhatsAppSettingsCache();
-  console.log(
+  log.info(
     `[WhatsApp settings] Global reply mode set to ${normalized}${adminUserId ? ` by ${adminUserId}` : ""}`,
   );
 

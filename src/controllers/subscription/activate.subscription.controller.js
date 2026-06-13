@@ -52,6 +52,12 @@ export const activateSubscriptionManually = async (req, res) => {
       endDate.setDate(endDate.getDate() + 120);
     }
 
+    if (!["monthly", "yearly", "season"].includes(billingCycle)) {
+      return res.status(400).json({
+        message: "billingCycle must be monthly, yearly, or season",
+      });
+    }
+
     /* ===== Deactivate Old Active Plan ===== */
     await UserSubscription.updateMany(
       { userId, fieldId: farmId, status: "active" },
@@ -79,6 +85,8 @@ export const activateSubscriptionManually = async (req, res) => {
       startDate,
       endDate,
 
+      billingMode: "legacy_order",
+      activationSource: "admin",
       activatedByAdmin: true,
       activatedBy: adminId,
     });

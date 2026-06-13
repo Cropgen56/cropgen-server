@@ -4,13 +4,16 @@ import User from "../../models/user.model.js";
 import UserSubscription from "../../models/user-subscription.model.js";
 import { triggerInitialAdvisoryForNewField } from "../../features/advisory/services/triggerInitialAdvisory.service.js";
 import MonitoringRequest from "../../models/monitoring-request.model.js";
-import { isBiodropsClientBrand } from "../../utils/auth/authUtils.js";
+function fieldAcreCount(field) {
+  return Number(field?.acre) || 0;
+}
 
-const BIODROPS_INCLUDED_SUBSCRIPTION = {
-  hasActiveSubscription: true,
-  status: "active",
-  billingCycle: "included",
-};
+function isFieldUnlocked(field, sub, hasActiveSubscription) {
+  if (!hasActiveSubscription) return false;
+  const covered = Number(sub?.area) || 0;
+  const acres = fieldAcreCount(field);
+  return acres <= 0 ? covered > 0 : covered >= acres;
+}
 
 // Add a new farm field for a particular user
 export const addField = async (req, res) => {
@@ -123,18 +126,6 @@ export const getField = async (req, res) => {
       });
     }
 
-    if (isBiodropsClientBrand(req)) {
-      const farmFields = fields.map((field) => ({
-        ...field,
-        trialEligible: false,
-        subscription: { ...BIODROPS_INCLUDED_SUBSCRIPTION },
-      }));
-      return res.status(200).json({
-        message: "Farm fields retrieved successfully",
-        farmFields,
-      });
-    }
-
     const fieldIds = fields.map((f) => f._id);
 
     /* ================= FETCH SUBSCRIPTIONS ================= */
@@ -177,9 +168,11 @@ export const getField = async (req, res) => {
       if (!sub) {
         return {
           ...field,
+          isLocked: true,
           trialEligible: true,
           subscription: {
             hasActiveSubscription: false,
+            status: "locked",
           },
         };
       }
@@ -197,11 +190,14 @@ export const getField = async (req, res) => {
             )
           : 0;
 
+      const hasActiveSubscription = sub.status === "active" && !isExpired;
+
       return {
         ...field,
+        isLocked: !isFieldUnlocked(field, sub, hasActiveSubscription),
         trialEligible: true,
         subscription: {
-          hasActiveSubscription: sub.status === "active" && !isExpired,
+          hasActiveSubscription,
 
           subscriptionId: sub._id,
           status: isExpired ? "expired" : sub.status,
@@ -221,6 +217,12 @@ export const getField = async (req, res) => {
           startDate: sub.startDate,
           endDate: sub.endDate,
           daysLeft,
+
+          activationSource: sub.activationSource || "razorpay",
+          cardAcres: Number(sub.cardAcres) || 0,
+          paidAcres: Number(sub.paidAcres) || 0,
+          pendingAdminAcres: Number(sub.pendingAdminAcres) || 0,
+          subscriptionPhase: sub.subscriptionPhase || null,
 
           razorpayOrderId: sub.razorpayOrderId,
 

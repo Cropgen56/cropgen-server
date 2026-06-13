@@ -11,13 +11,12 @@ import {
 import FarmAdvisory from "../features/advisory/models/farmAdvisory.model.js";
 import FarmField from "../models/field.model.js";
 import { formatFarmAdvisoryMessage } from "../utils/whatsapp/messageFormat.js";
+import { isBiodropsUser } from "../utils/organization/biodropsOrganization.js";
 
 const MAX_RETRY = 3;
 const BATCH_SIZE = 10;
 
 export const startNotificationWorker = () => {
-  console.log("🚀 Unified Notification Worker Started");
-
   cron.schedule("*/1 * * * *", async () => {
     try {
       // Process up to BATCH_SIZE notifications safely
@@ -34,7 +33,10 @@ export const startNotificationWorker = () => {
           {
             new: true,
           },
-        ).populate("userId");
+        ).populate({
+          path: "userId",
+          populate: { path: "organization", select: "organizationCode" },
+        });
 
         if (!notification) break;
 
@@ -51,6 +53,14 @@ async function processNotification(notification) {
     const user = notification.userId;
 
     if (!user) throw new Error("User not found");
+
+    if (isBiodropsUser(user)) {
+      notification.status = "skipped";
+      notification.channel = null;
+      notification.error = "biodrops_template_notifications_disabled";
+      await notification.save();
+      return;
+    }
 
     /* ================= WHATSAPP PRIORITY ================= */
 
@@ -143,10 +153,6 @@ async function processNotification(notification) {
     notification.status = "sent";
     notification.error = null;
     await notification.save();
-
-    console.log(
-      `✅ Notification sent (${notification.templateName}) via ${notification.channel}`,
-    );
   } catch (err) {
     /* ================= RETRY LOGIC ================= */
 

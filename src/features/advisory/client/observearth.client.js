@@ -1,4 +1,5 @@
 import axios from "axios";
+import { log } from "../../../utils/logger.js";
 
 const OBSERVEARTH_BASE = "https://observearth.com/api/weather";
 
@@ -184,7 +185,7 @@ export async function getHistoricalWeatherWithFallback(
         HISTORICAL_TIMEOUT_MS,
       );
       if (hasDailyWeatherSeries(data)) {
-        console.log(
+        log.info(
           `[Observearth] Historical OK (${windowDays}d: ${rangeStart}→${endDate}) in ${Date.now() - startedAt}ms`,
         );
         return {

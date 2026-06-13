@@ -46,7 +46,7 @@ const NotificationSchema = new Schema(
 
     status: {
       type: String,
-      enum: ["pending", "processing", "sent", "failed"],
+      enum: ["pending", "processing", "sent", "failed", "skipped"],
       default: "pending",
       index: true,
     },

@@ -8,6 +8,7 @@ import { runCropHealthModule } from "../crop-risk/cropHealth.module.js";
 import { runFertilizerRecommendationModule } from "../fertigation-calculation/fertilizerRecommendation.module.js";
 import { runSprayRecommendationModule } from "../spray-calculation/sprayRecommendation.module.js";
 import { runAdvisorySuggestionModule } from "../activity-todo/advisorySuggestion.module.js";
+import { createStepLogger } from "../../../utils/logger.js";
 
 /**
  * Barren land (pre-sowing) advisory pipeline.
@@ -20,8 +21,7 @@ export async function runBarrenAdvisoryPipeline({
   lightweight = false,
 }) {
   const fieldIdStr = String(farmField._id);
-  const logStep = (message) =>
-    console.log(`[Advisory:barren] ${fieldIdStr}: ${message}`);
+  const logStep = createStepLogger(`[Advisory:barren] ${fieldIdStr}:`);
 
   const ctx = createAdvisoryContext({
     mode: "barren",

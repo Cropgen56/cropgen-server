@@ -60,15 +60,8 @@ export async function triggerInitialAdvisoryForNewField(
       return { ok: false, error: "invalid_field_boundary" };
     }
 
-    console.log(
-      `[Advisory] Initial trigger started for farm ${farmFieldIdStr} (${farm.fieldName})`,
-    );
-
     const { aoiId, created } = await resolveAOIForFarm(farm);
     if (created) {
-      console.log(
-        `[Advisory] New AOI ${aoiId} for farm ${farmFieldIdStr} — waiting before weather fetch`,
-      );
       await sleep(6000);
     }
 
@@ -78,10 +71,6 @@ export async function triggerInitialAdvisoryForNewField(
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        console.log(
-          `[Advisory] Generating first advisory for ${farmFieldIdStr} (attempt ${attempt}/${maxAttempts})…`,
-        );
-
         const advisory = await withTimeout(
           generateAdvisoryForField(farm._id, aoiId, language, "whatsapp", {
             preferShortHistoricalWindow: created,
@@ -91,9 +80,6 @@ export async function triggerInitialAdvisoryForNewField(
           "Advisory generation",
         );
 
-        console.log(
-          `[Advisory] Initial advisory created for farm ${farmFieldIdStr}: ${advisory._id}`,
-        );
         return { ok: true, advisoryId: String(advisory._id) };
       } catch (err) {
         lastError = err;

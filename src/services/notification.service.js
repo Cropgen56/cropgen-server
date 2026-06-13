@@ -3,6 +3,7 @@ import User from "../models/user.model.js";
 import FarmField from "../models/field.model.js";
 import SubscriptionPlan from "../models/subscription-plan.model.js";
 import UserSubscription from "../models/user-subscription.model.js";
+import { isBiodropsUser } from "../utils/organization/biodropsOrganization.js";
 
 const formatDate = (date) => new Date(date).toISOString().split("T")[0];
 
@@ -30,11 +31,15 @@ export const createSubscriptionActivationNotification = async (
   const subscription = await UserSubscription.findById(subscriptionId);
   if (!subscription) return;
 
-  const user = await User.findById(subscription.userId);
+  const user = await User.findById(subscription.userId).populate(
+    "organization",
+    "organizationCode",
+  );
   const farm = await FarmField.findById(subscription.fieldId);
   const plan = await SubscriptionPlan.findById(subscription.planId);
 
   if (!user || !farm || !plan) return;
+  if (isBiodropsUser(user)) return;
 
   await Notification.create({
     userId: user._id,
@@ -59,11 +64,15 @@ export const createSubscriptionExpiryNotification = async (
   subscription,
   daysRemaining,
 ) => {
-  const user = await User.findById(subscription.userId);
+  const user = await User.findById(subscription.userId).populate(
+    "organization",
+    "organizationCode",
+  );
   const farm = await FarmField.findById(subscription.fieldId);
   const plan = await SubscriptionPlan.findById(subscription.planId);
 
   if (!user || !farm || !plan) return;
+  if (isBiodropsUser(user)) return;
 
   // 🔒 Prevent duplicate reminders
   const existing = await Notification.findOne({
@@ -105,9 +114,13 @@ export const createSubscriptionExpiryNotification = async (
 };
 
 export const createWelcomeFarmNotification = async (userId) => {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).populate(
+    "organization",
+    "organizationCode",
+  );
 
   if (!user) return;
+  if (isBiodropsUser(user)) return;
 
   // 🔒 Prevent duplicate notifications
   const existing = await Notification.findOne({

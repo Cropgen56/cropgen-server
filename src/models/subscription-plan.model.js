@@ -38,6 +38,14 @@ const SubscriptionPlanSchema = new Schema(
     slug: { type: String, required: true, unique: true },
     description: { type: String },
 
+    brand: {
+      type: String,
+      enum: ["cropgen", "biodrops"],
+      default: "cropgen",
+      required: true,
+      index: true,
+    },
+
     platform: {
       type: String,
       enum: ["mobile", "web"],
@@ -80,6 +88,7 @@ const SubscriptionPlanSchema = new Schema(
 
 // Indexes (slug unique index comes from field definition)
 SubscriptionPlanSchema.index({ platform: 1, active: 1 });
+SubscriptionPlanSchema.index({ brand: 1, platform: 1, active: 1 });
 
 // Prevent OverwriteModelError
 const SubscriptionPlan =

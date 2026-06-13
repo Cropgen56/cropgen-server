@@ -8,6 +8,7 @@ import { runCropHealthModule } from "../crop-risk/cropHealth.module.js";
 import { runFertilizerRecommendationModule } from "../fertigation-calculation/fertilizerRecommendation.module.js";
 import { runSprayRecommendationModule } from "../spray-calculation/sprayRecommendation.module.js";
 import { runAdvisorySuggestionModule } from "../activity-todo/advisorySuggestion.module.js";
+import { createStepLogger } from "../../../utils/logger.js";
 
 /**
  * Crop-in-field advisory pipeline (modules 1 → 7).
@@ -28,8 +29,7 @@ export async function runCropAdvisoryPipeline({
   preferShortHistoricalWindow = false,
 }) {
   const fieldIdStr = String(farmField._id);
-  const logStep = (message) =>
-    console.log(`[Advisory] ${fieldIdStr}: ${message}`);
+  const logStep = createStepLogger(`[Advisory] ${fieldIdStr}:`);
 
   const ctx = createAdvisoryContext({
     mode: "crop",

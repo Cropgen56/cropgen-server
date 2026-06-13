@@ -122,7 +122,6 @@ export const CROP_GDD_THRESHOLDS = {
 };
 
 export const runAdvisoryJob = async () => {
-  console.log("🌾 Advisory cron worker scheduled (daily 4:00 AM)");
   cron.schedule("0 4 * * *", async () => {
     try {
       const cropgenUserIds = await getCropgenOrganizationUserIds(
@@ -144,7 +143,6 @@ export const runAdvisoryJob = async () => {
 
       const fieldIds = [...fieldIdSet];
       if (!fieldIds.length) {
-        console.log("No fields eligible for advisory");
         return;
       }
 
@@ -164,7 +162,6 @@ export const runAdvisoryJob = async () => {
           }).sort({ createdAt: -1 });
 
           if (!lastAdvisory) {
-            console.log("First advisory for farm:", farm._id);
             await generateAdvisoryForField(farm._id, aoiId, language);
             continue;
           }
@@ -188,21 +185,9 @@ export const runAdvisoryJob = async () => {
             });
 
             if (!barrenDecision.generate) {
-              console.log(
-                "Skip barren farm:",
-                farm._id,
-                "|",
-                barrenDecision.reason,
-              );
               continue;
             }
 
-            console.log(
-              "Generating barren-land advisory:",
-              farm._id,
-              "|",
-              barrenDecision.reason,
-            );
             await generateAdvisoryForField(farm._id, aoiId, language);
             continue;
           }
@@ -229,11 +214,6 @@ export const runAdvisoryJob = async () => {
           });
 
           const currentCumulativeGDD = gddNow.cumulativeGDD;
-          if (gddNow.gddSource === "current_forecast_estimate") {
-            console.log(
-              `Farm ${farm._id}: GDD from current+forecast estimate (${currentCumulativeGDD})`,
-            );
-          }
           const lastAdvisoryGDD =
             lastAdvisory.plantGrowthActivity?.cumulativeGDD || 0;
           const gddDelta = currentCumulativeGDD - lastAdvisoryGDD;
@@ -262,32 +242,14 @@ export const runAdvisoryJob = async () => {
           });
 
           if (!decision.generate) {
-            console.log(
-              "Skip farm:",
-              farm._id,
-              "| gddDelta:",
-              gddDelta,
-              "|",
-              decision.reason,
-            );
             continue;
           }
 
-          console.log(
-            "Generate advisory for farm:",
-            farm._id,
-            "| gddDelta:",
-            gddDelta,
-            "| reason:",
-            decision.reason,
-          );
           await generateAdvisoryForField(farm._id, aoiId, language);
         } catch (err) {
-          console.error("Farm failed:", farm._id, err.message);
+          console.error("Advisory farm failed:", farm._id, err.message);
         }
       }
-
-      console.log("Advisory job completed");
     } catch (error) {
       console.error("Advisory job failed:", error);
     }

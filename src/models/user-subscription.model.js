@@ -143,7 +143,32 @@ const UserSubscriptionSchema = new Schema(
         "trial_mandate_pending",
         "trial_mandate_saved",
         "active_paid",
+        "card_remainder_pending",
+        "card_payment_pending",
       ],
+      default: null,
+    },
+
+    activationSource: {
+      type: String,
+      enum: ["razorpay", "product_card", "hybrid", "admin"],
+      default: "razorpay",
+    },
+
+    cardAcres: { type: Number, default: 0 },
+    paidAcres: { type: Number, default: 0 },
+    /** Acres from product card still awaiting CRM admin approval (hybrid flow). */
+    pendingAdminAcres: { type: Number, default: 0 },
+
+    entitlementId: {
+      type: Schema.Types.ObjectId,
+      ref: "BiodropsAcreEntitlement",
+      default: null,
+    },
+
+    sourceCardId: {
+      type: Schema.Types.ObjectId,
+      ref: "BiodropsProductCard",
       default: null,
     },
   },

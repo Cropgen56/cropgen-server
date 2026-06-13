@@ -236,3 +236,8 @@ export function isBiodropsClientBrand(req) {
   ).toLowerCase();
   return clientBrand === "biodrops";
 }
+
+/** Subscription plan catalog brand (biodrops vs cropgen). */
+export function resolveSubscriptionPlanBrand(req) {
+  return isBiodropsClientBrand(req) ? "biodrops" : "cropgen";
+}

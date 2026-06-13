@@ -5,6 +5,7 @@ import SubscriptionPlan from "../../models/subscription-plan.model.js";
 import SubscriptionBillingEvent from "../../models/subscription-billing-event.model.js";
 import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
 import { getRazorpay } from "../../services/razorpay.subscription.service.js";
+import { activateBiodropsCardHybridAfterPayment } from "../../clients/biodrops/controllers/subscriptions/card-hybrid-order.controller.js";
 
 const razorpay = getRazorpay();
 
@@ -237,10 +238,22 @@ export const verifySubscriptionOrder = async (req, res) => {
       subscription.startDate = now;
       subscription.termStart = now;
       subscription.termEnd = termEnd;
-      subscription.endDate = termEnd;
+      subscription.endDate =
+        subscription.activationSource === "hybrid" &&
+        subscription.subscriptionPhase === "card_payment_pending"
+          ? subscription.endDate || termEnd
+          : termEnd;
       subscription.currentPeriodStart = now;
       subscription.currentPeriodEnd = periodEnd;
-      subscription.subscriptionPhase = "active_paid";
+
+      if (
+        subscription.activationSource === "hybrid" &&
+        subscription.subscriptionPhase === "card_payment_pending"
+      ) {
+        await activateBiodropsCardHybridAfterPayment(subscription);
+      } else {
+        subscription.subscriptionPhase = "active_paid";
+      }
 
       await subscription.save();
       await createSubscriptionActivationNotification(subscription._id);

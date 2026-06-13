@@ -12,6 +12,10 @@ import {
   biodropsVerifyWhatsappOtp,
   biodropsResendWhatsappOtp,
 } from "../controllers/whatsapp.controller.js";
+import {
+  redeemAccessCard,
+  getAccessCardEntitlement,
+} from "../controllers/access-cards/redeem.controller.js";
 
 const router = express.Router();
 
@@ -47,6 +51,19 @@ router.post(
   "/biodrops/whatsapp/resend",
   forceBiodropsBrand,
   biodropsResendWhatsappOtp,
+);
+
+router.get(
+  "/biodrops/access-cards/entitlement",
+  forceBiodropsBrand,
+  requireAuth,
+  getAccessCardEntitlement,
+);
+router.post(
+  "/biodrops/access-cards/redeem",
+  forceBiodropsBrand,
+  requireAuth,
+  redeemAccessCard,
 );
 
 export default router;

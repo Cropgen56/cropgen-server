@@ -47,7 +47,6 @@ export const verifyWebhook = (req, res) => {
     process.env.WHATSAPP_VERIFY_TOKEN || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
 
   if (mode === "subscribe" && verifyToken && token === verifyToken) {
-    console.log("✅ Webhook verified successfully");
     return res.status(200).send(challenge);
   }
 

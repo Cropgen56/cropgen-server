@@ -9,6 +9,7 @@ import {
   getGlobalReplyMode,
   isAutomationActive,
 } from "./whatsappSettings.service.js";
+import { log } from "../../../utils/logger.js";
 import { normalizeFarmerLanguage } from "../../../utils/language/farmerLanguages.js";
 
 const WHATSAPP_TEXT_MAX = 4096;
@@ -38,7 +39,7 @@ export async function logWhatsAppAgentStatus() {
   const hasKey = Boolean(String(process.env.OPENAI_API_KEY ?? "").trim());
   const mode = await getGlobalReplyMode();
   const active = await isAutomationActive();
-  console.log(
+  log.info(
     `[WhatsApp agent] globalMode=${mode} automationActive=${active} openai=${hasKey ? "configured" : "missing"} env=${process.env.WHATSAPP_AGENT_AUTO_REPLY ?? "(default)"}`,
   );
 }
@@ -193,7 +194,7 @@ export async function generateWhatsAppAgentReply({
 }) {
   const globalMode = await getGlobalReplyMode();
   if (globalMode === "manual") {
-    console.log("[WhatsApp agent] Global mode is manual — no auto reply");
+    log.info("[WhatsApp agent] Global mode is manual — no auto reply");
     return null;
   }
 
@@ -219,7 +220,7 @@ export async function generateWhatsAppAgentReply({
     await agent.preloadHistory(seed);
   }
 
-  console.log(
+  log.info(
     `[WhatsApp agent] Generating reply farmer=${farmerId} seed=${seed.length} text="${text.slice(0, 40)}"`,
   );
 

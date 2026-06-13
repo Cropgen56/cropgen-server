@@ -16,7 +16,7 @@ function formatLastActive(date) {
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-/** BIODROPS farmers do not use paid subscriptions — status reflects onboarding progress. */
+/** Farmer onboarding status — subscription access is managed per field separately. */
 export function deriveFarmerDisplayStatus({ fields = [] } = {}) {
   if (fields.length > 0) return "active";
   return "registered";

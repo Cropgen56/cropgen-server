@@ -281,9 +281,7 @@ const startServer = async () => {
     setupSocket(httpServer);
 
     httpServer.listen(PORT, "0.0.0.0", () => {
-      console.log(
-        `✅ HTTP + Socket.IO Server running at http://localhost:${PORT}`,
-      );
+      console.log(`Server listening on port ${PORT}`);
     });
   } catch (error) {
     console.error("Server failed to start:", error.message);

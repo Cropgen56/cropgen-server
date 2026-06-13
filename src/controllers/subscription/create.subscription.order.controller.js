@@ -19,7 +19,8 @@ import {
   resolveRazorpayChargeMinor,
   resolveDisplayPricing,
 } from "../../utils/subscription/pricing.js";
-import { isBiodropsClientBrand } from "../../utils/auth/authUtils.js";
+import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
+import { createBiodropsCardHybridOrder } from "../../clients/biodrops/controllers/subscriptions/card-hybrid-order.controller.js";
 
 const razorpay = getRazorpay();
 
@@ -106,13 +107,6 @@ async function createUserSubscriptionTrialDocWithRetry(userId, fieldId, doc) {
 
 export const createSubscriptionOrder = async (req, res) => {
   try {
-    if (isBiodropsClientBrand(req)) {
-      return res.status(403).json({
-        success: false,
-        message: "Subscriptions are not required for the Biodrops app.",
-      });
-    }
-
     const userId = req.user?.id || req.user?._id;
     const {
       farmId,
@@ -121,7 +115,14 @@ export const createSubscriptionOrder = async (req, res) => {
       displayCurrency: bodyDisplayCurrency,
       /** Billing cycle that starts after trial ends (monthly | yearly | season). */
       commitBillingCycle: bodyCommitCycle,
+      cardCode,
     } = req.body;
+
+    const planBrand = resolveSubscriptionPlanBrand(req);
+
+    if (planBrand === "biodrops" && cardCode) {
+      return createBiodropsCardHybridOrder(req, res);
+    }
 
     const farm = await FarmField.findOne({
       _id: farmId,
@@ -135,14 +136,70 @@ export const createSubscriptionOrder = async (req, res) => {
     const plan = await SubscriptionPlan.findOne({
       _id: planId,
       active: true,
+      brand: planBrand,
     });
 
     if (!plan) {
-      return res.status(404).json({ message: "Plan not found" });
+      return res.status(404).json({
+        message: "Plan not found for this app",
+      });
     }
 
-    const area = Number(farm.acre) || 1;
+    const fieldArea = Number(farm.acre) || 1;
     const startDate = new Date();
+    let cardAcresApplied = 0;
+    let razorpayBillableArea = fieldArea;
+
+    if (planBrand === "biodrops") {
+      const { allocateAcresFromPool, getPoolSummary } = await import(
+        "../../clients/biodrops/services/acreEntitlement.service.js"
+      );
+      const pool = await getPoolSummary(userId);
+      if (pool.remainingAcres > 0) {
+        const alloc = await allocateAcresFromPool(userId, fieldArea);
+        cardAcresApplied = alloc.allocatedAcres;
+        razorpayBillableArea = Math.max(0, alloc.remainingAcresToPay);
+      }
+
+      if (razorpayBillableArea <= 0 && cardAcresApplied > 0) {
+        const poolAfter = await getPoolSummary(userId);
+        const validUntil =
+          poolAfter.validUntil || new Date(Date.now() + 365 * 86400000);
+        await UserSubscription.updateMany(
+          { userId, fieldId: farmId, status: "active" },
+          { $set: { status: "expired" } },
+        );
+        const subscription = await UserSubscription.create({
+          userId,
+          fieldId: farmId,
+          planId,
+          platform: plan.platform,
+          area: fieldArea,
+          unit: "acre",
+          billingCycle: "yearly",
+          displayCurrency: "INR",
+          pricePerUnitMinor: 0,
+          totalAmountMinor: 0,
+          status: "active",
+          startDate,
+          endDate: validUntil,
+          activationSource: "product_card",
+          cardAcres: cardAcresApplied,
+          paidAcres: 0,
+          billingMode: "legacy_order",
+        });
+        return res.status(201).json({
+          success: true,
+          type: "card_pool",
+          subscriptionId: subscription._id,
+          fieldUnlocked: true,
+          cardAcresApplied,
+          fieldAcres: fieldArea,
+        });
+      }
+    }
+
+    const area = planBrand === "biodrops" ? razorpayBillableArea : fieldArea;
 
     /* ================= TRIAL + POST-TRIAL (web + mobile: one Razorpay subscription, charge at trial end via start_at) ================= */
     const webPaidAsTrial =

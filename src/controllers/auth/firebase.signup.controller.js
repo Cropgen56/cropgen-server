@@ -23,7 +23,6 @@ export const signupWithFirebase = async (req, res) => {
     try {
       decodedToken = await admin.auth().verifyIdToken(idToken);
     } catch (error) {
-      console.log(error);
       return res.status(401).json({
         success: false,
         message: "Invalid or expired ID token",

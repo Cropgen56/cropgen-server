@@ -16,6 +16,8 @@ export const subscriptionPlanSchema = Joi.object({
 
   platform: Joi.string().valid("mobile", "web").required(),
 
+  brand: Joi.string().valid("cropgen", "biodrops").default("cropgen"),
+
   // ✅ Added isInternal
   isInternal: Joi.boolean().default(false),
 

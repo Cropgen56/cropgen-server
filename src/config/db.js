@@ -36,7 +36,6 @@ async function dropLegacyUserSubscriptionIndexes() {
   for (const name of byName) {
     try {
       await coll.dropIndex(name);
-      console.log(`Dropped legacy usersubscriptions index: ${name}`);
     } catch (e) {
       const code = e?.code;
       const msg = String(e?.message || "").toLowerCase();
@@ -55,7 +54,6 @@ async function dropLegacyUserSubscriptionIndexes() {
       if (byName.includes(idx.name)) continue;
       try {
         await coll.dropIndex(idx.name);
-        console.log(`Dropped legacy usersubscriptions index (scanned): ${idx.name}`);
       } catch (e) {
         console.warn(`Could not drop index ${idx.name}:`, e?.message || e);
       }
@@ -72,7 +70,6 @@ async function dropLegacyBiodropsSuperAdminUniqueIndex() {
   for (const name of legacyNames) {
     try {
       await coll.dropIndex(name);
-      console.log(`Dropped legacy biodropsadminassignments index: ${name}`);
     } catch (e) {
       const code = e?.code;
       const msg = String(e?.message || "").toLowerCase();
@@ -88,7 +85,6 @@ async function dropLegacyBiodropsSuperAdminUniqueIndex() {
 export const connectToDatabase = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("Successfully connected to the database");
     await dropLegacyUserSubscriptionIndexes();
     await dropLegacyBiodropsSuperAdminUniqueIndex();
     await UserSubscription.syncIndexes();
