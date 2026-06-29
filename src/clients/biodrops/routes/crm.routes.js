@@ -54,6 +54,23 @@ import {
   ensureBiodropsPlanParam,
 } from "../middleware/subscriptionPlan.middleware.js";
 import { listCrmFarmerAdvisories } from "../controllers/advisories/index.js";
+import {
+  listCrmProducts,
+  getCrmProductById,
+  createCrmProduct,
+  updateCrmProduct,
+  archiveCrmProduct,
+  getCrmProductImagePresign,
+} from "../controllers/products/index.js";
+import {
+  listCrmOrders,
+  getCrmOrderStats,
+  getCrmOrderById,
+  updateCrmOrder,
+  cancelCrmOrder,
+  getCrmOrderInvoice,
+} from "../controllers/orders/index.js";
+import { listCrmShopPayments } from "../controllers/ecommerce/list-crm-payments.controller.js";
 
 const router = express.Router();
 
@@ -176,5 +193,22 @@ router.delete(
   ensureBiodropsPlanParam,
   deleteSubscriptionPlan,
 );
+
+router.get("/products", ...crmGuards, listCrmProducts);
+router.post("/products/image-presign", ...crmGuards, getCrmProductImagePresign);
+router.post("/products", ...crmGuards, createCrmProduct);
+router.get("/products/:id", ...crmGuards, getCrmProductById);
+router.patch("/products/:id", ...crmGuards, updateCrmProduct);
+router.delete("/products/:id", ...crmGuards, archiveCrmProduct);
+
+router.get("/ecommerce/payments", ...crmGuards, listCrmShopPayments);
+
+router.get("/orders/stats", ...crmGuards, getCrmOrderStats);
+router.get("/orders", ...crmGuards, listCrmOrders);
+router.get("/orders/:id/invoice/html", ...crmGuards, getCrmOrderInvoice);
+router.get("/orders/:id/invoice", ...crmGuards, getCrmOrderInvoice);
+router.post("/orders/:id/cancel", ...crmGuards, cancelCrmOrder);
+router.get("/orders/:id", ...crmGuards, getCrmOrderById);
+router.patch("/orders/:id", ...crmGuards, updateCrmOrder);
 
 export default router;

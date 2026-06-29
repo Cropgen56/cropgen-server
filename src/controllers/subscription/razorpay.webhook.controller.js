@@ -9,6 +9,14 @@ import {
   resolveRazorpayChargeMinor,
   computeRecurringTermBounds,
 } from "../../utils/subscription/pricing.js";
+import {
+  findShopOrderByRazorpayOrderId,
+  markShopOrderPaid,
+} from "../../clients/biodrops/services/shopCheckout.service.js";
+import BiodropsOrder from "../../clients/biodrops/models/biodrops-order.model.js";
+import { logShopPaymentEvent } from "../../clients/biodrops/services/shopPaymentEvent.service.js";
+import BiodropsOrder from "../../clients/biodrops/models/biodrops-order.model.js";
+import { logShopPaymentEvent } from "../../clients/biodrops/services/shopPaymentEvent.service.js";
 
 async function processRazorpayEvent(event, eventId) {
   const eventType = event.event || "unknown";
@@ -111,6 +119,54 @@ async function processRazorpayEvent(event, eventId) {
   ) {
     if (userSubscription) {
       console.warn("Razorpay payment issue", eventType, userSubscription._id);
+    }
+    return;
+  }
+
+  if (eventType === "payment.captured") {
+    const paymentEntity = payload.payment?.entity;
+    const razorpayOrderId = paymentEntity?.order_id;
+
+    if (razorpayOrderId) {
+      const shopOrder = await findShopOrderByRazorpayOrderId(razorpayOrderId);
+      if (shopOrder) {
+        await markShopOrderPaid({
+          order: shopOrder,
+          razorpayPaymentId: paymentEntity?.id,
+          source: "webhook",
+        });
+        return;
+      }
+    }
+    return;
+  }
+
+  if (eventType === "refund.processed") {
+    const refundEntity = payload.refund?.entity;
+    const paymentEntity = payload.payment?.entity;
+    const razorpayPaymentId =
+      refundEntity?.payment_id || paymentEntity?.id || null;
+
+    if (razorpayPaymentId) {
+      const shopOrder = await BiodropsOrder.findOne({ razorpayPaymentId });
+      if (shopOrder) {
+        shopOrder.paymentStatus = "refunded";
+        shopOrder.refundId = refundEntity?.id || shopOrder.refundId;
+        shopOrder.refundedAt = new Date();
+        shopOrder.fulfillmentStatus = "cancelled";
+        await shopOrder.save();
+
+        await logShopPaymentEvent({
+          order: shopOrder,
+          razorpayEventId: eventId,
+          eventType: "shop.refund.webhook",
+          razorpayPaymentId,
+          refundId: refundEntity?.id,
+          amountMinor: refundEntity?.amount,
+          status: "refunded",
+        });
+        return;
+      }
     }
     return;
   }

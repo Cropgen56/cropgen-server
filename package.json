@@ -11,6 +11,7 @@
     "seed:web-plans": "node scripts/seed-web-plans.mjs",
     "seed:mobile-plans": "node scripts/seed-mobile-plans.mjs",
     "seed:biodrops-demo": "node scripts/seed-biodrops-demo-account.mjs",
+    "seed:biodrops-products": "node src/clients/biodrops/scripts/seed-biodrops-products.mjs",
     "test:subscription-pricing": "node scripts/test-subscription-pricing.mjs",
     "db:drop-email-index": "node scripts/drop-email-index.mjs",
     "export:advisories": "node scripts/export-farm-advisories-excel.js",
