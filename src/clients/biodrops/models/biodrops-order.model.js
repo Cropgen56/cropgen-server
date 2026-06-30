@@ -56,6 +56,12 @@ const BiodropsOrderSchema = new mongoose.Schema(
       default: "pending",
       index: true,
     },
+    paymentMethod: {
+      type: String,
+      enum: ["online", "cod"],
+      default: "online",
+      index: true,
+    },
     fulfillmentStatus: {
       type: String,
       enum: ["pending", "confirmed", "shipped", "delivered", "cancelled"],

@@ -15,8 +15,6 @@ import {
 } from "../../clients/biodrops/services/shopCheckout.service.js";
 import BiodropsOrder from "../../clients/biodrops/models/biodrops-order.model.js";
 import { logShopPaymentEvent } from "../../clients/biodrops/services/shopPaymentEvent.service.js";
-import BiodropsOrder from "../../clients/biodrops/models/biodrops-order.model.js";
-import { logShopPaymentEvent } from "../../clients/biodrops/services/shopPaymentEvent.service.js";
 
 async function processRazorpayEvent(event, eventId) {
   const eventType = event.event || "unknown";

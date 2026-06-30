@@ -6,6 +6,7 @@ import {
   verifyRazorpayPaymentSignature,
 } from "../../../services/razorpay.order.service.js";
 import { logShopPaymentEvent } from "./shopPaymentEvent.service.js";
+import { clearUserCart } from "./shopCart.service.js";
 
 const SHIPPING_MINOR = 0;
 
@@ -89,9 +90,11 @@ export async function createShopOrder({
   userId,
   items,
   shippingAddress,
+  paymentMethod = "online",
 }) {
   const cart = await resolveCartItems(items);
   const orderNumber = await generateBiodropsOrderNumber();
+  const isCod = paymentMethod === "cod";
 
   const order = await BiodropsOrder.create({
     orderNumber,
@@ -111,9 +114,16 @@ export async function createShopOrder({
     shippingMinor: cart.shippingMinor,
     totalMinor: cart.totalMinor,
     currency: cart.currency,
+    paymentMethod: isCod ? "cod" : "online",
     paymentStatus: "pending",
-    fulfillmentStatus: "pending",
+    fulfillmentStatus: isCod ? "confirmed" : "pending",
+    notes: isCod ? "Cash on delivery" : "",
   });
+
+  if (isCod) {
+    await decrementStockForOrder(order);
+    return { order, razorpayOrder: null, paymentMethod: "cod" };
+  }
 
   const razorpayOrder = await createRazorpayProductOrder({
     amountMinor: cart.totalMinor,
@@ -129,7 +139,7 @@ export async function createShopOrder({
   order.razorpayOrderId = razorpayOrder.id;
   await order.save();
 
-  return { order, razorpayOrder };
+  return { order, razorpayOrder, paymentMethod: "online" };
 }
 
 export async function restoreStockForOrder(order) {
@@ -181,12 +191,104 @@ export async function markShopOrderPaid({
   return { order, alreadyPaid: false, source };
 }
 
+export async function cancelFarmerShopOrder({ userId, orderId, reason = "" }) {
+  const order = await BiodropsOrder.findById(orderId);
+  if (!order) {
+    const err = new Error("Order not found");
+    err.status = 404;
+    throw err;
+  }
+  if (String(order.userId) !== String(userId)) {
+    const err = new Error("Order not found");
+    err.status = 404;
+    throw err;
+  }
+  if (order.paymentStatus !== "pending") {
+    const err = new Error("Only unpaid orders can be cancelled");
+    err.status = 400;
+    throw err;
+  }
+  if (!["pending", "confirmed"].includes(order.fulfillmentStatus)) {
+    const err = new Error("Order cannot be cancelled at this stage");
+    err.status = 400;
+    throw err;
+  }
+  if (order.fulfillmentStatus === "cancelled") {
+    const err = new Error("Order is already cancelled");
+    err.status = 400;
+    throw err;
+  }
+
+  const restoreStock = order.paymentMethod === "cod";
+
+  order.fulfillmentStatus = "cancelled";
+  order.cancelledAt = new Date();
+  order.cancelledBy = userId;
+  order.cancelReason = String(reason || "").trim();
+
+  if (restoreStock) {
+    await restoreStockForOrder(order);
+  }
+
+  await order.save();
+
+  return order.toObject ? order.toObject() : order;
+}
+
+export async function retryShopOrderPayment({ userId, orderId }) {
+  const order = await BiodropsOrder.findById(orderId);
+  if (!order) {
+    const err = new Error("Order not found");
+    err.status = 404;
+    throw err;
+  }
+  if (String(order.userId) !== String(userId)) {
+    const err = new Error("Order not found");
+    err.status = 404;
+    throw err;
+  }
+  if (order.paymentMethod === "cod") {
+    const err = new Error(
+      "Online payment retry is not available for COD orders",
+    );
+    err.status = 400;
+    throw err;
+  }
+  if (order.paymentStatus !== "pending") {
+    const err = new Error("Payment retry is only for pending orders");
+    err.status = 400;
+    throw err;
+  }
+  if (order.fulfillmentStatus === "cancelled") {
+    const err = new Error("Cancelled orders cannot be paid");
+    err.status = 400;
+    throw err;
+  }
+
+  const razorpayOrder = await createRazorpayProductOrder({
+    amountMinor: order.totalMinor,
+    currency: order.currency,
+    receipt: order.orderNumber,
+    notes: {
+      biodropsOrderId: String(order._id),
+      orderNumber: order.orderNumber,
+      type: "biodrops_shop_retry",
+    },
+  });
+
+  order.razorpayOrderId = razorpayOrder.id;
+  await order.save();
+
+  return { order, razorpayOrder };
+}
+
 export async function verifyAndFulfillShopOrder({
   userId,
   orderId,
   razorpayOrderId,
   razorpayPaymentId,
   razorpaySignature,
+  clearServerCart = false,
 }) {
   const order = await BiodropsOrder.findById(orderId);
   if (!order) {
@@ -217,11 +319,17 @@ export async function verifyAndFulfillShopOrder({
     throw err;
   }
 
-  return markShopOrderPaid({
+  const result = await markShopOrderPaid({
     order,
     razorpayPaymentId,
     source: "client_verify",
   });
+
+  if (clearServerCart && !result.alreadyPaid) {
+    await clearUserCart(userId);
+  }
+
+  return result;
 }
 
 export async function findShopOrderByRazorpayOrderId(razorpayOrderId) {

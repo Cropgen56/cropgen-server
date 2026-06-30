@@ -1,4 +1,5 @@
 import BiodropsProduct from "../../models/biodrops-product.model.js";
+import BiodropsOrder from "../../models/biodrops-order.model.js";
 import { formatBiodropsProduct } from "../../utils/formatProduct.js";
 
 function normalizeSku(sku) {
@@ -17,6 +18,37 @@ function buildProductSearchFilter(search) {
       { description: { $regex: q, $options: "i" } },
     ],
   };
+}
+
+async function getPendingOrderCountByProductIds(productIds = []) {
+  if (!Array.isArray(productIds) || !productIds.length) {
+    return new Map();
+  }
+
+  const rows = await BiodropsOrder.aggregate([
+    {
+      $match: {
+        "items.productId": { $in: productIds },
+        fulfillmentStatus: { $in: ["pending", "confirmed", "shipped"] },
+      },
+    },
+    { $unwind: "$items" },
+    {
+      $match: {
+        "items.productId": { $in: productIds },
+      },
+    },
+    {
+      $group: {
+        _id: "$items.productId",
+        pendingOrderCount: { $sum: 1 },
+      },
+    },
+  ]);
+
+  return new Map(
+    rows.map((row) => [String(row._id), Number(row.pendingOrderCount) || 0]),
+  );
 }
 
 export const listCrmProducts = async (req, res) => {
@@ -45,9 +77,20 @@ export const listCrmProducts = async (req, res) => {
       BiodropsProduct.countDocuments(query),
     ]);
 
+    const productIds = products.map((p) => p._id);
+    const pendingByProduct = await getPendingOrderCountByProductIds(productIds);
+
     return res.status(200).json({
       success: true,
-      products: products.map(formatBiodropsProduct),
+      products: products.map((product) => {
+        const formatted = formatBiodropsProduct(product);
+        const pendingOrderCount = pendingByProduct.get(String(product._id)) || 0;
+        return {
+          ...formatted,
+          pendingOrderCount,
+          canDelete: pendingOrderCount === 0,
+        };
+      }),
       pagination: {
         page: parsedPage,
         currentPage: parsedPage,
@@ -71,9 +114,16 @@ export const getCrmProductById = async (req, res) => {
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
+    const pendingByProduct = await getPendingOrderCountByProductIds([product._id]);
+    const pendingOrderCount = pendingByProduct.get(String(product._id)) || 0;
+
     return res.status(200).json({
       success: true,
-      product: formatBiodropsProduct(product),
+      product: {
+        ...formatBiodropsProduct(product),
+        pendingOrderCount,
+        canDelete: pendingOrderCount === 0,
+      },
     });
   } catch (error) {
     console.error("getCrmProductById:", error);
@@ -248,19 +298,25 @@ export const updateCrmProduct = async (req, res) => {
 
 export const archiveCrmProduct = async (req, res) => {
   try {
-    const actorId = req.user?.id || req.user?._id;
     const product = await BiodropsProduct.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    product.status = "archived";
-    product.updatedBy = actorId;
-    await product.save();
+    const pendingByProduct = await getPendingOrderCountByProductIds([product._id]);
+    const pendingOrderCount = pendingByProduct.get(String(product._id)) || 0;
+    if (pendingOrderCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Cannot delete product while pending orders exist for it.",
+      });
+    }
+
+    await BiodropsProduct.deleteOne({ _id: product._id });
 
     return res.status(200).json({
       success: true,
-      product: formatBiodropsProduct(product),
+      message: "Product deleted",
     });
   } catch (error) {
     console.error("archiveCrmProduct:", error);

@@ -1,14 +1,20 @@
 import BiodropsProduct from "../../models/biodrops-product.model.js";
 import BiodropsOrder from "../../models/biodrops-order.model.js";
-import User from "../../../../models/user.model.js";
 import { formatBiodropsProduct } from "../../utils/formatProduct.js";
 import { formatBiodropsOrder } from "../../utils/formatOrder.js";
 import {
   createShopOrder,
   verifyAndFulfillShopOrder,
+  retryShopOrderPayment,
+  cancelFarmerShopOrder,
 } from "../../services/shopCheckout.service.js";
+import { getCartItemsForCheckout, clearUserCart } from "../../services/shopCart.service.js";
 import { getRazorpayKeyId } from "../../../../services/razorpay.order.service.js";
-import { isBiodropsUser } from "../../../../utils/organization/biodropsOrganization.js";
+import {
+  assertBiodropsFarmer,
+  validateShippingAddress,
+} from "../../utils/shopAuth.util.js";
+import { buildShopInvoiceHtml } from "../../utils/shopInvoice.util.js";
 
 function normalizeSku(sku) {
   return String(sku || "")
@@ -16,15 +22,51 @@ function normalizeSku(sku) {
     .toLowerCase();
 }
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export const listShopProducts = async (req, res) => {
   try {
-    const products = await BiodropsProduct.find({ status: "active" })
-      .sort({ sortOrder: 1, name: 1 })
-      .lean();
+    const { category, search, page = 1, limit = 50 } = req.query;
+    const parsedLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 50));
+    const parsedPage = Math.max(1, parseInt(page, 10) || 1);
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    const query = { status: "active" };
+
+    if (category && String(category).trim() && category !== "all") {
+      query.category = String(category).trim().toLowerCase();
+    }
+
+    if (search && String(search).trim()) {
+      const term = escapeRegex(String(search).trim());
+      query.$or = [
+        { name: { $regex: term, $options: "i" } },
+        { sku: { $regex: term, $options: "i" } },
+        { description: { $regex: term, $options: "i" } },
+      ];
+    }
+
+    const [products, total] = await Promise.all([
+      BiodropsProduct.find(query)
+        .sort({ sortOrder: 1, name: 1 })
+        .skip(skip)
+        .limit(parsedLimit)
+        .lean(),
+      BiodropsProduct.countDocuments(query),
+    ]);
 
     return res.status(200).json({
       success: true,
       products: products.map(formatBiodropsProduct),
+      pagination: {
+        page: parsedPage,
+        currentPage: parsedPage,
+        totalPages: Math.max(1, Math.ceil(total / parsedLimit)),
+        total,
+        limit: parsedLimit,
+      },
     });
   } catch (error) {
     console.error("listShopProducts:", error);
@@ -60,67 +102,59 @@ export const getShopProductBySku = async (req, res) => {
   }
 };
 
-async function assertBiodropsFarmer(req) {
-  const userId = req.auth?.id || req.auth?._id || req.user?.id || req.user?._id;
-  if (!userId) {
-    const err = new Error("Unauthorized");
-    err.status = 401;
-    throw err;
-  }
-
-  const user = await User.findById(userId)
-    .populate("organization", "organizationCode code")
-    .lean();
-
-  if (!user || !isBiodropsUser(user)) {
-    const err = new Error("Biodrops account required");
-    err.status = 403;
-    throw err;
-  }
-
-  return { userId, user };
-}
-
-function validateShippingAddress(addr = {}) {
-  const required = ["name", "phone", "line1", "city", "state", "pincode"];
-  for (const key of required) {
-    if (!String(addr[key] || "").trim()) {
-      const err = new Error(`shippingAddress.${key} is required`);
-      err.status = 400;
-      throw err;
-    }
-  }
-  return {
-    name: String(addr.name).trim(),
-    phone: String(addr.phone).trim(),
-    line1: String(addr.line1).trim(),
-    line2: String(addr.line2 || "").trim(),
-    city: String(addr.city).trim(),
-    state: String(addr.state).trim(),
-    pincode: String(addr.pincode).trim(),
-    country: String(addr.country || "IN").trim(),
-  };
-}
-
 export const createShopCheckoutOrder = async (req, res) => {
   try {
     const { userId } = await assertBiodropsFarmer(req);
-    const { items, shippingAddress } = req.body;
+    const { items, shippingAddress, useServerCart, paymentMethod } = req.body;
 
     const shipping = validateShippingAddress(shippingAddress);
-    const { order, razorpayOrder } = await createShopOrder({
-      userId,
-      items,
-      shippingAddress: shipping,
-    });
+    const method = paymentMethod === "cod" ? "cod" : "online";
+    let checkoutItems = items;
+
+    if (useServerCart) {
+      const serverItems = await getCartItemsForCheckout(userId);
+      checkoutItems =
+        serverItems?.length > 0
+          ? serverItems
+          : Array.isArray(items) && items.length
+            ? items
+            : serverItems;
+    }
+
+    const { order, razorpayOrder, paymentMethod: resolvedMethod } =
+      await createShopOrder({
+        userId,
+        items: checkoutItems,
+        shippingAddress: shipping,
+        paymentMethod: method,
+      });
+
+    if (resolvedMethod === "cod") {
+      if (useServerCart) {
+        await clearUserCart(userId);
+      }
+
+      return res.status(201).json({
+        success: true,
+        paymentMethod: "cod",
+        requiresOnlinePayment: false,
+        orderId: String(order._id),
+        orderNumber: order.orderNumber,
+        amount: order.totalMinor,
+        currency: order.currency,
+        order: formatBiodropsOrder(order),
+      });
+    }
 
     return res.status(201).json({
       success: true,
+      paymentMethod: "online",
+      requiresOnlinePayment: true,
       orderId: String(order._id),
       orderNumber: order.orderNumber,
       razorpayOrderId: razorpayOrder.id,
       razorpayKeyId: getRazorpayKeyId(),
-      amount: order.totalMinor,
+      amount: Number(razorpayOrder.amount ?? order.totalMinor),
       currency: order.currency,
       order: formatBiodropsOrder(order),
     });
@@ -145,6 +179,7 @@ export const verifyShopCheckout = async (req, res) => {
       razorpayPaymentId,
       razorpay_signature,
       razorpaySignature,
+      useServerCart,
     } = req.body;
 
     if (!orderId) {
@@ -160,6 +195,7 @@ export const verifyShopCheckout = async (req, res) => {
       razorpayOrderId: razorpay_order_id || razorpayOrderId,
       razorpayPaymentId: razorpay_payment_id || razorpayPaymentId,
       razorpaySignature: razorpay_signature || razorpaySignature,
+      clearServerCart: !!useServerCart,
     });
 
     return res.status(200).json({
@@ -238,6 +274,114 @@ export const getFarmerOrderById = async (req, res) => {
     return res.status(status).json({
       success: false,
       message: error.message || "Failed to load order.",
+    });
+  }
+};
+
+export const cancelFarmerOrder = async (req, res) => {
+  try {
+    const { userId } = await assertBiodropsFarmer(req);
+    const order = await cancelFarmerShopOrder({
+      userId,
+      orderId: req.params.id,
+      reason: req.body?.reason,
+    });
+
+    return res.status(200).json({
+      success: true,
+      order: formatBiodropsOrder(order),
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status >= 500) console.error("cancelFarmerOrder:", error);
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Failed to cancel order.",
+    });
+  }
+};
+
+export const retryFarmerOrderPayment = async (req, res) => {
+  try {
+    const { userId } = await assertBiodropsFarmer(req);
+    const { order, razorpayOrder } = await retryShopOrderPayment({
+      userId,
+      orderId: req.params.id,
+    });
+
+    return res.status(200).json({
+      success: true,
+      orderId: String(order._id),
+      orderNumber: order.orderNumber,
+      razorpayOrderId: razorpayOrder.id,
+      razorpayKeyId: getRazorpayKeyId(),
+      amount: Number(razorpayOrder.amount ?? order.totalMinor),
+      currency: order.currency,
+      order: formatBiodropsOrder(order),
+    });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status >= 500) console.error("retryFarmerOrderPayment:", error);
+    return res.status(status).json({
+      success: false,
+      message: error.message || "Failed to retry payment.",
+    });
+  }
+};
+
+export const getFarmerOrderInvoice = async (req, res) => {
+  try {
+    const { userId } = await assertBiodropsFarmer(req);
+    const order = await BiodropsOrder.findOne({
+      _id: req.params.id,
+      userId,
+    })
+      .populate("userId", "firstName lastName phone email")
+      .lean();
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    if (!["paid", "refunded"].includes(order.paymentStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice available only for paid orders",
+      });
+    }
+
+    const formatted = formatBiodropsOrder(order, { includeUser: true });
+    const wantsHtml =
+      req.query.format === "html" ||
+      String(req.headers.accept || "").includes("text/html");
+
+    if (wantsHtml) {
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(200).send(buildShopInvoiceHtml(formatted));
+    }
+
+    return res.status(200).json({
+      success: true,
+      invoice: {
+        orderNumber: formatted.orderNumber,
+        issuedAt: formatted.paidAt || formatted.createdAt,
+        farmer: formatted.farmer,
+        shippingAddress: formatted.shippingAddress,
+        items: formatted.items,
+        subtotalMinor: formatted.subtotalMinor,
+        shippingMinor: formatted.shippingMinor,
+        totalMinor: formatted.totalMinor,
+        currency: formatted.currency,
+        razorpayPaymentId: formatted.razorpayPaymentId,
+        paymentStatus: formatted.paymentStatus,
+      },
+      htmlUrl: `${req.baseUrl}/orders/${req.params.id}/invoice?format=html`,
+    });
+  } catch (error) {
+    console.error("getFarmerOrderInvoice:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to generate invoice",
     });
   }
 };

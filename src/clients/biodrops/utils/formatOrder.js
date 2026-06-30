@@ -24,6 +24,7 @@ export function formatBiodropsOrder(doc, { includeUser = false } = {}) {
     total: o.totalMinor / 100,
     currency: o.currency || "INR",
     paymentStatus: o.paymentStatus,
+    paymentMethod: o.paymentMethod || "online",
     fulfillmentStatus: o.fulfillmentStatus,
     razorpayOrderId: o.razorpayOrderId,
     razorpayPaymentId: o.razorpayPaymentId,
