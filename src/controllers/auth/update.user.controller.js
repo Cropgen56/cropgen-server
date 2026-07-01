@@ -14,6 +14,7 @@ const ALLOWED_USER_UPDATE_FIELDS = new Set([
   "state",
   "city",
   "village",
+  "pincode",
   "role",
   "language",
   "terms",
@@ -29,6 +30,7 @@ const NULLABLE_STRING_FIELDS = new Set([
   "state",
   "city",
   "village",
+  "pincode",
   "razorpayCustomerId",
 ]);
 

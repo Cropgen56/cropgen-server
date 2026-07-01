@@ -33,6 +33,7 @@ export const completeProfile = async (req, res) => {
       state = "",
       city = "",
       village = "",
+      pincode = "",
     } = req.body;
     const preset = resolveAuthEmailPreset(req);
 
@@ -93,6 +94,7 @@ export const completeProfile = async (req, res) => {
     user.state = state ? String(state).trim().toUpperCase() : user.state;
     user.city = city ? String(city).trim() : user.city;
     user.village = village ? String(village).trim() : user.village;
+    user.pincode = pincode ? String(pincode).replace(/\D/g, "").trim() : user.pincode;
     user.terms = true;
     user.organization = org._id;
     user.lastLoginAt = new Date();
@@ -149,6 +151,7 @@ export const completeProfile = async (req, res) => {
         state: user.state,
         city: user.city,
         village: user.village,
+        pincode: user.pincode,
       },
       onboardingRequired: false,
     });

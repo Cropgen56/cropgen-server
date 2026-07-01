@@ -66,6 +66,13 @@ const userSchema = new Schema(
       default: null,
     },
 
+    pincode: {
+      type: String,
+      trim: true,
+      maxlength: 10,
+      default: null,
+    },
+
     district: {
       type: String,
       trim: true,
