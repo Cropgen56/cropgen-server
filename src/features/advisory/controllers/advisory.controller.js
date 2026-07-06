@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import FarmAdvisory from "../models/farmAdvisory.model.js";
 import FarmField from "../../../models/field.model.js";
 import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
-import { generateAdvisoryForField } from "../services/advisory.service.js";
+import { dispatchAdvisoryGeneration } from "../services/advisoryDispatch.service.js";
 import { updateAdvisoryActivityProgress } from "../services/updateAdvisoryActivityProgress.service.js";
 import { ensureAdvisoryOperationsSynced } from "../services/syncAdvisoryToOperations.service.js";
 import Notification from "../../../models/notification.model.js";
@@ -55,15 +55,17 @@ export const getFarmAdvisories = async (req, res) => {
 
       if (advisories.length) {
         const latest = advisories[0];
-        try {
-          await ensureAdvisoryOperationsSynced({
-            farmFieldId: latest.farmFieldId,
-            advisoryId: latest._id,
-            activitiesToDo: latest.activitiesToDo,
-          });
-        } catch (syncErr) {
-          console.error("ensureAdvisoryOperationsSynced:", syncErr.message);
-        }
+        setImmediate(async () => {
+          try {
+            await ensureAdvisoryOperationsSynced({
+              farmFieldId: latest.farmFieldId,
+              advisoryId: latest._id,
+              activitiesToDo: latest.activitiesToDo,
+            });
+          } catch (syncErr) {
+            console.error("ensureAdvisoryOperationsSynced:", syncErr.message);
+          }
+        });
       }
 
       const advisoryIds = advisories.map((a) => a._id);
@@ -308,17 +310,26 @@ export const generateFarmAdvisory = async (req, res) => {
     const { aoiId } = await resolveAOIForFarm(farm);
     const advisoryLanguage = language || farm.user?.language || "en";
 
-    const advisory = await generateAdvisoryForField(
-      farm._id,
+    const result = await dispatchAdvisoryGeneration({
+      farmFieldId: farm._id,
       aoiId,
-      advisoryLanguage,
-      platform || "whatsapp",
-    );
-    res.json({
+      language: advisoryLanguage,
+      platform: platform || "whatsapp",
+    });
+
+    if (result.queued) {
+      return res.status(202).json({
+        success: true,
+        queued: true,
+        jobId: result.jobId,
+      });
+    }
+
+    return res.json({
       success: true,
-      advisoryId: String(advisory._id),
-      activitiesSource: advisory.activitiesSource,
-      activitiesCount: (advisory.activitiesToDo || []).length,
+      advisoryId: result.advisoryId,
+      activitiesSource: result.advisory?.activitiesSource,
+      activitiesCount: (result.advisory?.activitiesToDo || []).length,
     });
   } catch (err) {
     console.error("Advisory API failed", err);

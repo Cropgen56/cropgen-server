@@ -9,6 +9,11 @@ import { runFertilizerRecommendationModule } from "../fertigation-calculation/fe
 import { runSprayRecommendationModule } from "../spray-calculation/sprayRecommendation.module.js";
 import { runAdvisorySuggestionModule } from "../activity-todo/advisorySuggestion.module.js";
 import { createStepLogger } from "../../../utils/logger.js";
+import FarmAdvisory from "../models/farmAdvisory.model.js";
+
+const DEFER_OPTICAL_PASS =
+  String(process.env.ADVISORY_DEFER_OPTICAL_PASS || "true").toLowerCase() ===
+  "true";
 
 /**
  * Crop-in-field advisory pipeline (modules 1 → 7).
@@ -44,11 +49,10 @@ export async function runCropAdvisoryPipeline({
 
   logStep(lightweight ? "pipeline started (fast path)" : "pipeline started");
 
-  const steps = [
+  const mustHaveSteps = [
     runWeatherSuggestionModule,
     runSatelliteEnrichmentModule,
     runGddBbchModule,
-    runSatelliteEnrichmentModule,
     runNpkModule,
     runCropHealthModule,
     runFertilizerRecommendationModule,
@@ -56,9 +60,13 @@ export async function runCropAdvisoryPipeline({
     runAdvisorySuggestionModule,
   ];
 
-  for (const runModule of steps) {
+  for (const runModule of mustHaveSteps) {
+    const startedAt = Date.now();
     const result = await runModule(ctx);
     registerModule(ctx, result);
+    logStep(
+      `module ${result.module} done in ${Date.now() - startedAt}ms${result.ok ? "" : " (with warnings/errors)"}`,
+    );
     if (!result.ok && result.module !== "weatherSuggestion") {
       logStep(`module ${result.module} failed: ${result.errors.join("; ")}`);
     }
@@ -73,6 +81,30 @@ export async function runCropAdvisoryPipeline({
   const advisory = ctx.modules.advisorySuggestion?.data?.advisory;
   if (!advisory) {
     throw new Error("Advisory pipeline completed without saving an advisory");
+  }
+
+  if (!DEFER_OPTICAL_PASS) {
+    const startedAt = Date.now();
+    const secondSatellitePass = await runSatelliteEnrichmentModule(ctx);
+    registerModule(ctx, secondSatellitePass);
+    logStep(
+      `module ${secondSatellitePass.module}(optical) done in ${Date.now() - startedAt}ms`,
+    );
+  } else {
+    setImmediate(async () => {
+      try {
+        const opticalResult = await runSatelliteEnrichmentModule(ctx);
+        if (!opticalResult?.ok) return;
+        const opticalSummary = opticalResult?.data?.opticalIndicesSummary;
+        if (!opticalSummary) return;
+        await FarmAdvisory.findByIdAndUpdate(advisory._id, {
+          opticalIndicesSummary: opticalSummary,
+        });
+        logStep("optical enrichment deferred update complete");
+      } catch (err) {
+        logStep(`optical enrichment deferred update failed: ${err?.message || err}`);
+      }
+    });
   }
 
   logStep(`pipeline complete — ${advisory._id}`);

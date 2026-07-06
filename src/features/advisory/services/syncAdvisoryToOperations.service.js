@@ -197,27 +197,38 @@ export async function ensureAdvisoryOperationsSynced({
 
   const activities = Array.isArray(activitiesToDo) ? activitiesToDo : [];
   const operationDate = getTodayDateISO();
+  const validActivities = activities.filter((a) => a?.type);
+  if (!validActivities.length) {
+    return { created: 0, updated: 0 };
+  }
+
+  const existingOps = await Operation.find({
+    farmField: farmFieldId,
+    advisoryId,
+    advisoryActivityType: { $in: validActivities.map((a) => a.type) },
+  })
+    .select("_id advisoryActivityType progress operationDate")
+    .lean();
+
+  const existingByType = new Map(
+    existingOps.map((entry) => [entry.advisoryActivityType, entry]),
+  );
+
   let created = 0;
   let updated = 0;
+  const bulkOps = [];
 
-  for (let i = 0; i < activities.length; i++) {
-    const activity = activities[i];
-    if (!activity?.type) continue;
-
-    const existing = await Operation.findOne({
-      farmField: farmFieldId,
-      advisoryId,
-      advisoryActivityType: activity.type,
-    });
+  for (let i = 0; i < validActivities.length; i++) {
+    const activity = validActivities[i];
+    const existing = existingByType.get(activity.type);
 
     if (!existing) {
-      await upsertAdvisoryActivityOperation({
+      const doc = buildOperationFromActivity(activity, i, {
         farmFieldId,
         advisoryId,
-        activity,
-        index: i,
         operationDate,
       });
+      bulkOps.push({ insertOne: { document: doc } });
       created++;
       continue;
     }
@@ -227,16 +238,22 @@ export async function ensureAdvisoryOperationsSynced({
     if (progress != null && existing.progress !== progress) {
       updates.progress = progress;
     }
-    if (
-      existing.progress !== "completed" &&
-      existing.operationDate !== operationDate
-    ) {
+    if (existing.progress !== "completed" && existing.operationDate !== operationDate) {
       updates.operationDate = operationDate;
     }
     if (Object.keys(updates).length) {
-      await Operation.findByIdAndUpdate(existing._id, { $set: updates });
+      bulkOps.push({
+        updateOne: {
+          filter: { _id: existing._id },
+          update: { $set: updates },
+        },
+      });
       updated++;
     }
+  }
+
+  if (bulkOps.length) {
+    await Operation.bulkWrite(bulkOps, { ordered: false });
   }
 
   return { created, updated };

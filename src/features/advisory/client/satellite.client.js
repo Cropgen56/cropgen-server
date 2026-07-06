@@ -3,6 +3,10 @@ import axios from "axios";
 const CROPGEN_TS_BASE =
   process.env.CROPGEN_TS_BASE || "https://server.cropgenapp.com/v4/api";
 const REQUEST_TIMEOUT_MS = Number(process.env.SATELLITE_TIMEOUT_MS) || 45_000;
+const SATELLITE_LIGHT_TIMEOUT_MS =
+  Number(process.env.SATELLITE_LIGHT_TIMEOUT_MS) || 20_000;
+const SATELLITE_HEAVY_TIMEOUT_MS =
+  Number(process.env.SATELLITE_HEAVY_TIMEOUT_MS) || REQUEST_TIMEOUT_MS;
 
 const satelliteHttp = axios.create({ timeout: REQUEST_TIMEOUT_MS });
 
@@ -51,6 +55,7 @@ export async function getVegetationTimeseries(
   };
   const { data } = await satelliteHttp.post(url, body, {
     headers: getSatelliteHeaders(),
+    timeout: SATELLITE_HEAVY_TIMEOUT_MS,
   });
   return data;
 }
@@ -74,6 +79,7 @@ export async function getWaterTimeseries(
   };
   const { data } = await satelliteHttp.post(url, body, {
     headers: getSatelliteHeaders(),
+    timeout: SATELLITE_HEAVY_TIMEOUT_MS,
   });
   return data;
 }
@@ -95,6 +101,7 @@ export async function getImageAvailability(
   };
   const { data } = await satelliteHttp.post(url, body, {
     headers: getSatelliteHeaders(),
+    timeout: SATELLITE_LIGHT_TIMEOUT_MS,
   });
   return data;
 }
@@ -128,6 +135,7 @@ export async function calculateIndexImage(
   };
   const { data } = await satelliteHttp.post(url, body, {
     headers: getSatelliteHeaders(),
+    timeout: SATELLITE_HEAVY_TIMEOUT_MS,
   });
   return data;
 }
@@ -148,6 +156,7 @@ export async function getNpkAvailability(
   };
   const { data } = await satelliteHttp.post(url, body, {
     headers: getSatelliteHeaders(),
+    timeout: SATELLITE_HEAVY_TIMEOUT_MS,
   });
   return data;
 }
@@ -167,6 +176,7 @@ export async function getCropHealthScore(
   };
   const { data } = await satelliteHttp.post(url, body, {
     headers: getSatelliteHeaders(),
+    timeout: SATELLITE_LIGHT_TIMEOUT_MS,
   });
   return data;
 }

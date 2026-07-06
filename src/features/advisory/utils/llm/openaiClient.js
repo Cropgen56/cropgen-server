@@ -13,6 +13,7 @@ function getClient() {
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS) || 18_000;
 
 function parseResponseContent(response) {
   const content = response.output?.[0]?.content?.[0];
@@ -37,20 +38,32 @@ export async function callOpenAI(prompt, { maxAttempts = 2 } = {}) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
+      const attemptStartedAt = Date.now();
       const openai = getClient();
-      const response = await openai.responses.create({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        temperature: 0.2,
-        max_output_tokens: 1600,
-        input: [
-          {
-            role: "system",
-            content:
-              "You are a senior agronomist with 20 years of field experience in India. Respond ONLY with valid JSON matching the requested schema. Never contradict the decisionHints in the evidence.",
-          },
-          { role: "user", content: prompt },
-        ],
-      });
+      const response = await Promise.race([
+        openai.responses.create({
+          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+          temperature: 0.2,
+          max_output_tokens: 1600,
+          input: [
+            {
+              role: "system",
+              content:
+                "You are a senior agronomist with 20 years of field experience in India. Respond ONLY with valid JSON matching the requested schema. Never contradict the decisionHints in the evidence.",
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`OpenAI timeout after ${OPENAI_TIMEOUT_MS}ms`)),
+            OPENAI_TIMEOUT_MS,
+          ),
+        ),
+      ]);
+      console.log(
+        `[Advisory] OpenAI attempt ${attempt}/${maxAttempts} success in ${Date.now() - attemptStartedAt}ms`,
+      );
       return parseResponseContent(response);
     } catch (err) {
       lastError = err;

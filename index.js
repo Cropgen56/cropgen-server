@@ -40,6 +40,7 @@ import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.work
 import { startNotificationWorker } from "./src/worker/notification.worker.js";
 import { startWelcomeFarmReminderWorker } from "./src/worker/welcomeFarm.worker.js";
 import { runAdvisoryJob } from "./src/features/advisory/workers/advisory.worker.js";
+import { startAdvisoryQueueWorker } from "./src/features/advisory/queue/advisory.queue.js";
 
 // Agent socket
 import {
@@ -278,6 +279,7 @@ const startServer = async () => {
     startSubscriptionExpiryJob();
     startWelcomeFarmReminderWorker();
     runAdvisoryJob();
+    startAdvisoryQueueWorker();
 
     const httpServer = http.createServer(app);
 

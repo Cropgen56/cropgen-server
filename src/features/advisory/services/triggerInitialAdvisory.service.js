@@ -4,14 +4,19 @@ import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
 import { generateAdvisoryForField } from "./advisory.service.js";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const GENERATION_TIMEOUT_MS = 6 * 60 * 1000;
+const GENERATION_TIMEOUT_MS =
+  Number(process.env.ADVISORY_INITIAL_GENERATION_TIMEOUT_MS) || 150_000;
 
 function withTimeout(promise, ms, label) {
+  let timer = null;
   return Promise.race([
-    promise,
+    promise.finally(() => {
+      if (timer) clearTimeout(timer);
+    }),
     new Promise((_, reject) => {
-      setTimeout(
-        () => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)),
+      timer = setTimeout(
+        () =>
+          reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)),
         ms,
       );
     }),
@@ -67,17 +72,31 @@ export async function triggerInitialAdvisoryForNewField(
 
     const language = languageOverride || farmer.language || "en";
     const maxAttempts = created ? 3 : 2;
+    const deadlineAt = Date.now() + GENERATION_TIMEOUT_MS;
     let lastError = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
+        const attemptStartedAt = Date.now();
+        const remainingMs = deadlineAt - Date.now();
+        if (remainingMs <= 0) {
+          throw new Error(
+            `Advisory generation timed out after ${Math.round(
+              GENERATION_TIMEOUT_MS / 1000,
+            )}s`,
+          );
+        }
         const advisory = await withTimeout(
           generateAdvisoryForField(farm._id, aoiId, language, "whatsapp", {
             preferShortHistoricalWindow: created,
             lightweight: created,
           }),
-          GENERATION_TIMEOUT_MS,
+          remainingMs,
           "Advisory generation",
+        );
+
+        console.log(
+          `[Advisory] Initial trigger success for farm ${farmFieldIdStr} attempt ${attempt}/${maxAttempts} in ${Date.now() - attemptStartedAt}ms`,
         );
 
         return { ok: true, advisoryId: String(advisory._id) };

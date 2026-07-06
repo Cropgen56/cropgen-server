@@ -76,10 +76,14 @@ async function runSatelliteOpticalPass(ctx, prior, warnings) {
     ctx.logStep(
       `satellite module (optical pass): ${opticalIndexNames.length} indices`,
     );
+    const opticalStartedAt = Date.now();
     const indexRows = await fetchOpticalIndexSnapshots(
       geometry,
       prior.snapshotDate,
       opticalIndexNames,
+    );
+    ctx.logStep(
+      `satellite module (optical pass): completed in ${Date.now() - opticalStartedAt}ms`,
     );
     opticalIndicesSummary = buildOpticalIndicesSummary(
       indexRows,
@@ -147,6 +151,7 @@ export async function runSatelliteEnrichmentModule(ctx) {
   }
 
   ctx.logStep("satellite module: NDVI + NDMI timeseries");
+  const timeseriesStartedAt = Date.now();
   const [vegOutcome, waterOutcome] = await Promise.allSettled([
     getVegetationTimeseries(geometry, satelliteRange.start, satelliteRange.end, "NDVI"),
     getWaterTimeseries(geometry, satelliteRange.start, satelliteRange.end, "NDMI"),
@@ -197,7 +202,9 @@ export async function runSatelliteEnrichmentModule(ctx) {
   }
 
   if (ctx.mode === "crop") {
-    ctx.logStep("satellite module: timeseries complete (optical after hybrid GDD)");
+    ctx.logStep(
+      `satellite module: timeseries complete in ${Date.now() - timeseriesStartedAt}ms (optical after hybrid GDD)`,
+    );
   }
 
   return moduleResult(

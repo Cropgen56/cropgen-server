@@ -6,6 +6,7 @@ const GRAPH_URL = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE
 const WHATSAPP_TEMPLATE_NAME_MAP = {
   plan_expiry_reminder_notification:
     "plan_expiry_reminder_notification_utility",
+  advisory: "advisory",
   farm_advisory: "farm_advisory",
 };
 

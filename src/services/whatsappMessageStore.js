@@ -5,6 +5,39 @@ import { normalizePhoneDigits } from "../utils/whatsapp/phoneMatch.js";
  * Build display text for farm_advisory template notifications (admin chat history).
  */
 export function formatTemplateAsChatText(templateName, parameters = []) {
+  if (templateName === "advisory" && Array.isArray(parameters)) {
+    const [
+      farmerName = "Farmer",
+      cropName = "",
+      activityLabel = "",
+      title = "",
+      details = "",
+      recommendedTime = "",
+      farmName = "",
+    ] = parameters;
+
+    const lines = [
+      `🌾 *CropGen Farm Activity Alert*`,
+      ``,
+      `Hello ${farmerName},`,
+      ``,
+      `A new farm activity has been generated for your *${cropName}* crop.`,
+      ``,
+      `📌 *Activity:* ${activityLabel}`,
+      `📝 *Title:* ${title}`,
+      details ? `📖 *Details:*\n${details}` : null,
+      recommendedTime ? `⏰ *Recommended Time:* ${recommendedTime}` : null,
+      `📍 *Farm:* ${farmName}`,
+      ``,
+      `Please complete this activity on time to improve crop health and yield.`,
+      ``,
+      `Thank you,`,
+      `*Team CropGen*`,
+    ].filter(Boolean);
+
+    return lines.join("\n");
+  }
+
   if (templateName === "farm_advisory" && Array.isArray(parameters)) {
     const [
       farmerName = "Farmer",

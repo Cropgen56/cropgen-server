@@ -15,7 +15,13 @@ import {
   t,
 } from "../utils/i18n/advisoryLocale.js";
 import { normalizeAdvisoryLanguage } from "../utils/i18n/advisoryLanguages.js";
-import { buildAdvisoryNotificationParameters } from "../utils/notifications/advisoryNotificationParams.js";
+import {
+  ADVISORY_ACTIVITY_TYPES,
+  buildActivityAdvisoryParameters,
+  buildAdvisoryNotificationParameters,
+  formatActivityTypeLabel,
+  getDefaultActivityMessage,
+} from "../utils/notifications/advisoryNotificationParams.js";
 import {
   calculateYieldPrecise,
   calculateStandardYieldBaseline,
@@ -268,20 +274,52 @@ export async function runAdvisorySuggestionModule(ctx) {
 
   let notified = false;
   if (user && isCropgenOrganizationCode(organizationCode)) {
-    const notificationParameters = buildAdvisoryNotificationParameters(
-      user,
-      ctx.farmFieldDoc,
-      advisory,
-      ctx.platform,
-    );
-    await createNotification({
-      user,
-      type: "ADVISORY",
-      referenceId: advisory._id,
-      templateName: "farm_advisory",
-      parameters: notificationParameters,
-    });
-    notified = true;
+    if (user.phone) {
+      const notificationTasks = [];
+      for (const type of ADVISORY_ACTIVITY_TYPES) {
+        const activity = advisory.activitiesToDo.find((a) => a.type === type) || {
+          type,
+          title: `${formatActivityTypeLabel(type)} Advisory`,
+          message: getDefaultActivityMessage(type),
+          details: {},
+        };
+        notificationTasks.push(
+          createNotification({
+            user,
+            type: "ADVISORY",
+            referenceId: advisory._id,
+            templateName: "advisory",
+            parameters: buildActivityAdvisoryParameters(
+              user,
+              ctx.farmFieldDoc,
+              activity,
+            ),
+          }),
+        );
+      }
+      if (notificationTasks.length) {
+        const settled = await Promise.allSettled(notificationTasks);
+        notified = settled.some((entry) => entry.status === "fulfilled");
+        ctx.logStep(
+          `advisory module: notifications queued=${notificationTasks.length} types=${ADVISORY_ACTIVITY_TYPES.join(",")}`,
+        );
+      }
+    } else if (user.email) {
+      const notificationParameters = buildAdvisoryNotificationParameters(
+        user,
+        ctx.farmFieldDoc,
+        advisory,
+        ctx.platform,
+      );
+      await createNotification({
+        user,
+        type: "ADVISORY",
+        referenceId: advisory._id,
+        templateName: "farm_advisory",
+        parameters: notificationParameters,
+      });
+      notified = true;
+    }
   }
 
   return moduleResult(MODULE_IDS.ADVISORY, {

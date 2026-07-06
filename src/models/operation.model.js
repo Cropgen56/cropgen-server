@@ -97,6 +97,8 @@ const operationSchema = new mongoose.Schema(
 
 operationSchema.index({ farmField: 1, operationDate: 1 });
 operationSchema.index({ advisoryId: 1 });
+operationSchema.index({ farmField: 1, source: 1, progress: 1 });
+operationSchema.index({ farmField: 1, advisoryId: 1, advisoryActivityType: 1 });
 
 const Operation = mongoose.model("Operation", operationSchema);
 

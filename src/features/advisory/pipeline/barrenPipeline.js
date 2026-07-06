@@ -47,8 +47,12 @@ export async function runBarrenAdvisoryPipeline({
   ];
 
   for (const runModule of steps) {
+    const startedAt = Date.now();
     const result = await runModule(ctx);
     registerModule(ctx, result);
+    logStep(
+      `module ${result.module} done in ${Date.now() - startedAt}ms${result.ok ? "" : " (with warnings/errors)"}`,
+    );
     if (result.module === "weatherSuggestion" && !result.ok) {
       throw new Error(result.errors[0] || "Weather unavailable for barren land");
     }

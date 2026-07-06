@@ -13,6 +13,11 @@ const HEADERS = {
   "Content-Type": "application/json",
 };
 
+const AOI_TIMEOUT_MS = Number(process.env.AOI_TIMEOUT_MS) || 12_000;
+const AOI_MAX_ATTEMPTS = Math.max(1, Number(process.env.AOI_MAX_ATTEMPTS) || 2);
+
+const aoiHttp = axios.create({ timeout: AOI_TIMEOUT_MS });
+
 /* ===================== HELPERS ===================== */
 
 function fieldToGeoJSON(field) {
@@ -41,21 +46,56 @@ function fieldToGeoJSON(field) {
  */
 
 async function fetchAllAOIs() {
-  const res = await axios.get(`${OBSERVE_EARTH_BASE_URL}?detail=false`, {
-    headers: HEADERS,
-  });
+  const res = await withAoiRetry(() =>
+    aoiHttp.get(`${OBSERVE_EARTH_BASE_URL}?detail=false`, {
+      headers: HEADERS,
+    }),
+  );
 
   return Array.isArray(res.data) ? res.data : res.data.results || [];
 }
 
 async function createAOI(name, geometry) {
-  const res = await axios.post(
-    OBSERVE_EARTH_BASE_URL,
-    { name, geometry },
-    { headers: HEADERS },
+  const res = await withAoiRetry(() =>
+    aoiHttp.post(
+      OBSERVE_EARTH_BASE_URL,
+      { name, geometry },
+      { headers: HEADERS },
+    ),
   );
 
   return res.data.id;
+}
+
+function formatAoiError(error) {
+  const status = error?.response?.status;
+  const detail =
+    error?.response?.data?.detail ||
+    error?.response?.data?.message ||
+    error?.message ||
+    "Unknown AOI error";
+  return status ? `status=${status} ${detail}` : String(detail);
+}
+
+async function withAoiRetry(fn) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= AOI_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const status = Number(error?.response?.status) || 0;
+      const retryable =
+        error?.code === "ECONNABORTED" ||
+        status === 429 ||
+        status >= 500;
+      if (!retryable || attempt >= AOI_MAX_ATTEMPTS) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+    }
+  }
+  throw lastError;
 }
 
 /* ===================== MAIN FUNCTION ===================== */
@@ -67,16 +107,29 @@ export async function resolveAOIForFarm(farm) {
 
   const aoiName = farm._id.toString();
 
-  // 1. Fetch AOIs
-  const aois = await fetchAllAOIs();
+  let aois = [];
+  try {
+    // 1. Fetch AOIs
+    aois = await fetchAllAOIs();
+  } catch (listErr) {
+    // Observearth listing occasionally fails with 5xx infra errors.
+    // Try direct create path to avoid blocking advisory end-to-end.
+    console.warn(
+      `[Advisory] AOI list failed for farm ${aoiName}; trying direct create (${formatAoiError(
+        listErr,
+      )})`,
+    );
+  }
 
-  // 2. Check existing AOI
-  const existing = aois.find((a) => a.name === aoiName);
-  if (existing) {
-    return {
-      aoiId: existing.id,
-      created: false,
-    };
+  if (aois.length) {
+    // 2. Check existing AOI
+    const existing = aois.find((a) => a.name === aoiName);
+    if (existing) {
+      return {
+        aoiId: existing.id,
+        created: false,
+      };
+    }
   }
 
   // 3. Create AOI
