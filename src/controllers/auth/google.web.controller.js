@@ -3,6 +3,7 @@ import { OAuth2Client } from "google-auth-library";
 import {
   generateRefreshId,
   resolveClientAppKey,
+  resolveClientSource,
   setClientRefreshId,
   signAccessToken,
   signRefreshToken,
@@ -23,6 +24,21 @@ function resolveGoogleClientIdByBrand(preset) {
     return process.env.BIODROPS_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
   }
   return process.env.GOOGLE_CLIENT_ID;
+}
+
+function resolveGoogleAudiencesByBrand(preset) {
+  if (preset === "biodrops") {
+    return [
+      process.env.BIODROPS_GOOGLE_WEB_CLIENT_ID,
+      process.env.BIODROPS_GOOGLE_CLIENT_ID_LEGACY,
+      process.env.BIODROPS_GOOGLE_CLIENT_ID,
+      "45221627342-ceq66injs8mr9193cig1haf43v8n0i8f.apps.googleusercontent.com",
+      "45221627342-gt2bloi35rufoo9bb4n8v82cs02s75ft.apps.googleusercontent.com",
+      process.env.GOOGLE_CLIENT_ID,
+    ].filter(Boolean);
+  }
+  const primary = resolveGoogleClientIdByBrand(preset);
+  return primary ? [primary] : [];
 }
 
 export const loginWithGoogleWeb = async (req, res) => {
@@ -61,7 +77,8 @@ const runGoogleWebLogin = async (
       .toLowerCase();
     const preset = effectiveBrand;
     const isBiodropsBrand = effectiveBrand === "biodrops";
-    const googleClientId = resolveGoogleClientIdByBrand(preset);
+    const googleAudiences = resolveGoogleAudiencesByBrand(preset);
+    const googleClientId = googleAudiences[0];
     const client = new OAuth2Client(googleClientId);
 
     if (!token) {
@@ -69,7 +86,7 @@ const runGoogleWebLogin = async (
         .status(400)
         .json({ success: false, message: "Google token is required." });
     }
-    if (!googleClientId) {
+    if (!googleAudiences.length) {
       return res.status(500).json({
         success: false,
         message: "Google login is not configured for this brand.",
@@ -87,10 +104,10 @@ const runGoogleWebLogin = async (
         .json({ success: false, message: "Database connection error." });
     }
 
-    // Verify token with Google
+    // Verify token with Google (accept debug + legacy Biodrops web client IDs)
     const ticket = await client.verifyIdToken({
       idToken: token,
-      audience: googleClientId,
+      audience: googleAudiences,
     });
 
     const payload = ticket.getPayload();
@@ -111,26 +128,36 @@ const runGoogleWebLogin = async (
     const wasFullyRegistered =
       !!user && !!user.organization && user.terms === true;
 
-    // Restrict cross-brand sign-ins to prevent organization mixups.
+    // Biodrops app: allow users from other orgs and re-associate them with BIODROPS.
+    // CropGen web keeps strict org isolation.
     if (user) {
       const existingOrgCode = String(
         user.organization?.organizationCode || "",
       ).toUpperCase();
       if (existingOrgCode && existingOrgCode !== targetOrgCode) {
-        return res.status(403).json({
-          success: false,
-          message: `Access denied. Only ${targetOrgCode} organization users can sign in here.`,
-        });
+        if (targetOrgCode === "BIODROPS") {
+          user.organization = organization._id;
+          if (!user.terms) user.terms = true;
+        } else {
+          return res.status(403).json({
+            success: false,
+            message: `Access denied. Only ${targetOrgCode} organization users can sign in here.`,
+          });
+        }
       }
     }
 
    // Backfill clientSource for existing users if missing or invalid
-    if (
-     user &&
-   (!user.clientSource || user.clientSource === "unknown")
-) {
-  user.clientSource = "web";
-}
+    const resolvedSource = resolveClientSource(req);
+    if (user) {
+      if (resolvedSource === "ios" || resolvedSource === "android") {
+        if (user.clientSource !== resolvedSource) {
+          user.clientSource = resolvedSource;
+        }
+      } else if (!user.clientSource || user.clientSource === "unknown") {
+        user.clientSource = resolvedSource;
+      }
+    }
 
     const brand = getEmailBrand(preset);
     // Prepare email details based on user status
@@ -159,7 +186,7 @@ const runGoogleWebLogin = async (
         role: "farmer",
         terms: true,
         organization: organization?._id,
-        clientSource: "web"
+        clientSource: resolveClientSource(req),
       });
     }
 

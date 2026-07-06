@@ -94,6 +94,10 @@ function cookieClearOptions() {
  */
 export function resolveClientAppKey(req) {
   const raw = String(req.headers["x-client-app"] || "").trim().toLowerCase();
+  // Satagro mobile app — store refresh sessions under biodrops_web bucket
+  if (raw === "satagro_android" || raw === "satagro_ios") {
+    return "biodrops_web";
+  }
   if (raw && CLIENT_APP_COOKIE_NAMES[raw]) {
     return raw;
   }
@@ -121,8 +125,8 @@ const WEB_CLIENT_APP_KEYS = new Set([
  */
 export function resolveClientSource(req, defaultSource = "android") {
   const raw = String(req.headers["x-client-app"] || "").trim().toLowerCase();
-  if (raw === "cropgen_android") return "android";
-  if (raw === "cropgen_ios") return "ios";
+  if (raw === "cropgen_android" || raw === "satagro_android") return "android";
+  if (raw === "cropgen_ios" || raw === "satagro_ios") return "ios";
 
   const appKey = resolveClientAppKey(req);
   if (appKey && WEB_CLIENT_APP_KEYS.has(appKey)) {

@@ -159,10 +159,10 @@ function wireAppNamespace(ns) {
       const cleanedMsg = (msg || "").toString().trim();
       if (!cleanedMsg) return;
 
-      await appSocketService.recordMessage(userId, "user", cleanedMsg);
+      appSocketService.recordMessage(userId, "user", cleanedMsg);
       const reply = await appSocketService.handleMessage(userId, cleanedMsg);
       socket.emit("ai_response", reply);
-      await appSocketService.recordMessage(userId, "ai", reply);
+      appSocketService.recordMessage(userId, "ai", reply);
     });
 
     socket.on("reset_conversation", async () => {
@@ -242,10 +242,10 @@ function wireDefaultNamespace(io) {
         const cleanedMsg = (msg || "").toString().trim();
         if (!cleanedMsg) return;
 
-        await appSocketService.recordMessage(userId, "user", cleanedMsg);
+        appSocketService.recordMessage(userId, "user", cleanedMsg);
         const reply = await appSocketService.handleMessage(userId, cleanedMsg);
         socket.emit("ai_response", reply);
-        await appSocketService.recordMessage(userId, "ai", reply);
+        appSocketService.recordMessage(userId, "ai", reply);
       });
 
       socket.on("reset_conversation", async () => {

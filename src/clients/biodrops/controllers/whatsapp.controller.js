@@ -93,6 +93,21 @@ function assertPhone(phone) {
   return v;
 }
 
+async function migrateUserToBiodropsOrg(user, req) {
+  if (!user) return user;
+  const orgCode = String(
+    user?.organization?.organizationCode || "",
+  ).toUpperCase();
+  if (!orgCode || orgCode === ORGANIZATION_CODE) {
+    return user;
+  }
+  const { org: biodropsOrg } = await resolveOrganizationByCode(ORGANIZATION_CODE);
+  user.organization = biodropsOrg._id;
+  user.clientSource = resolveClientSource(req);
+  await user.save();
+  return User.findById(user._id).populate("organization");
+}
+
 /**
  * POST /v1/api/auth/biodrops/whatsapp/otp
  * body: { phone, language, country, firstName, lastName, signupIntent }
@@ -135,12 +150,8 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
       const orgCode = String(
         user?.organization?.organizationCode || "",
       ).toUpperCase();
-      if (orgCode !== ORGANIZATION_CODE) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Access denied. This phone is linked to another organization.",
-        });
+      if (orgCode && orgCode !== ORGANIZATION_CODE) {
+        user = await migrateUserToBiodropsOrg(user, req);
       }
     }
 
@@ -264,11 +275,8 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
     const orgCode = String(
       user?.organization?.organizationCode || "",
     ).toUpperCase();
-    if (orgCode !== ORGANIZATION_CODE) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. This phone is linked to another organization.",
-      });
+    if (orgCode && orgCode !== ORGANIZATION_CODE) {
+      user = await migrateUserToBiodropsOrg(user, req);
     }
 
     const demoOtpOk = isDemoPhone && isBiodropsDemoOtp(otp);
@@ -357,7 +365,7 @@ export const biodropsResendWhatsappOtp = async (req, res) => {
     const phone = assertPhone(phoneRaw);
     const isDemoPhone = isBiodropsDemoPhone(phone);
 
-    const user = await User.findOne({ phone }).populate("organization");
+    let user = await User.findOne({ phone }).populate("organization");
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -367,11 +375,8 @@ export const biodropsResendWhatsappOtp = async (req, res) => {
     const orgCode = String(
       user?.organization?.organizationCode || "",
     ).toUpperCase();
-    if (orgCode !== ORGANIZATION_CODE) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. This phone is linked to another organization.",
-      });
+    if (orgCode && orgCode !== ORGANIZATION_CODE) {
+      user = await migrateUserToBiodropsOrg(user, req);
     }
 
     if (!isDemoPhone && user.lastOtpSentAt) {
