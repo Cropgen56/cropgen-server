@@ -15,6 +15,20 @@ import {
 const MAX_STORED_MESSAGES = 24;
 const MAX_CONTEXT_MESSAGES = 16;
 
+export const AI_ERROR_REPLY = "AI error occurred. Please try again.";
+export const AI_NOT_CONFIGURED_REPLY =
+  "AI chat is not configured. Please contact support.";
+
+export function isGenericAgentFailure(text) {
+  const t = String(text || "").trim();
+  return (
+    !t ||
+    t === AI_ERROR_REPLY ||
+    t === AI_NOT_CONFIGURED_REPLY ||
+    /^AI error occurred/i.test(t)
+  );
+}
+
 function extractText(message) {
   const c = message?.content;
   if (typeof c === "string") return c;
@@ -89,24 +103,47 @@ function trimStoredHistory(chatHistory) {
   }
 }
 
-function buildChain(systemPrompt) {
-  const apiKey = String(process.env.OPENAI_API_KEY ?? "").trim();
-  if (!apiKey) return null;
-
-  const envTemp = process.env.OPENAI_AGENT_TEMPERATURE ?? process.env.OPENAI_TEMPERATURE;
+function readModelConfig() {
+  const envTemp =
+    process.env.OPENAI_AGENT_TEMPERATURE ?? process.env.OPENAI_TEMPERATURE;
   const envMaxOut =
     process.env.OPENAI_AGENT_MAX_TOKENS ?? process.env.OPENAI_MAX_TOKENS;
-  const model = process.env.OPENAI_AGENT_MODEL || "gpt-4o-mini";
 
-  const chatModel = new ChatOpenAI({
-    model,
-    temperature: envTemp !== undefined && envTemp !== "" ? Number(envTemp) : 0.42,
-    maxTokens: envMaxOut !== undefined && envMaxOut !== "" ? Number(envMaxOut) : 1024,
-    topP: 0.9,
-    maxRetries: 2,
-    streaming: false,
-    apiKey,
-  });
+  return {
+    temperature:
+      envTemp !== undefined && envTemp !== "" ? Number(envTemp) : 0.42,
+    maxTokens:
+      envMaxOut !== undefined && envMaxOut !== "" ? Number(envMaxOut) : 1024,
+  };
+}
+
+function createOpenAIProvider() {
+  const openaiKey = String(process.env.OPENAI_API_KEY ?? "").trim();
+  if (!openaiKey) return null;
+
+  const { temperature, maxTokens } = readModelConfig();
+  const model =
+    process.env.OPENAI_AGENT_MODEL ||
+    process.env.OPENAI_MODEL ||
+    "gpt-4o-mini";
+
+  return {
+    name: "openai",
+    chatModel: new ChatOpenAI({
+      model,
+      temperature,
+      maxTokens,
+      topP: 0.9,
+      maxRetries: 2,
+      streaming: false,
+      apiKey: openaiKey,
+    }),
+  };
+}
+
+function buildChain(systemPrompt) {
+  const provider = createOpenAIProvider();
+  if (!provider) return null;
 
   const prompt = ChatPromptTemplate.fromMessages([
     ["system", systemPrompt],
@@ -114,7 +151,43 @@ function buildChain(systemPrompt) {
     ["human", "{input}"],
   ]);
 
-  return { chain: prompt.pipe(chatModel), chatModel, systemPrompt };
+  return {
+    chain: prompt.pipe(provider.chatModel),
+    chatModel: provider.chatModel,
+    systemPrompt,
+  };
+}
+
+async function generateAgentReply({
+  chain,
+  chatModel,
+  systemPrompt,
+  incompleteReply,
+  text,
+  history,
+}) {
+  let aiMessage = await chain.invoke({ input: text, history });
+  let raw = extractText(aiMessage).trim();
+  let response = formatPlainFarmerReply(raw);
+
+  if (needsRecoveryReply(response)) {
+    const recovery = await chatModel.invoke([
+      new SystemMessage(
+        `${systemPrompt}\n\nRECOVERY: Your last answer was incomplete or cut off. Write a full reply in English: complete sentences ending with periods, at least 3 sentences. Do not stop mid-phrase.`,
+      ),
+      new HumanMessage(text),
+    ]);
+    raw = extractText(recovery).trim();
+    response = formatPlainFarmerReply(raw);
+  }
+
+  if (needsRecoveryReply(response)) {
+    response = incompleteReply;
+  } else if (!response) {
+    response = "Sorry, I didn't understand that.";
+  }
+
+  return response;
 }
 
 function createAgent(systemPrompt, agentOptions = {}) {
@@ -126,12 +199,12 @@ function createAgent(systemPrompt, agentOptions = {}) {
     return {
       async preloadHistory() {},
       async call() {
-        return { response: "AI chat is not configured. Please contact support." };
+        return { response: AI_NOT_CONFIGURED_REPLY };
       },
     };
   }
 
-  const { chain, chatModel } = built;
+  const { chain, chatModel, systemPrompt: builtPrompt } = built;
   const chatHistory = new ChatMessageHistory();
 
   return {
@@ -156,26 +229,14 @@ function createAgent(systemPrompt, agentOptions = {}) {
       const history = prior.slice(-MAX_CONTEXT_MESSAGES);
 
       try {
-        let aiMessage = await chain.invoke({ input: text, history });
-        let raw = extractText(aiMessage).trim();
-        let response = formatPlainFarmerReply(raw);
-
-        if (needsRecoveryReply(response)) {
-          const recovery = await chatModel.invoke([
-            new SystemMessage(
-              `${systemPrompt}\n\nRECOVERY: Your last answer was incomplete or cut off. Write a full reply in English: complete sentences ending with periods, at least 3 sentences. Do not stop mid-phrase.`
-            ),
-            new HumanMessage(text),
-          ]);
-          raw = extractText(recovery).trim();
-          response = formatPlainFarmerReply(raw);
-        }
-
-        if (needsRecoveryReply(response)) {
-          response = incompleteReply;
-        } else if (!response) {
-          response = "Sorry, I didn't understand that.";
-        }
+        const response = await generateAgentReply({
+          chain,
+          chatModel,
+          systemPrompt: builtPrompt,
+          incompleteReply,
+          text,
+          history,
+        });
 
         await chatHistory.addUserMessage(text);
         await chatHistory.addAIMessage(response);
@@ -183,8 +244,8 @@ function createAgent(systemPrompt, agentOptions = {}) {
 
         return { response };
       } catch (err) {
-        console.error("AI invoke error:", err);
-        return { response: "AI error occurred. Please try again." };
+        console.error("AI invoke error (openai):", err?.message || err);
+        return { response: AI_ERROR_REPLY };
       }
     },
   };

@@ -25,7 +25,6 @@
     "@aws-sdk/client-ses": "^3.896.0",
     "@aws-sdk/s3-request-presigner": "^3.864.0",
     "@google/earthengine": "^1.4.6",
-    "@langchain/core": "^0.3.80",
     "@langchain/openai": "^0.6.17",
     "@turf/convex": "^7.3.4",
     "@turf/turf": "^7.2.0",

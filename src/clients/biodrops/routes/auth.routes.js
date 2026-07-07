@@ -4,6 +4,7 @@ import {
   verifyOtp,
   completeProfile,
   loginWithGoogleWebBiodrops,
+  loginWithGoogleMobileBiodrops,
 } from "../../../controllers/auth/index.js";
 import { requireAuth } from "../../../middleware/auth.middleware.js";
 import { forceBiodropsBrand } from "../middleware/forceBrand.middleware.js";
@@ -34,6 +35,11 @@ router.post(
   "/biodrops/login/google",
   forceBiodropsBrand,
   loginWithGoogleWebBiodrops,
+);
+router.post(
+  "/biodrops/login/google-mobile",
+  forceBiodropsBrand,
+  loginWithGoogleMobileBiodrops,
 );
 
 // biodrops web application — WhatsApp OTP (phone login)

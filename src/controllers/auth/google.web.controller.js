@@ -18,6 +18,7 @@ import {
   resolveAuthEmailPreset,
 } from "../../utils/email/template.js";
 import mongoose from "mongoose";
+import { resolveBiodropsGoogleAudiences } from "./biodropsGoogleAudiences.js";
 
 function resolveGoogleClientIdByBrand(preset) {
   if (preset === "biodrops") {
@@ -28,14 +29,7 @@ function resolveGoogleClientIdByBrand(preset) {
 
 function resolveGoogleAudiencesByBrand(preset) {
   if (preset === "biodrops") {
-    return [
-      process.env.BIODROPS_GOOGLE_WEB_CLIENT_ID,
-      process.env.BIODROPS_GOOGLE_CLIENT_ID_LEGACY,
-      process.env.BIODROPS_GOOGLE_CLIENT_ID,
-      "45221627342-ceq66injs8mr9193cig1haf43v8n0i8f.apps.googleusercontent.com",
-      "45221627342-gt2bloi35rufoo9bb4n8v82cs02s75ft.apps.googleusercontent.com",
-      process.env.GOOGLE_CLIENT_ID,
-    ].filter(Boolean);
+    return resolveBiodropsGoogleAudiences();
   }
   const primary = resolveGoogleClientIdByBrand(preset);
   return primary ? [primary] : [];
@@ -104,7 +98,7 @@ const runGoogleWebLogin = async (
         .json({ success: false, message: "Database connection error." });
     }
 
-    // Verify token with Google (accept debug + legacy Biodrops web client IDs)
+    // Verify token with Google
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: googleAudiences,

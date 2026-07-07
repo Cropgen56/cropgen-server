@@ -9,7 +9,10 @@ export {
   loginWithGoogleWebCropgen,
   loginWithGoogleWebBiodrops,
 } from "./google.web.controller.js";
-export { loginWithGoogleMobile } from "./google.mobile.controller.js";
+export {
+  loginWithGoogleMobile,
+  loginWithGoogleMobileBiodrops,
+} from "./google.mobile.controller.js";
 export { requestAdminOtp } from "./admin.otp.controller.js";
 export { getAvatarPresignedUrl } from "./avatar.controller.js";
 

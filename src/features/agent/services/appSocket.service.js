@@ -1,4 +1,4 @@
-import { createAppAgent } from "../core/agent.js";
+import { createAppAgent, isGenericAgentFailure } from "../core/agent.js";
 import { getAgentOrgProfile } from "../core/systemPrompts.js";
 import User from "../../../models/user.model.js";
 import FarmField from "../../../models/field.model.js";
@@ -57,11 +57,19 @@ Write a warm welcome in ${langDesc} for ${userName}. You are their ${profile.ass
   try {
     const res = await agent.call({ input });
     const text = String(res?.response || "").trim();
-    if (text.length > 10) return text;
+    if (text.length > 10 && !isGenericAgentFailure(text)) return text;
   } catch (err) {
     console.error("Localized welcome failed:", err);
   }
   return fallbackWelcome({ userName, profile, farms });
+}
+
+function normalizeAgentReply(res) {
+  const reply = res?.response ?? "Sorry, I didn't understand that.";
+  if (isGenericAgentFailure(reply)) {
+    return "I'm having trouble reaching the AI service right now. Please try again in a moment.";
+  }
+  return reply;
 }
 
 class AppSocketService {
@@ -107,7 +115,7 @@ class AppSocketService {
           const todayISO = new Date().toISOString().slice(0, 10);
           const input = `[Current date (server): ${todayISO}]\n\n${message}`;
           const res = await ai2.call({ input });
-          return res?.response ?? "Sorry, I didn't understand that.";
+          return normalizeAgentReply(res);
         }
       } catch (err) {
         console.error("Re-init failed:", err);
@@ -118,10 +126,10 @@ class AppSocketService {
       const todayISO = new Date().toISOString().slice(0, 10);
       const input = `[Current date (server): ${todayISO}]\n\n${message}`;
       const res = await ai.call({ input });
-      return res?.response ?? "Sorry, I didn't understand that.";
+      return normalizeAgentReply(res);
     } catch (err) {
       console.error("App AI call error:", err);
-      return "AI error occurred. Please try again.";
+      return "I'm having trouble reaching the AI service right now. Please try again in a moment.";
     }
   }
 
