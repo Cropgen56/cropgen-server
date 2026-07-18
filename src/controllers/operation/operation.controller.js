@@ -1,5 +1,7 @@
 import Operation from "../../models/operation.model.js";
 import FarmField from "../../models/field.model.js";
+import FarmAdvisory from "../../features/advisory/models/farmAdvisory.model.js";
+import { ensureAdvisoryOperationsSynced } from "../../features/advisory/services/syncAdvisoryToOperations.service.js";
 
 // Create a new operation for a specific farm field
 export const addOperation = async (req, res) => {
@@ -94,6 +96,23 @@ export const getOperationsByFarmField = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Farm field not found" });
+    }
+
+    // Redistribute incomplete advisory tasks across calendar days (not all on today).
+    try {
+      const latestAdvisory = await FarmAdvisory.findOne({ farmFieldId })
+        .sort({ createdAt: -1 })
+        .select("_id activitiesToDo")
+        .lean();
+      if (latestAdvisory?._id) {
+        await ensureAdvisoryOperationsSynced({
+          farmFieldId,
+          advisoryId: latestAdvisory._id,
+          activitiesToDo: latestAdvisory.activitiesToDo,
+        });
+      }
+    } catch (syncErr) {
+      console.error("ensureAdvisoryOperationsSynced on get:", syncErr.message);
     }
 
     // Query operations with selective fields for optimization

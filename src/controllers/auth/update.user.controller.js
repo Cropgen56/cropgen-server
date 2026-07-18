@@ -60,6 +60,20 @@ export const updateUserById = async (req, res) => {
   let updateData = pickAllowedUpdateFields(req.body);
 
   try {
+    const requesterRole = String(req.user?.role || "").toLowerCase();
+    const isPrivileged = ["admin", "developer"].includes(requesterRole);
+
+    // Non-admins can only update their own profile, and cannot change role.
+    if (!isPrivileged) {
+      if (String(req.user?.id || req.user?._id) !== String(id)) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied. You can only update your own profile.",
+        });
+      }
+      delete updateData.role;
+    }
+
     /* ================= PHONE UNIQUE CHECK (OPTIONAL) ================= */
     if (updateData.phone) {
       const existingPhone = await User.findOne({

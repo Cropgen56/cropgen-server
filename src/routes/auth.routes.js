@@ -76,7 +76,7 @@ router.patch(
   "/update-user/:id",
   isAuthenticated,
   updateUserActivity,
-  authorizeRoles("admin", "developer", "client", "farmer"),
+  authorizeRoles("admin", "developer", "client", "farmer", "staff"),
   updateUserById,
 );
 

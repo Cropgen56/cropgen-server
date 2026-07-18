@@ -11,9 +11,56 @@ const ACTIVITY_TO_OPERATION_TYPE = {
   CARBON_TRACKING: "other",
 };
 
+/**
+ * Spread advisory tasks across upcoming calendar days so farmers see them
+ * on the month grid (not piled onto a single “today” cell).
+ */
+const ACTIVITY_DAY_OFFSET = {
+  SPRAY: 0,
+  FERTIGATION: 1,
+  IRRIGATION: 0,
+  WEATHER: 0,
+  CROP_RISK: 2,
+  MONITORING: 3,
+  CARBON_TRACKING: 5,
+};
+
 function padTime(hour) {
   const h = Math.min(Math.max(hour, 0), 23);
   return `${String(h).padStart(2, "0")}:00:00`;
+}
+
+/** Local calendar date YYYY-MM-DD (avoids UTC day-shift). */
+export function getTodayDateISO(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function addDaysLocalISO(baseDate, days) {
+  const d = new Date(baseDate);
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return getTodayDateISO(d);
+}
+
+function resolveActivityOperationDate(activity, index, baseDate = new Date()) {
+  const fromDetails =
+    activity?.details?.scheduledDate ||
+    activity?.details?.dueDate ||
+    activity?.scheduledDate ||
+    activity?.dueDate;
+  if (fromDetails) {
+    const raw = String(fromDetails).slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  }
+
+  const offset =
+    ACTIVITY_DAY_OFFSET[activity?.type] != null
+      ? ACTIVITY_DAY_OFFSET[activity.type]
+      : Math.min(index, 6);
+  return addDaysLocalISO(baseDate, offset);
 }
 
 function extractChemicalFields(activity) {
@@ -71,10 +118,6 @@ function extractChemicalFields(activity) {
   };
 }
 
-export function getTodayDateISO(date = new Date()) {
-  return date.toISOString().slice(0, 10);
-}
-
 export function buildOperationFromActivity(activity, index, { farmFieldId, advisoryId, operationDate }) {
   const { chemicalUsed, chemicalQuantity } = extractChemicalFields(activity);
   const operationType =
@@ -99,7 +142,7 @@ export function buildOperationFromActivity(activity, index, { farmFieldId, advis
     chemicalQuantity,
     comments,
     operationDate,
-    operationTime: padTime(8 + index),
+    operationTime: padTime(8 + (index % 8)),
   };
 }
 
@@ -117,7 +160,7 @@ export async function syncAdvisoryActivitiesToOperations({
     return { created: 0, deleted: 0, operationIds: [] };
   }
 
-  const operationDate = generatedAt.toISOString().slice(0, 10);
+  const baseDate = generatedAt instanceof Date ? generatedAt : new Date(generatedAt);
   const activities = Array.isArray(activitiesToDo) ? activitiesToDo : [];
 
   const deleteResult = await Operation.deleteMany({
@@ -138,7 +181,7 @@ export async function syncAdvisoryActivitiesToOperations({
     buildOperationFromActivity(activity, index, {
       farmFieldId,
       advisoryId,
-      operationDate,
+      operationDate: resolveActivityOperationDate(activity, index, baseDate),
     }),
   );
 
@@ -153,23 +196,25 @@ export async function syncAdvisoryActivitiesToOperations({
 
 /**
  * Create or update a single advisory activity on the Operations calendar.
- * Uses today's date so tasks appear in the month the farmer is viewing.
  */
 export async function upsertAdvisoryActivityOperation({
   farmFieldId,
   advisoryId,
   activity,
   index = 0,
-  operationDate = getTodayDateISO(),
+  operationDate,
 }) {
   if (!farmFieldId || !advisoryId || !activity?.type) {
     return null;
   }
 
+  const resolvedDate =
+    operationDate || resolveActivityOperationDate(activity, index, new Date());
+
   const payload = buildOperationFromActivity(activity, index, {
     farmFieldId,
     advisoryId,
-    operationDate,
+    operationDate: resolvedDate,
   });
 
   return Operation.findOneAndUpdate(
@@ -184,7 +229,8 @@ export async function upsertAdvisoryActivityOperation({
 }
 
 /**
- * Ensure each activity on the latest advisory has a calendar operation (non-destructive).
+ * Ensure each activity on the latest advisory has a calendar operation.
+ * Spreads incomplete tasks onto their scheduled day offsets (not all on today).
  */
 export async function ensureAdvisoryOperationsSynced({
   farmFieldId,
@@ -196,7 +242,7 @@ export async function ensureAdvisoryOperationsSynced({
   }
 
   const activities = Array.isArray(activitiesToDo) ? activitiesToDo : [];
-  const operationDate = getTodayDateISO();
+  const baseDate = new Date();
   const validActivities = activities.filter((a) => a?.type);
   if (!validActivities.length) {
     return { created: 0, updated: 0 };
@@ -221,12 +267,13 @@ export async function ensureAdvisoryOperationsSynced({
   for (let i = 0; i < validActivities.length; i++) {
     const activity = validActivities[i];
     const existing = existingByType.get(activity.type);
+    const targetDate = resolveActivityOperationDate(activity, i, baseDate);
 
     if (!existing) {
       const doc = buildOperationFromActivity(activity, i, {
         farmFieldId,
         advisoryId,
-        operationDate,
+        operationDate: targetDate,
       });
       bulkOps.push({ insertOne: { document: doc } });
       created++;
@@ -238,8 +285,8 @@ export async function ensureAdvisoryOperationsSynced({
     if (progress != null && existing.progress !== progress) {
       updates.progress = progress;
     }
-    if (existing.progress !== "completed" && existing.operationDate !== operationDate) {
-      updates.operationDate = operationDate;
+    if (existing.progress !== "completed" && existing.operationDate !== targetDate) {
+      updates.operationDate = targetDate;
     }
     if (Object.keys(updates).length) {
       bulkOps.push({
