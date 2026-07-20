@@ -134,7 +134,8 @@ function createOpenAIProvider() {
       temperature,
       maxTokens,
       topP: 0.9,
-      maxRetries: 2,
+      maxRetries: 3,
+      timeout: 45000,
       streaming: false,
       apiKey: openaiKey,
     }),
@@ -244,7 +245,17 @@ function createAgent(systemPrompt, agentOptions = {}) {
 
         return { response };
       } catch (err) {
-        console.error("AI invoke error (openai):", err?.message || err);
+        const cause =
+          err?.cause?.code ||
+          err?.cause?.message ||
+          err?.code ||
+          err?.status ||
+          "";
+        console.error(
+          "AI invoke error (openai):",
+          err?.message || err,
+          cause ? `[${cause}]` : "",
+        );
         return { response: AI_ERROR_REPLY };
       }
     },

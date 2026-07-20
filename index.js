@@ -4,8 +4,16 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import http from "http";
 import path from "path";
+import dns from "node:dns";
 import { fileURLToPath } from "url";
 import { connectToDatabase } from "./src/config/db.js";
+
+// Prefer IPv4 for outbound APIs (OpenAI etc.) — avoids intermittent ENOTFOUND/connect on dual-stack networks.
+try {
+  dns.setDefaultResultOrder("ipv4first");
+} catch {
+  /* Node < 17 */
+}
 // Core routes
 import authRoutes from "./src/routes/auth.routes.js";
 import fieldRoutes from "./src/routes/field.routes.js";

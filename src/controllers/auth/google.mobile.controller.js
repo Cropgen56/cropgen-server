@@ -23,10 +23,12 @@ function resolveGoogleMobileAudiencesByBrand(preset) {
   if (preset === "biodrops") {
     return resolveBiodropsGoogleAudiences();
   }
+  // CropGen native apps: prefer dedicated mobile client IDs, fall back to web client.
   return [
     process.env.MOBILE_GOOGLE_CLIENT_ID,
     process.env.ANDROID_GOOGLE_CLIENT_ID,
     process.env.IOS_GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_ID,
   ].filter(Boolean);
 }
 
