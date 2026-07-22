@@ -122,22 +122,16 @@ const runGoogleWebLogin = async (
     const wasFullyRegistered =
       !!user && !!user.organization && user.terms === true;
 
-    // Biodrops app: allow users from other orgs and re-associate them with BIODROPS.
-    // CropGen web keeps strict org isolation.
+    // Strict organization isolation: CropGen users cannot sign in on Biodrops (and vice versa).
     if (user) {
       const existingOrgCode = String(
         user.organization?.organizationCode || "",
       ).toUpperCase();
       if (existingOrgCode && existingOrgCode !== targetOrgCode) {
-        if (targetOrgCode === "BIODROPS") {
-          user.organization = organization._id;
-          if (!user.terms) user.terms = true;
-        } else {
-          return res.status(403).json({
-            success: false,
-            message: `Access denied. Only ${targetOrgCode} organization users can sign in here.`,
-          });
-        }
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. Only ${targetOrgCode} organization users can sign in here.`,
+        });
       }
     }
 
