@@ -53,6 +53,45 @@ export const completeProfile = async (req, res) => {
       });
     }
 
+    if (preset === "biodrops") {
+      const normalizedState = String(state || "").trim();
+      const normalizedCity = String(city || "").trim();
+      const normalizedVillage = String(village || "").trim();
+      const normalizedPincode = String(pincode || "").replace(/\D/g, "").trim();
+      const countryCode = String(country || "").trim().toUpperCase();
+
+      if (!normalizedState) {
+        return res.status(400).json({
+          success: false,
+          message: "State is required.",
+        });
+      }
+      if (!normalizedCity) {
+        return res.status(400).json({
+          success: false,
+          message: "City is required.",
+        });
+      }
+      if (!normalizedVillage) {
+        return res.status(400).json({
+          success: false,
+          message: "Village / area is required.",
+        });
+      }
+      if (
+        !normalizedPincode ||
+        (countryCode === "IN" && normalizedPincode.length !== 6)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            countryCode === "IN"
+              ? "A valid 6-digit pincode is required."
+              : "Pincode is required.",
+        });
+      }
+    }
+
     const user = await User.findById(userId);
     if (!user)
       return res

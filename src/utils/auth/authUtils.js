@@ -6,7 +6,8 @@ import Organization from "../../models/organization.model.js";
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET + "_r";
 const ACCESS_EXPIRES = "1h";
-const REFRESH_EXPIRES = "7d";
+const REFRESH_EXPIRES = "30d";
+const REFRESH_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** Legacy single cookie — kept for backward compatibility until all clients send X-Client-App */
 export const LEGACY_REFRESH_COOKIE_NAME = "refreshToken";
@@ -167,7 +168,7 @@ export function getRefreshTokenFromRequest(req) {
 export function setRefreshCookie(res, refreshToken, req) {
   const opts = {
     ...cookieBaseOptions(),
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: REFRESH_MAX_AGE_MS,
   };
   const name = getRefreshCookieNameForRequest(req);
   res.cookie(name, refreshToken, opts);

@@ -207,9 +207,19 @@ const runGoogleWebLogin = async (
     const profileComplete =
       !!user.organization && user.terms === true;
     const onboardingRequired = !profileComplete;
+    const profileDetailsRequired =
+      !String(user.phone || "").trim() ||
+      !String(user.country || "").trim() ||
+      !String(user.state || "").trim() ||
+      !String(user.city || "").trim() ||
+      !String(user.village || "").trim() ||
+      !String(user.pincode || "").trim() ||
+      !String(user.firstName || "").trim() ||
+      !String(user.lastName || "").trim();
     const accessToken = signAccessToken({
       ...tokenPayload,
       onboardingRequired,
+      profileDetailsRequired,
     });
     const refreshToken = signRefreshToken(tokenPayload, refreshId);
 
@@ -230,9 +240,18 @@ const runGoogleWebLogin = async (
             email: user.email,
             role: user.role,
             organizationCode: orgCode,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            phone: user.phone,
+            country: user.country,
+            state: user.state,
+            city: user.city,
+            village: user.village,
+            pincode: user.pincode,
           }
         : { id: user._id, email: user.email },
       onboardingRequired,
+      profileDetailsRequired,
     });
   } catch (error) {
     console.error("loginWithGoogleWeb:", error.message, error.stack);
