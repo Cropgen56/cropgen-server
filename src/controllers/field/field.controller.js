@@ -36,7 +36,6 @@ export const addField = async (req, res) => {
       !userId ||
       !latlng ||
       !cropName ||
-      !variety ||
       !sowingDate ||
       !typeOfIrrigation ||
       !farmName ||
@@ -59,7 +58,7 @@ export const addField = async (req, res) => {
       field: latlng,
       user: userId,
       cropName,
-      variety,
+      variety: typeof variety === "string" ? variety.trim() : "",
       sowingDate,
       typeOfIrrigation,
       fieldName: farmName,

@@ -18,7 +18,7 @@ const farmFieldSchema = new mongoose.Schema(
     },
     fieldName: { type: String, required: true },
     cropName: { type: String, required: true },
-    variety: { type: String, required: true },
+    variety: { type: String, default: "" },
     sowingDate: { type: String, required: true },
     acre: { type: Number, required: true },
     typeOfIrrigation: { type: String, required: true },
