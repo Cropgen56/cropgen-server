@@ -1,6 +1,7 @@
 export { createSubscriptionOrder } from "./create.subscription.order.controller.js";
 export { verifySubscriptionOrder } from "./verify.subscription.order.controller.js";
 export { activateSubscriptionManually } from "./activate.subscription.controller.js";
+export { demoActivateAllSubscriptions } from "./demo.activate.all.controller.js";
 export {
   getUserSubscriptions,
   getUserSubscriptionById,

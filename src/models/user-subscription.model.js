@@ -151,7 +151,7 @@ const UserSubscriptionSchema = new Schema(
 
     activationSource: {
       type: String,
-      enum: ["razorpay", "product_card", "hybrid", "admin"],
+      enum: ["razorpay", "product_card", "hybrid", "admin", "demo_key"],
       default: "razorpay",
     },
 

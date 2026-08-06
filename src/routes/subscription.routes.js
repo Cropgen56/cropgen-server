@@ -7,6 +7,7 @@ import {
   updateUserSubscription,
   deleteUserSubscription,
   activateSubscriptionManually,
+  demoActivateAllSubscriptions,
   getSubscriptionAdminDetail,
   cancelSubscriptionAdmin,
 } from "../controllers/subscription/index.js";
@@ -22,6 +23,11 @@ router.post(
   "/active-subscription",
   isAuthenticated,
   activateSubscriptionManually,
+);
+router.post(
+  "/demo-activate-all",
+  isAuthenticated,
+  demoActivateAllSubscriptions,
 );
 
 // crud apis
