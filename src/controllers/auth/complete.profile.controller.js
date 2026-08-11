@@ -196,6 +196,13 @@ export const completeProfile = async (req, res) => {
     });
   } catch (e) {
     console.error("completeProfile:", e);
+    if (e?.name === "ValidationError") {
+      const first = e.errors && Object.values(e.errors)[0];
+      return res.status(400).json({
+        success: false,
+        message: first?.message || "Invalid profile data.",
+      });
+    }
     return res
       .status(500)
       .json({ success: false, message: "Internal server error." });
