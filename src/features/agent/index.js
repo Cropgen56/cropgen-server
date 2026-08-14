@@ -16,7 +16,9 @@ export {
 export {
   getCropTimelineStatus,
   describeTimelineForPrompt,
+  describeFarmerLocationForPrompt,
   summarizeAdvisoryForPrompt,
+  summarizeWeatherForPrompt,
 } from "./utils/farmContext.js";
 
 export { setupSocket } from "./socket/setupSocket.js";

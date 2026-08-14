@@ -3,12 +3,36 @@ import jwt from "jsonwebtoken";
 import publicSocketService from "../services/publicSocket.service.js";
 import appSocketService from "../services/appSocket.service.js";
 
-function resolveOrgCodeFromSocket(socket) {
+/**
+ * Persona brand from the connecting client (CropGen app vs Satagro/Biodrops).
+ * Prefer this over the user's DB organization so CropGen app never speaks as Satagro.
+ * @param {import("socket.io").Socket} socket
+ * @param {string|null} [fallback="CROPGEN"]
+ */
+function resolveOrgCodeFromSocket(socket, fallback = "CROPGEN") {
   const fromQuery = String(socket.handshake.query?.clientBrand || "").toLowerCase();
-  const fromHeader = String(socket.handshake.headers?.["x-client-brand"] || "").toLowerCase();
+  const fromHeader = String(
+    socket.handshake.headers?.["x-client-brand"] || "",
+  ).toLowerCase();
+  const fromApp = String(
+    socket.handshake.query?.clientApp ||
+      socket.handshake.headers?.["x-client-app"] ||
+      "",
+  ).toLowerCase();
   const brand = fromQuery || fromHeader;
+
   if (brand === "biodrops" || brand === "satagro") return "BIODROPS";
-  return "CROPGEN";
+  if (brand === "cropgen") return "CROPGEN";
+  if (fromApp.startsWith("satagro") || fromApp.startsWith("biodrops")) {
+    return "BIODROPS";
+  }
+  if (fromApp.startsWith("cropgen")) return "CROPGEN";
+  return fallback;
+}
+
+function getAppAgentOptions(socket) {
+  const organizationCode = resolveOrgCodeFromSocket(socket, null);
+  return organizationCode ? { organizationCode } : {};
 }
 
 /** @param {import("socket.io").Namespace} ns */
@@ -143,9 +167,13 @@ function wireAppNamespace(ns) {
 
   ns.on("connection", async (socket) => {
     const userId = socket.userId;
+    const agentOptions = getAppAgentOptions(socket);
 
     try {
-      const welcomeMsg = await appSocketService.initializeUser(userId);
+      const welcomeMsg = await appSocketService.initializeUser(
+        userId,
+        agentOptions,
+      );
       socket.emit("ai_response", welcomeMsg);
     } catch (err) {
       console.error("App socket init error:", err);
@@ -166,14 +194,19 @@ function wireAppNamespace(ns) {
     });
 
     socket.on("reset_conversation", async () => {
-      await appSocketService.resetConversation(userId);
-      const resetMsg = "Conversation reset. How can I help with your farm?";
+      await appSocketService.resetConversation(userId, agentOptions);
+      const resetMsg =
+        "Conversation reset. Ask a farming question, or tap a farm for field-specific advice.";
       socket.emit("ai_response", resetMsg);
     });
 
     socket.on("set_active_farm", async (fieldId) => {
       try {
-        const reply = await appSocketService.setActiveFarm(userId, fieldId);
+        const reply = await appSocketService.setActiveFarm(
+          userId,
+          fieldId,
+          agentOptions,
+        );
         socket.emit("ai_response", reply);
       } catch (err) {
         console.error("set_active_farm error:", err);
@@ -226,9 +259,13 @@ function wireDefaultNamespace(io) {
   root.on("connection", async (socket) => {
     if (socket.cropgenAppUser) {
       const userId = socket.userId;
+      const agentOptions = getAppAgentOptions(socket);
 
       try {
-        const welcomeMsg = await appSocketService.initializeUser(userId);
+        const welcomeMsg = await appSocketService.initializeUser(
+          userId,
+          agentOptions,
+        );
         socket.emit("ai_response", welcomeMsg);
       } catch (err) {
         console.error("App socket init error:", err);
@@ -249,14 +286,19 @@ function wireDefaultNamespace(io) {
       });
 
       socket.on("reset_conversation", async () => {
-        await appSocketService.resetConversation(userId);
-        const resetMsg = "Conversation reset. How can I help with your farm?";
+        await appSocketService.resetConversation(userId, agentOptions);
+        const resetMsg =
+        "Conversation reset. Ask a farming question, or tap a farm for field-specific advice.";
         socket.emit("ai_response", resetMsg);
       });
 
       socket.on("set_active_farm", async (fieldId) => {
         try {
-          const reply = await appSocketService.setActiveFarm(userId, fieldId);
+          const reply = await appSocketService.setActiveFarm(
+            userId,
+            fieldId,
+            agentOptions,
+          );
           socket.emit("ai_response", reply);
         } catch (err) {
           console.error("set_active_farm error:", err);

@@ -71,6 +71,13 @@ function needsRecoveryReply(s) {
   return isIncompleteReply(s) || looksTruncated(s);
 }
 
+function isAccessDisclaimer(s) {
+  const t = String(s || "");
+  return /don'?t have (direct |real-?time )?(access|weather)|do not have (direct |real-?time )?(access|weather)|cannot access (real-?time )?(weather|data)|no (direct |real-?time )?(access to )?(weather|data)|unable to (access|see|get) (your )?(weather|live data)/i.test(
+    t,
+  );
+}
+
 function formatPlainFarmerReply(raw) {
   if (!raw) return "";
   let s = raw.replace(/\r\n/g, "\n");
@@ -171,10 +178,14 @@ async function generateAgentReply({
   let raw = extractText(aiMessage).trim();
   let response = formatPlainFarmerReply(raw);
 
-  if (needsRecoveryReply(response)) {
+  if (needsRecoveryReply(response) || isAccessDisclaimer(response)) {
     const recovery = await chatModel.invoke([
       new SystemMessage(
-        `${systemPrompt}\n\nRECOVERY: Your last answer was incomplete or cut off. Write a full reply in English: complete sentences ending with periods, at least 3 sentences. Do not stop mid-phrase.`,
+        `${systemPrompt}\n\nRECOVERY: ${
+          isAccessDisclaimer(response)
+            ? "Your last answer claimed you lack weather or data access. That is forbidden. Use the farm weather snapshot, location, crop, NPK, yield, and advisory in the system prompt. Answer with concrete field actions. Never say you don't have access."
+            : "Your last answer was incomplete or cut off. Write a full reply in English: complete sentences ending with periods, at least 3 sentences. Do not stop mid-phrase."
+        }`,
       ),
       new HumanMessage(text),
     ]);
