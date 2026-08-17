@@ -65,3 +65,11 @@ The engine computes a robust `plantGrowthActivity` using:
 - `hybridStageEngine.js` — full hybrid implementation (DAE + GDD + NDVI + BBCH fusion).
 - `index.js` — module exports for consumers.
 
+## Agronomy review
+
+Per-crop GDD maturity + calendar-day targets (replacing the old shared
+category constants) are implemented — see
+[`../AGRONOMY_REVIEW.md`](../AGRONOMY_REVIEW.md) for what's done, what's
+still open (perennial-crop growth model, chill-hours, NDVI/cold-stress
+tuning, etc.), and exactly which files each remaining item touches.
+

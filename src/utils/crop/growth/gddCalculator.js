@@ -2,6 +2,11 @@ import { CROP_BASE_TEMPERATURE } from "./cropBaseTemperature.js";
 import { CROP_CATEGORY_MAP } from "./cropCategoryMap.js";
 import { GDD_TEMPLATES } from "./gddStageTemplates.js";
 import { BBCH_STAGE_MAP } from "./bbchStageMap.js";
+import {
+  CROP_MATURITY_GDD,
+  CROP_SEASON_DAYS,
+  PERENNIAL_OR_MULTI_HARVEST_CROPS,
+} from "./cropMaturityGDD.js";
 
 /* ------------------ Helpers ------------------ */
 export function normalizeCropName(name) {
@@ -11,6 +16,65 @@ export function normalizeCropName(name) {
 export function getBaseTemperature(cropName) {
   const key = normalizeCropName(cropName);
   return CROP_BASE_TEMPERATURE[key] ?? CROP_BASE_TEMPERATURE.default;
+}
+
+/**
+ * Build the crop's own BBCH stage curve: same stage names/BBCH codes/
+ * descriptions as its category (BBCH_STAGE_MAP), but with the cumulative-GDD
+ * threshold for each stage rescaled to the crop's own season-total
+ * (CROP_MATURITY_GDD) instead of the one shared category constant.
+ *
+ * WHY RESCALE RATHER THAN AUTHOR 143 FULL STAGE TABLES: BBCH_STAGE_MAP's
+ * per-category *shape* (e.g. "cereal" spends its first ~8% of season-GDD in
+ * germination, ~25% in tillering, etc.) is a reasonable, agronomically
+ * sensible default within a category. What was wrong was reusing the same
+ * *absolute total* (e.g. 2400 GDD) across every crop in that category. So we
+ * keep the category's relative phenophase proportions but scale the total to
+ * match each crop's real GDD-to-maturity — e.g. wheat's total drops from the
+ * shared 2400 to its own ~2000, sugarcane's rises to ~5000.
+ *
+ * Falls back to the original, unscaled category curve (today's behaviour)
+ * when the crop has no CROP_MATURITY_GDD entry — including all crops in
+ * PERENNIAL_OR_MULTI_HARVEST_CROPS, which are deliberately never scaled
+ * (see cropMaturityGDD.js for why).
+ */
+export function getCropStageCurve(cropName) {
+  const key = normalizeCropName(cropName);
+  const category = CROP_CATEGORY_MAP[key] || "vegetable";
+  const categoryStages = BBCH_STAGE_MAP[category] || BBCH_STAGE_MAP.vegetable;
+
+  const maturityGDD = CROP_MATURITY_GDD[key];
+  if (!maturityGDD || PERENNIAL_OR_MULTI_HARVEST_CROPS.has(key)) {
+    return categoryStages;
+  }
+
+  const categoryTotalGDD = categoryStages[categoryStages.length - 1]?.max;
+  if (!categoryTotalGDD) return categoryStages;
+
+  const scale = maturityGDD / categoryTotalGDD;
+  return categoryStages.map((stage) => ({
+    ...stage,
+    max: Math.max(1, Math.round(stage.max * scale)),
+  }));
+}
+
+/**
+ * Typical days-from-sowing-to-maturity for the crop, for the hybrid engine's
+ * calendar (DAE) signal — crop-specific companion to getCropStageCurve()'s
+ * GDD scaling, using CROP_SEASON_DAYS instead of a shared per-category
+ * constant (see cropMaturityGDD.js for why the category constant was wrong
+ * for outlier-duration crops like sugarcane).
+ *
+ * @param {string} cropName
+ * @param {number} categoryFallbackDays — caller's per-category default
+ *   (e.g. CATEGORY_SEASON_DAYS[category] in hybridStageEngine.js), used
+ *   as-is for perennial/multi-harvest crops and any crop with no
+ *   CROP_SEASON_DAYS entry yet — i.e. today's behaviour, unchanged.
+ */
+export function getCropSeasonDays(cropName, categoryFallbackDays) {
+  const key = normalizeCropName(cropName);
+  if (PERENNIAL_OR_MULTI_HARVEST_CROPS.has(key)) return categoryFallbackDays;
+  return CROP_SEASON_DAYS[key] ?? categoryFallbackDays;
 }
 
 /**
@@ -105,9 +169,7 @@ export function getCropGrowthStage(
   cumulativeGDD,
   ndvi = null,
 ) {
-  const key = normalizeCropName(cropName);
-  const category = CROP_CATEGORY_MAP[key] || "vegetable";
-  let stages = BBCH_STAGE_MAP[category] || BBCH_STAGE_MAP.vegetable;
+  let stages = getCropStageCurve(cropName);
 
   if (!stages || stages.length === 0) {
     stages = BBCH_STAGE_MAP.vegetable;

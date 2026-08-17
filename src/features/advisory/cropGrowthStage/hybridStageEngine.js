@@ -1,9 +1,10 @@
-import { BBCH_STAGE_MAP } from "../../../utils/crop/growth/bbchStageMap.js";
 import { CROP_CATEGORY_MAP } from "../../../utils/crop/growth/cropCategoryMap.js";
 import {
   calculateCumulativeGDD,
   getBaseTemperature,
   getCropGrowthStage,
+  getCropSeasonDays,
+  getCropStageCurve,
   normalizeCropName,
 } from "../../../utils/crop/growth/gddCalculator.js";
 import {
@@ -45,10 +46,18 @@ function getCategory(cropName) {
   return CROP_CATEGORY_MAP[key] || "vegetable";
 }
 
-function buildStageCalendarProfiles(category) {
-  const stages = BBCH_STAGE_MAP[category] || BBCH_STAGE_MAP.vegetable;
+// `cropName` (not `category`) so the day-window boundaries line up with the
+// crop's own GDD-scaled stage curve (getCropStageCurve) AND its own
+// days-to-maturity (getCropSeasonDays) rather than the generic category
+// curve/day-count — e.g. sugarcane's stages now span its own ~330-day
+// season instead of the "cereal" category's 125-day default (see
+// cropMaturityGDD.js for why a shared category day-count was wrong).
+function buildStageCalendarProfiles(cropName) {
+  const stages = getCropStageCurve(cropName);
   const totalGdd = stages[stages.length - 1].max;
-  const totalDays = CATEGORY_SEASON_DAYS[category] ?? CATEGORY_SEASON_DAYS.default;
+  const category = getCategory(cropName);
+  const categoryDefaultDays = CATEGORY_SEASON_DAYS[category] ?? CATEGORY_SEASON_DAYS.default;
+  const totalDays = getCropSeasonDays(cropName, categoryDefaultDays);
   let prevMaxGdd = 0;
 
   return stages.map((stage) => {
@@ -131,11 +140,12 @@ function stageFromGdd(cropName, cumulativeGDD, ndvi) {
 
 function stageFromCalendar(cropName, cropAgeDays) {
   const category = getCategory(cropName);
-  const profiles = buildStageCalendarProfiles(category);
+  const profiles = buildStageCalendarProfiles(cropName);
   const stage =
     profiles.find((s) => cropAgeDays <= s.maxDays) || profiles[profiles.length - 1];
 
-  const totalDays = CATEGORY_SEASON_DAYS[category] ?? CATEGORY_SEASON_DAYS.default;
+  const categoryDefaultDays = CATEGORY_SEASON_DAYS[category] ?? CATEGORY_SEASON_DAYS.default;
+  const totalDays = getCropSeasonDays(cropName, categoryDefaultDays);
   const overallProgress = Math.min(100, (cropAgeDays / totalDays) * 100);
 
   const daySpan = stage.maxDays - stage.minDays;
@@ -156,8 +166,7 @@ function stageFromCalendar(cropName, cropAgeDays) {
 }
 
 function stageFromNdviPhenology(cropName, phenology) {
-  const category = getCategory(cropName);
-  const stages = BBCH_STAGE_MAP[category] || BBCH_STAGE_MAP.vegetable;
+  const stages = getCropStageCurve(cropName);
   const position = NDVI_PHASE_POSITION[phenology.phase] ?? 0.5;
   const totalGdd = stages[stages.length - 1].max;
   const targetGdd = position * totalGdd;
@@ -190,8 +199,10 @@ function stageFromNdviPhenology(cropName, phenology) {
   };
 }
 
-function snapToStage(category, bbchTarget) {
-  const stages = BBCH_STAGE_MAP[category] || BBCH_STAGE_MAP.vegetable;
+// Takes an already-resolved stage curve (crop-specific or category-generic —
+// see getCropStageCurve) rather than a category, so the caller controls
+// exactly which curve fusion snaps onto.
+function snapToStage(stages, bbchTarget) {
   let best = stages[0];
   let bestDist = Math.abs(best.bbch - bbchTarget);
   for (const s of stages) {
@@ -214,8 +225,7 @@ function fuseStages({
   phenology,
   gddSource,
 }) {
-  const category = getCategory(cropName);
-  const stages = BBCH_STAGE_MAP[category] || BBCH_STAGE_MAP.vegetable;
+  const stages = getCropStageCurve(cropName);
   const totalGdd = stages[stages.length - 1].max;
 
   let wGdd = 0.35;
@@ -248,7 +258,7 @@ function fuseStages({
       ndviStage.bbchStage * wNdvi,
   );
 
-  const snapped = snapToStage(category, fusedBbch);
+  const snapped = snapToStage(stages, fusedBbch);
   const idx = stages.findIndex((s) => s.bbch === snapped.bbch);
   const prevMax = idx > 0 ? stages[idx - 1].max : 0;
 
