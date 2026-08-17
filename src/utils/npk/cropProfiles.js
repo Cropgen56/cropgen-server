@@ -1,4 +1,3 @@
-
 export const CROP_PROFILES = {
   wheat: {
     category: "cereal",
@@ -10,9 +9,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.3, P: 0.2, K: 0.3 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   sugarcane: {
@@ -25,9 +22,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.3, P: 0.2, K: 0.3 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   rice: {
@@ -40,9 +35,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.3, P: 0.2, K: 0.3 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   soybean: {
@@ -55,9 +48,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   corn: {
@@ -70,9 +61,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.3, P: 0.2, K: 0.3 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   cotton: {
@@ -85,9 +74,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   groundnut: {
@@ -100,9 +87,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   chickpea: {
@@ -115,9 +100,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.5,
-      reproductive: 0.7
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   },
   greengram: {
@@ -130,9 +113,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.5,
-      reproductive: 0.7
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   },
   kidneybeansrajma: {
@@ -145,9 +126,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.5,
-      reproductive: 0.7
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   },
   redgram: {
@@ -160,9 +139,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.5,
-      reproductive: 0.7
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   },
   grapes: {
@@ -174,8 +151,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   banana: {
@@ -187,8 +163,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   papaya: {
@@ -200,8 +175,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   guava: {
@@ -213,8 +187,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   pomegranate: {
@@ -226,8 +199,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   watermelon: {
@@ -239,8 +211,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   orange: {
@@ -252,8 +223,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   sapota: {
@@ -265,8 +235,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   mango: {
@@ -278,8 +247,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   muskmelon: {
@@ -291,8 +259,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   fig: {
@@ -304,8 +271,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   coriander: {
@@ -317,8 +283,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   turmeric: {
@@ -330,8 +295,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   ginger: {
@@ -343,8 +307,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   ashgourd: {
@@ -356,8 +319,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   beetroot: {
@@ -369,8 +331,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   bittergourd: {
@@ -382,8 +343,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   bottlegourd: {
@@ -395,8 +355,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   brinjal: {
@@ -408,8 +367,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   broccoli: {
@@ -421,8 +379,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   cabbage: {
@@ -434,8 +391,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   capsicum: {
@@ -447,8 +403,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   carrot: {
@@ -460,8 +415,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   cauliflower: {
@@ -473,8 +427,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   celery: {
@@ -486,8 +439,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   cucumber: {
@@ -499,8 +451,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   garlic: {
@@ -512,8 +463,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   onion: {
@@ -525,8 +475,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   lettuce: {
@@ -538,8 +487,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   longmelon: {
@@ -551,21 +499,19 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   mushroom: {
     category: "vegetable",
-    totalNPK: { N: 0, P: 0, K: 0 }, // No typical NPK for mushroom
+    totalNPK: { N: 0, P: 0, K: 0 },
     maturityBBCH: 90,
     stageSplit: {
       vegetative: { N: 0, P: 0, K: 0 },
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   okra: {
@@ -577,8 +523,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   greenpeas: {
@@ -591,9 +536,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.5,
-      reproductive: 0.7
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   },
   potato: {
@@ -605,8 +548,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   pumpkin: {
@@ -618,8 +560,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   radish: {
@@ -631,8 +572,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   spinach: {
@@ -644,8 +584,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   spongegourd: {
@@ -657,8 +596,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   squashmelon: {
@@ -670,8 +608,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   summersquash: {
@@ -683,8 +620,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   sweetpotato: {
@@ -696,8 +632,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   tomato: {
@@ -709,8 +644,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   turnip: {
@@ -722,8 +656,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   tobacco: {
@@ -735,8 +668,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   barley: {
@@ -749,9 +681,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.3, P: 0.2, K: 0.3 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   pearlmillet: {
@@ -764,9 +694,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.3, P: 0.2, K: 0.3 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   sorghum: {
@@ -779,9 +707,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.3, P: 0.2, K: 0.3 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   fingermillet: {
@@ -794,9 +720,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.3, P: 0.2, K: 0.3 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   blackgram: {
@@ -809,9 +733,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.5,
-      reproductive: 0.7
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   },
   lentil: {
@@ -824,9 +746,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.5,
-      reproductive: 0.7
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   },
   horsegram: {
@@ -839,9 +759,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.5,
-      reproductive: 0.7
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   },
   cowpealobia: {
@@ -854,9 +772,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.5,
-      reproductive: 0.7
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   },
   mustard: {
@@ -869,9 +785,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   sunflower: {
@@ -884,9 +798,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   sesame: {
@@ -899,9 +811,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   linseed: {
@@ -914,9 +824,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   castor: {
@@ -929,9 +837,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   safflower: {
@@ -944,9 +850,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   niger: {
@@ -959,9 +863,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   jute: {
@@ -974,9 +876,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.3, P: 0.2, K: 0.3 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   beans: {
@@ -989,9 +889,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.5,
-      reproductive: 0.7
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   },
   apple: {
@@ -1003,8 +901,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   lemon: {
@@ -1016,8 +913,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   pineapple: {
@@ -1029,8 +925,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   cumin: {
@@ -1042,8 +937,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   blackpepper: {
@@ -1055,8 +949,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   tea: {
@@ -1068,8 +961,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   coffee: {
@@ -1081,8 +973,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   coconut: {
@@ -1094,8 +985,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   arecanut: {
@@ -1107,8 +997,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   rubber: {
@@ -1120,8 +1009,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   dragonfruit: {
@@ -1133,8 +1021,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   snakegourd: {
@@ -1146,8 +1033,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   drumstick: {
@@ -1159,8 +1045,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   chilli: {
@@ -1172,8 +1057,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
     }
   },
   chia: {
@@ -1186,9 +1070,7 @@ export const CROP_PROFILES = {
       reproductive: { N: 0, P: 0, K: 0 }
     },
     ndviExpected: {
-      early: 0.4,
-      vegetative: 0.55,
-      reproductive: 0.75
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
     }
   },
   kiwi: {
@@ -1200,8 +1082,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   amla: {
@@ -1213,8 +1094,7 @@ export const CROP_PROFILES = {
       fruiting: { N: 0.4, P: 0.4, K: 0.6 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      fruiting: 0.65
+      vegetative: 0.55, fruiting: 0.65
     }
   },
   fenugreekmethi: {
@@ -1226,8 +1106,658 @@ export const CROP_PROFILES = {
       reproductive: { N: 0.5, P: 0.2, K: 0.5 }
     },
     ndviExpected: {
-      vegetative: 0.55,
-      reproductive: 0.75
+      vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  pecannuts: {
+    category: "nut",
+    totalNPK: { N: 200, P: 80, K: 180 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  macadamianuts: {
+    category: "nut",
+    totalNPK: { N: 250, P: 120, K: 400 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  almond: {
+    category: "nut",
+    totalNPK: { N: 250, P: 100, K: 250 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  walnut: {
+    category: "nut",
+    totalNPK: { N: 280, P: 100, K: 200 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  cashew: {
+    category: "nut",
+    totalNPK: { N: 100, P: 50, K: 100 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  pistachio: {
+    category: "nut",
+    totalNPK: { N: 200, P: 80, K: 180 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  hazelnut: {
+    category: "nut",
+    totalNPK: { N: 150, P: 60, K: 120 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  chestnut: {
+    category: "nut",
+    totalNPK: { N: 120, P: 60, K: 120 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  brazilnut: {
+    category: "nut",
+    totalNPK: { N: 80, P: 40, K: 80 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  pinenut: {
+    category: "nut",
+    totalNPK: { N: 60, P: 30, K: 60 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  pears: {
+    category: "fruit",
+    totalNPK: { N: 80, P: 40, K: 80 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  winegrapes: {
+    category: "fruit",
+    totalNPK: { N: 350, P: 200, K: 450 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  tablegrapes: {
+    category: "fruit",
+    totalNPK: { N: 550, P: 300, K: 700 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  citrus: {
+    category: "fruit",
+    totalNPK: { N: 300, P: 100, K: 150 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  cherry: {
+    category: "fruit",
+    totalNPK: { N: 150, P: 75, K: 150 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  peach: {
+    category: "fruit",
+    totalNPK: { N: 180, P: 90, K: 180 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  avocado: {
+    category: "fruit",
+    totalNPK: { N: 250, P: 150, K: 400 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  olive: {
+    category: "fruit",
+    totalNPK: { N: 150, P: 60, K: 150 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  plum: {
+    category: "fruit",
+    totalNPK: { N: 150, P: 75, K: 150 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  apricot: {
+    category: "fruit",
+    totalNPK: { N: 150, P: 75, K: 150 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  nectarine: {
+    category: "fruit",
+    totalNPK: { N: 180, P: 90, K: 180 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  blueberry: {
+    category: "fruit",
+    totalNPK: { N: 120, P: 40, K: 100 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  raspberry: {
+    category: "fruit",
+    totalNPK: { N: 100, P: 50, K: 150 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  blackberry: {
+    category: "fruit",
+    totalNPK: { N: 100, P: 50, K: 150 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  cranberry: {
+    category: "fruit",
+    totalNPK: { N: 60, P: 30, K: 80 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  persimmon: {
+    category: "fruit",
+    totalNPK: { N: 150, P: 75, K: 120 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  lychee: {
+    category: "fruit",
+    totalNPK: { N: 500, P: 250, K: 500 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  rambutan: {
+    category: "fruit",
+    totalNPK: { N: 400, P: 200, K: 400 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  durian: {
+    category: "fruit",
+    totalNPK: { N: 500, P: 250, K: 600 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  jackfruit: {
+    category: "fruit",
+    totalNPK: { N: 400, P: 200, K: 400 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  custardapple: {
+    category: "fruit",
+    totalNPK: { N: 200, P: 100, K: 200 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  passionfruit: {
+    category: "fruit",
+    totalNPK: { N: 150, P: 80, K: 200 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  starfruit: {
+    category: "fruit",
+    totalNPK: { N: 300, P: 150, K: 300 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  datepalm: {
+    category: "fruit",
+    totalNPK: { N: 200, P: 100, K: 300 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  cacaococoa: {
+    category: "fruit",
+    totalNPK: { N: 150, P: 60, K: 150 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  vanilla: {
+    category: "fruit",
+    totalNPK: { N: 80, P: 40, K: 100 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  oilpalm: {
+    category: "fruit",
+    totalNPK: { N: 250, P: 100, K: 400 },
+    maturityBBCH: 85,
+    stageSplit: {
+      vegetative: { N: 0.4, P: 0.4, K: 0.4 },
+      fruiting: { N: 0.4, P: 0.4, K: 0.6 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, fruiting: 0.65
+    }
+  },
+  oats: {
+    category: "cereal",
+    totalNPK: { N: 60, P: 30, K: 20 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.3, P: 0.5, K: 0.3 },
+      vegetative: { N: 0.4, P: 0.3, K: 0.4 },
+      reproductive: { N: 0.3, P: 0.2, K: 0.3 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  rye: {
+    category: "cereal",
+    totalNPK: { N: 60, P: 30, K: 20 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.3, P: 0.5, K: 0.3 },
+      vegetative: { N: 0.4, P: 0.3, K: 0.4 },
+      reproductive: { N: 0.3, P: 0.2, K: 0.3 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  triticale: {
+    category: "cereal",
+    totalNPK: { N: 90, P: 45, K: 30 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.3, P: 0.5, K: 0.3 },
+      vegetative: { N: 0.4, P: 0.3, K: 0.4 },
+      reproductive: { N: 0.3, P: 0.2, K: 0.3 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  teff: {
+    category: "cereal",
+    totalNPK: { N: 50, P: 25, K: 20 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.3, P: 0.5, K: 0.3 },
+      vegetative: { N: 0.4, P: 0.3, K: 0.4 },
+      reproductive: { N: 0.3, P: 0.2, K: 0.3 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  buckwheat: {
+    category: "cereal",
+    totalNPK: { N: 35, P: 25, K: 20 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.3, P: 0.5, K: 0.3 },
+      vegetative: { N: 0.4, P: 0.3, K: 0.4 },
+      reproductive: { N: 0.3, P: 0.2, K: 0.3 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  amaranthgrain: {
+    category: "cereal",
+    totalNPK: { N: 60, P: 30, K: 30 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.3, P: 0.5, K: 0.3 },
+      vegetative: { N: 0.4, P: 0.3, K: 0.4 },
+      reproductive: { N: 0.3, P: 0.2, K: 0.3 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  quinoa: {
+    category: "cereal",
+    totalNPK: { N: 70, P: 40, K: 30 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.3, P: 0.5, K: 0.3 },
+      vegetative: { N: 0.4, P: 0.3, K: 0.4 },
+      reproductive: { N: 0.3, P: 0.2, K: 0.3 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  canolarapeseed: {
+    category: "oilseed",
+    totalNPK: { N: 80, P: 40, K: 30 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.5, P: 0.8, K: 0.5 },
+      vegetative: { N: 0.5, P: 0.2, K: 0.5 },
+      reproductive: { N: 0, P: 0, K: 0 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  hemp: {
+    category: "oilseed",
+    totalNPK: { N: 100, P: 45, K: 60 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.5, P: 0.8, K: 0.5 },
+      vegetative: { N: 0.5, P: 0.2, K: 0.5 },
+      reproductive: { N: 0, P: 0, K: 0 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  sugarbeet: {
+    category: "vegetable",
+    totalNPK: { N: 120, P: 60, K: 60 },
+    maturityBBCH: 90,
+    stageSplit: {
+      vegetative: { N: 0.5, P: 0.8, K: 0.5 },
+      reproductive: { N: 0.5, P: 0.2, K: 0.5 }
+    },
+    ndviExpected: {
+      vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  guarclusterbean: {
+    category: "pulse",
+    totalNPK: { N: 20, P: 40, K: 0 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.5, P: 0.8, K: 0.5 },
+      vegetative: { N: 0.5, P: 0.2, K: 0.5 },
+      reproductive: { N: 0, P: 0, K: 0 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
+    }
+  },
+  lucernealfalfa: {
+    category: "forage",
+    totalNPK: { N: 25, P: 60, K: 40 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.5, P: 0.8, K: 0.5 },
+      vegetative: { N: 0.5, P: 0.2, K: 0.5 },
+      reproductive: { N: 0, P: 0, K: 0 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
+    }
+  },
+  berseem: {
+    category: "forage",
+    totalNPK: { N: 25, P: 60, K: 30 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.5, P: 0.8, K: 0.5 },
+      vegetative: { N: 0.5, P: 0.2, K: 0.5 },
+      reproductive: { N: 0, P: 0, K: 0 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
+    }
+  },
+  feedsorghum: {
+    category: "forage",
+    totalNPK: { N: 90, P: 45, K: 45 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.3, P: 0.5, K: 0.3 },
+      vegetative: { N: 0.4, P: 0.3, K: 0.4 },
+      reproductive: { N: 0.3, P: 0.2, K: 0.3 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  napiergrass: {
+    category: "forage",
+    totalNPK: { N: 180, P: 60, K: 60 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.3, P: 0.5, K: 0.3 },
+      vegetative: { N: 0.4, P: 0.3, K: 0.4 },
+      reproductive: { N: 0.3, P: 0.2, K: 0.3 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.55, reproductive: 0.75
+    }
+  },
+  covercrop: {
+    category: "forage",
+    totalNPK: { N: 15, P: 15, K: 10 },
+    maturityBBCH: 90,
+    stageSplit: {
+      early: { N: 0.5, P: 0.8, K: 0.5 },
+      vegetative: { N: 0.5, P: 0.2, K: 0.5 },
+      reproductive: { N: 0, P: 0, K: 0 }
+    },
+    ndviExpected: {
+      early: 0.4, vegetative: 0.5, reproductive: 0.7
     }
   }
 };

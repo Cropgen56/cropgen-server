@@ -8,6 +8,13 @@ export const CROP_YIELD_PROFILE = {
   pearlmillet:  { category: "cereal",  baseYieldPerHa: 25, unit: "quintal" },
   sorghum:      { category: "cereal",  baseYieldPerHa: 30, unit: "quintal" },
   fingermillet: { category: "cereal",  baseYieldPerHa: 20, unit: "quintal" },
+  oats:         { category: "cereal",  baseYieldPerHa: 30, unit: "quintal" },
+  rye:          { category: "cereal",  baseYieldPerHa: 25, unit: "quintal" },
+  quinoa:       { category: "cereal",  baseYieldPerHa: 18, unit: "quintal" },
+  buckwheat:    { category: "cereal",  baseYieldPerHa: 12, unit: "quintal" },
+  triticale:    { category: "cereal",  baseYieldPerHa: 40, unit: "quintal" },
+  teff:         { category: "cereal",  baseYieldPerHa: 10, unit: "quintal" },
+  amaranthgrain:{ category: "cereal",  baseYieldPerHa: 15, unit: "quintal" },
 
   /* ===================== Pulses ===================== */
   chickpea:        { category: "pulse", baseYieldPerHa: 18, unit: "quintal" },
@@ -20,6 +27,7 @@ export const CROP_YIELD_PROFILE = {
   redgram:         { category: "pulse", baseYieldPerHa: 18, unit: "quintal" },
   greenpeas:       { category: "pulse", baseYieldPerHa: 20, unit: "quintal" },
   beans:           { category: "pulse", baseYieldPerHa: 18, unit: "quintal" },
+  guarclusterbean: { category: "pulse", baseYieldPerHa: 10, unit: "quintal" },
 
   /* ===================== Oilseeds ===================== */
   soybean:   { category: "oilseed", baseYieldPerHa: 25, unit: "quintal" },
@@ -32,6 +40,7 @@ export const CROP_YIELD_PROFILE = {
   safflower:{ category: "oilseed", baseYieldPerHa: 12, unit: "quintal" },
   niger:    { category: "oilseed", baseYieldPerHa: 8,  unit: "quintal" },
   chia:     { category: "oilseed", baseYieldPerHa: 8,  unit: "quintal" },
+  canolarapeseed: { category: "oilseed", baseYieldPerHa: 22, unit: "quintal" },
 
   /* ===================== Vegetables ===================== */
   tomato:      { category: "vegetable", baseYieldPerHa: 30, unit: "tons" },
@@ -65,6 +74,7 @@ export const CROP_YIELD_PROFILE = {
   celery:    { category: "vegetable", baseYieldPerHa: 12, unit: "tons" },
   chilli:    { category: "vegetable", baseYieldPerHa: 12, unit: "tons" },
   drumstick: { category: "vegetable", baseYieldPerHa: 25, unit: "tons" },
+  sugarbeet: { category: "vegetable", baseYieldPerHa: 70, unit: "tons" },
 
   /* ===================== Fruits ===================== */
   banana:      { category: "fruit", baseYieldPerHa: 35, unit: "tons" },
@@ -84,6 +94,42 @@ export const CROP_YIELD_PROFILE = {
   kiwi:        { category: "fruit", baseYieldPerHa: 7,  unit: "tons" },
   amla:        { category: "fruit", baseYieldPerHa: 8,  unit: "tons" },
   dragonfruit: { category: "fruit", baseYieldPerHa: 20, unit: "tons" },
+  pears:       { category: "fruit", baseYieldPerHa: 22, unit: "tons" },
+  winegrapes:  { category: "fruit", baseYieldPerHa: 10, unit: "tons" },
+  tablegrapes: { category: "fruit", baseYieldPerHa: 28, unit: "tons" },
+  citrus:      { category: "fruit", baseYieldPerHa: 18, unit: "tons" },
+  cherry:      { category: "fruit", baseYieldPerHa: 12, unit: "tons" },
+  peach:       { category: "fruit", baseYieldPerHa: 20, unit: "tons" },
+  avocado:     { category: "fruit", baseYieldPerHa: 12, unit: "tons" },
+  olive:       { category: "fruit", baseYieldPerHa: 8,  unit: "tons" },
+  plum:        { category: "fruit", baseYieldPerHa: 16, unit: "tons" },
+  apricot:     { category: "fruit", baseYieldPerHa: 14, unit: "tons" },
+  nectarine:   { category: "fruit", baseYieldPerHa: 18, unit: "tons" },
+  blueberry:   { category: "fruit", baseYieldPerHa: 10, unit: "tons" },
+  raspberry:   { category: "fruit", baseYieldPerHa: 10, unit: "tons" },
+  blackberry:  { category: "fruit", baseYieldPerHa: 12, unit: "tons" },
+  cranberry:   { category: "fruit", baseYieldPerHa: 20, unit: "tons" },
+  persimmon:   { category: "fruit", baseYieldPerHa: 16, unit: "tons" },
+  lychee:      { category: "fruit", baseYieldPerHa: 10, unit: "tons" },
+  rambutan:    { category: "fruit", baseYieldPerHa: 12, unit: "tons" },
+  durian:      { category: "fruit", baseYieldPerHa: 10, unit: "tons" },
+  jackfruit:   { category: "fruit", baseYieldPerHa: 20, unit: "tons" },
+  custardapple:{ category: "fruit", baseYieldPerHa: 10, unit: "tons" },
+  passionfruit:{ category: "fruit", baseYieldPerHa: 25, unit: "tons" },
+  starfruit:   { category: "fruit", baseYieldPerHa: 18, unit: "tons" },
+  datepalm:    { category: "fruit", baseYieldPerHa: 12, unit: "tons" },
+
+  /* ===================== Nuts ===================== */
+  pecannuts:     { category: "nut", baseYieldPerHa: 3,   unit: "tons" },
+  macadamianuts: { category: "nut", baseYieldPerHa: 4,   unit: "tons" },
+  almond:        { category: "nut", baseYieldPerHa: 2,   unit: "tons" },
+  walnut:        { category: "nut", baseYieldPerHa: 3,   unit: "tons" },
+  cashew:        { category: "nut", baseYieldPerHa: 1,   unit: "tons" },
+  pistachio:     { category: "nut", baseYieldPerHa: 2,   unit: "tons" },
+  hazelnut:      { category: "nut", baseYieldPerHa: 2,   unit: "tons" },
+  chestnut:      { category: "nut", baseYieldPerHa: 2,   unit: "tons" },
+  brazilnut:     { category: "nut", baseYieldPerHa: 1,   unit: "tons" },
+  pinenut:       { category: "nut", baseYieldPerHa: 0.5, unit: "tons" },
 
   /* ===================== Plantation & Spices ===================== */
   turmeric:    { category: "spice", baseYieldPerHa: 25, unit: "tons" },
@@ -97,6 +143,17 @@ export const CROP_YIELD_PROFILE = {
   coconut:     { category: "plantation", baseYieldPerHa: 10, unit: "tons" },
   arecanut:    { category: "plantation", baseYieldPerHa: 12, unit: "tons" },
   rubber:      { category: "plantation", baseYieldPerHa: 2, unit: "tons" },
+  cacaococoa:  { category: "plantation", baseYieldPerHa: 1, unit: "tons" },
+  vanilla:     { category: "plantation", baseYieldPerHa: 0.4, unit: "tons" },
+  oilpalm:     { category: "plantation", baseYieldPerHa: 22, unit: "tons" },
+  hemp:        { category: "plantation", baseYieldPerHa: 10, unit: "tons" },
+
+  /* ===================== Forage / Fodder ===================== */
+  lucernealfalfa: { category: "forage", baseYieldPerHa: 90,  unit: "tons" },
+  feedsorghum:    { category: "forage", baseYieldPerHa: 60,  unit: "tons" },
+  berseem:        { category: "forage", baseYieldPerHa: 70,  unit: "tons" },
+  napiergrass:    { category: "forage", baseYieldPerHa: 200, unit: "tons" },
+  covercrop:      { category: "forage", baseYieldPerHa: 0,   unit: "tons" },
 
   /* ===================== Commercial ===================== */
   sugarcane: { category: "cereal", baseYieldPerHa: 75, unit: "tons" },
