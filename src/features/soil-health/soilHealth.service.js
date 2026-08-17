@@ -254,7 +254,7 @@ async function buildOrganizationSuggestions({
   const code = String(
     organizationCode || DEFAULT_ORGANIZATION_CODE,
   ).toUpperCase();
-  if (!organizationCode) return [];
+  if (code !== "BIODROPS") return [];
 
   const biodrops = getBiodropsRecommendations({
     cropName,

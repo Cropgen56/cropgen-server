@@ -193,6 +193,11 @@ export async function generateLlmSoilRecommendations({
   const openai = getOpenAIClient();
   const normalizedLanguage = normalizeFarmerLanguage(language);
   const languageDescriptor = getFarmerLanguagePromptDescriptor(normalizedLanguage);
+  const normalizedOrgCode = String(organizationCode || "CROPGEN").toUpperCase();
+  const isBiodropsOrg = normalizedOrgCode === "BIODROPS";
+  const bokashiRule = isBiodropsOrg
+    ? "4) Include one Bokashi-related soil application line."
+    : "4) Do not mention Bokashi, Biodrops, or Satagro products.";
   const prompt = `
 Generate a practical fertilizer and micronutrient soil plan for an Indian farm.
 
@@ -204,7 +209,7 @@ Context:
 - Field area (square meters): ${areaSquareMeters}
 - Field area (hectares): ${areaHectares}
 - Area (acres): ${areaAcres}
-- Organization code: ${organizationCode || "CROPGEN"}
+- Organization code: ${normalizedOrgCode}
 - Farmer preferred language: ${languageDescriptor} (code: ${normalizedLanguage})
 
 Soil metrics:
@@ -215,7 +220,7 @@ Rules:
 2) Include quantity guidance in kg/ha (and optionally practical split guidance).
 2b) For EVERY fertilizer/nutrient recommendation, also include total quantity for THIS FIELD area (${areaHectares} ha / ${areaAcres} acres). Do not give generic-only doses.
 3) Keep language simple and actionable for farmers.
-4) If organization code is BIODROPS or provided, include one Bokashi-related soil application line.
+${bokashiRule}
 5) Keep output to 6-10 lines.
 6) Write ALL recommendations in ${languageDescriptor}. Keep brand names like Urea, DAP, Bokashi in Latin script if needed.
 `;
