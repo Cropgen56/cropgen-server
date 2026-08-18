@@ -24,12 +24,13 @@ function withTimeout(promise, ms, label) {
 }
 
 /**
- * Generate the first advisory after a new farm field is saved.
- * Retries when AOI was just created (weather APIs may lag).
+ * Generate the first advisory after a new farm field (or, with
+ * `cropInstanceId`, after a new crop was added to an existing multi-crop
+ * farm) is saved. Retries when AOI was just created (weather APIs may lag).
  */
 export async function triggerInitialAdvisoryForNewField(
   farmFieldId,
-  { language: languageOverride, userId } = {},
+  { language: languageOverride, userId, cropInstanceId = null } = {},
 ) {
   const farmFieldIdStr = String(farmFieldId);
 
@@ -87,10 +88,14 @@ export async function triggerInitialAdvisoryForNewField(
           );
         }
         const advisory = await withTimeout(
-          generateAdvisoryForField(farm._id, aoiId, language, "whatsapp", {
-            preferShortHistoricalWindow: created,
-            lightweight: created,
-          }),
+          generateAdvisoryForField(
+            farm._id,
+            aoiId,
+            language,
+            "whatsapp",
+            { preferShortHistoricalWindow: created, lightweight: created },
+            cropInstanceId,
+          ),
           remainingMs,
           "Advisory generation",
         );
@@ -130,4 +135,22 @@ export async function triggerInitialAdvisoryForNewField(
     );
     return { ok: false, error: err?.message || "unknown_error" };
   }
+}
+
+/**
+ * Same as triggerInitialAdvisoryForNewField, but targets one specific newly
+ * added crop instance on an existing (already-advised) farm, instead of the
+ * farm's primary crop. Used when a farmer adds another crop to a farm that
+ * already has other active crops.
+ */
+export async function triggerInitialAdvisoryForNewCrop(
+  farmFieldId,
+  cropInstanceId,
+  { language: languageOverride, userId } = {},
+) {
+  return triggerInitialAdvisoryForNewField(farmFieldId, {
+    language: languageOverride,
+    userId,
+    cropInstanceId,
+  });
 }

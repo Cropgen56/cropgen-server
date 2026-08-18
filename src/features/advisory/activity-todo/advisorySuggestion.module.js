@@ -230,6 +230,7 @@ export async function runAdvisorySuggestionModule(ctx) {
 
   const advisory = await FarmAdvisory.create({
     farmFieldId: ctx.farmFieldDoc._id,
+    cropInstanceId: ctx.cropInstanceId || null,
     yield: safeYield,
     activitiesToDo: activitiesWithProgress,
     activitiesSource,
@@ -263,6 +264,7 @@ export async function runAdvisorySuggestionModule(ctx) {
       await saveCarbonFromAdvisory({
         userId: ctx.farmFieldDoc.user,
         farmFieldId: ctx.farmFieldDoc._id,
+        cropInstanceId: ctx.cropInstanceId || null,
         advisoryId: advisory._id,
         date: ctx.nowISO.slice(0, 10),
         carbonData,

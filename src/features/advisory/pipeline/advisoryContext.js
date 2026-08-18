@@ -11,6 +11,8 @@ import { formatDateISO, buildGeometryFromFarmField } from "../utils/shared/helpe
  * @property {boolean} preferShortHistoricalWindow
  * @property {import('mongoose').Types.ObjectId | string} farmField
  * @property {Record<string, unknown>} farmFieldDoc
+ * @property {import('mongoose').Types.ObjectId | string | null} cropInstanceId
+ * @property {Record<string, unknown> | null} cropInstance
  * @property {string} nowISO
  * @property {string} sowingDateISO
  * @property {object | null} geometry
@@ -27,6 +29,7 @@ import { formatDateISO, buildGeometryFromFarmField } from "../utils/shared/helpe
 export function createAdvisoryContext({
   mode,
   farmField,
+  cropInstance = null,
   geometryId,
   language,
   platform,
@@ -36,18 +39,34 @@ export function createAdvisoryContext({
 }) {
   const now = new Date();
   const nowISO = formatDateISO(now);
-  const sowingDateISO = formatDateISO(farmField.sowingDate || now);
+
+  // Multi-crop: every downstream module keeps reading crop identity/dates
+  // off `farmFieldDoc` exactly as before — we just overlay the specific
+  // crop instance's own name/variety/start date on top of the farm doc, so
+  // the same pipeline naturally produces a crop-specific advisory without
+  // any module needing to know about `cropInstance` itself.
+  const farmFieldDoc = cropInstance
+    ? {
+        ...farmField,
+        cropName: cropInstance.cropName,
+        variety: cropInstance.variety,
+        sowingDate: cropInstance.startDate,
+      }
+    : farmField;
+  const sowingDateISO = formatDateISO(farmFieldDoc.sowingDate || now);
 
   return {
     mode,
     farmFieldId: String(farmField._id),
+    cropInstanceId: cropInstance?._id ? String(cropInstance._id) : null,
+    cropInstance,
     geometryId,
     language: language || "en",
     platform: platform || "whatsapp",
     lightweight: Boolean(lightweight),
     preferShortHistoricalWindow: Boolean(preferShortHistoricalWindow),
     farmField: farmField._id,
-    farmFieldDoc: farmField,
+    farmFieldDoc,
     nowISO,
     sowingDateISO,
     geometry: buildGeometryFromFarmField(farmField),

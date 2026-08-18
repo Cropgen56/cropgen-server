@@ -49,6 +49,14 @@ const FarmAdvisorySchema = new Schema(
       ref: "FarmField",
       required: true,
     },
+    /** Which crop instance this advisory is for (multi-crop). Null for
+     * barren-land advisories and any pre-migration legacy docs. */
+    cropInstanceId: {
+      type: Schema.Types.ObjectId,
+      ref: "FieldCrop",
+      default: null,
+      index: true,
+    },
     activitiesToDo: {
       type: [ActivitySchema],
       default: [],

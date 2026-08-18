@@ -1,11 +1,13 @@
 import mongoose from "mongoose";
 import FarmCarbonRecord from "../models/farm-carbon-record.model.js";
 import FarmCarbonProfile from "../models/farm-carbon-profile.model.js";
+import FieldCrop from "../models/field-crop.model.js";
 import User from "../models/user.model.js";
 
 export async function saveCarbonFromAdvisory({
   userId,
   farmFieldId,
+  cropInstanceId = null,
   advisoryId,
   date,
   carbonData,
@@ -16,11 +18,15 @@ export async function saveCarbonFromAdvisory({
   const captured = carbonData.capturedKgCO2 ?? 0;
   const netBalance = carbonData.netBalanceKgCO2 ?? 0;
 
+  // Multi-crop: keyed by (farmFieldId, cropInstanceId, date) — a farm with
+  // several active crops writes one record per crop per day instead of one
+  // crop's numbers silently overwriting another's.
   await FarmCarbonRecord.findOneAndUpdate(
-    { farmFieldId, date },
+    { farmFieldId, cropInstanceId: cropInstanceId || null, date },
     {
       userId,
       farmFieldId,
+      cropInstanceId: cropInstanceId || null,
       advisoryId,
       date,
       emissionKgCO2: emission,
@@ -52,17 +58,42 @@ export async function getFarmerCarbonProfile(userId) {
     .populate("farmFieldId", "fieldName cropName acre")
     .lean();
 
-  const byField = profiles.map((p) => ({
-    farmFieldId: p.farmFieldId?._id ?? p.farmFieldId,
-    fieldName: p.farmFieldId?.fieldName,
-    cropName: p.farmFieldId?.cropName,
-    acre: p.farmFieldId?.acre,
-    cumulativeEmissionKgCO2: p.cumulativeEmissionKgCO2,
-    cumulativeCapturedKgCO2: p.cumulativeCapturedKgCO2,
-    cumulativeNetBalanceKgCO2: p.cumulativeNetBalanceKgCO2,
-    recordCount: p.recordCount,
-    lastAdvisoryDate: p.lastAdvisoryDate,
-  }));
+  // Multi-crop: show every currently-active crop name on the farm, not just
+  // the legacy singular field.
+  const farmFieldIds = profiles
+    .map((p) => p.farmFieldId?._id ?? p.farmFieldId)
+    .filter(Boolean);
+  const activeCrops = farmFieldIds.length
+    ? await FieldCrop.find({
+        farmField: { $in: farmFieldIds },
+        isActive: true,
+      })
+        .select("farmField cropName")
+        .lean()
+    : [];
+  const cropNamesByFarmId = new Map();
+  activeCrops.forEach((c) => {
+    const key = String(c.farmField);
+    if (!cropNamesByFarmId.has(key)) cropNamesByFarmId.set(key, []);
+    cropNamesByFarmId.get(key).push(c.cropName);
+  });
+
+  const byField = profiles.map((p) => {
+    const fieldId = p.farmFieldId?._id ?? p.farmFieldId;
+    const activeCropNames = cropNamesByFarmId.get(String(fieldId));
+    return {
+      farmFieldId: fieldId,
+      fieldName: p.farmFieldId?.fieldName,
+      cropName:
+        activeCropNames?.join(" + ") || p.farmFieldId?.cropName || null,
+      acre: p.farmFieldId?.acre,
+      cumulativeEmissionKgCO2: p.cumulativeEmissionKgCO2,
+      cumulativeCapturedKgCO2: p.cumulativeCapturedKgCO2,
+      cumulativeNetBalanceKgCO2: p.cumulativeNetBalanceKgCO2,
+      recordCount: p.recordCount,
+      lastAdvisoryDate: p.lastAdvisoryDate,
+    };
+  });
 
   const totalEmission = byField.reduce((s, f) => s + (f.cumulativeEmissionKgCO2 ?? 0), 0);
   const totalCaptured = byField.reduce((s, f) => s + (f.cumulativeCapturedKgCO2 ?? 0), 0);

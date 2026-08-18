@@ -2,8 +2,13 @@ import mongoose from "mongoose";
 import FarmField from "../../models/field.model.js";
 import User from "../../models/user.model.js";
 import UserSubscription from "../../models/user-subscription.model.js";
+import FieldCrop from "../../models/field-crop.model.js";
 import { triggerInitialAdvisoryForNewField } from "../../features/advisory/services/triggerInitialAdvisory.service.js";
 import MonitoringRequest from "../../models/monitoring-request.model.js";
+import {
+  createPrimaryFieldCrop,
+  syncPrimaryFieldCrop,
+} from "../../utils/crop/fieldCropSync.js";
 function fieldAcreCount(field) {
   return Number(field?.acre) || 0;
 }
@@ -69,6 +74,15 @@ export const addField = async (req, res) => {
 
     const savedFarmField = await newFarmField.save();
 
+    /* ---------- Multi-crop: mirror the legacy single-crop fields into the
+       new FieldCrop collection (additive, non-breaking dual-write). A
+       failure here must not fail farm creation itself. ---------- */
+    try {
+      await createPrimaryFieldCrop(savedFarmField);
+    } catch (cropError) {
+      console.error("Error creating primary FieldCrop for new field:", cropError);
+    }
+
     /* ---------- Trigger first advisory (background; logs success/failure) ---------- */
     void triggerInitialAdvisoryForNewField(savedFarmField._id, {
       language: user.language || "en",
@@ -127,6 +141,19 @@ export const getField = async (req, res) => {
 
     const fieldIds = fields.map((f) => f._id);
 
+    /* ================= FETCH CROPS (multi-crop) ================= */
+
+    const crops = await FieldCrop.find({ farmField: { $in: fieldIds } })
+      .sort({ isActive: -1, createdAt: -1 })
+      .lean();
+
+    const cropsByFieldId = new Map();
+    crops.forEach((crop) => {
+      const id = String(crop.farmField);
+      if (!cropsByFieldId.has(id)) cropsByFieldId.set(id, []);
+      cropsByFieldId.get(id).push(crop);
+    });
+
     /* ================= FETCH SUBSCRIPTIONS ================= */
 
     const subscriptions = await UserSubscription.find({
@@ -163,10 +190,12 @@ export const getField = async (req, res) => {
 
     const farmFields = fields.map((field) => {
       const sub = subByFieldId.get(String(field._id));
+      const crops = cropsByFieldId.get(String(field._id)) || [];
 
       if (!sub) {
         return {
           ...field,
+          crops,
           isLocked: true,
           trialEligible: true,
           subscription: {
@@ -193,6 +222,7 @@ export const getField = async (req, res) => {
 
       return {
         ...field,
+        crops,
         isLocked: !isFieldUnlocked(field, sub, hasActiveSubscription),
         trialEligible: true,
         subscription: {
@@ -307,10 +337,29 @@ export const getAllField = async (req, res) => {
       });
     }
 
+    /* ================= FETCH CROPS (multi-crop) ================= */
+
+    const farmIds = farms.map((f) => f._id);
+    const crops = await FieldCrop.find({ farmField: { $in: farmIds } })
+      .sort({ isActive: -1, createdAt: -1 })
+      .lean();
+
+    const cropsByFieldId = new Map();
+    crops.forEach((crop) => {
+      const id = String(crop.farmField);
+      if (!cropsByFieldId.has(id)) cropsByFieldId.set(id, []);
+      cropsByFieldId.get(id).push(crop);
+    });
+
+    const farmsWithCrops = farms.map((farm) => ({
+      ...farm,
+      crops: cropsByFieldId.get(String(farm._id)) || [],
+    }));
+
     return res.status(200).json({
       success: true,
       message: "Farms fetched successfully.",
-      farms,
+      farms: farmsWithCrops,
       pagination: wantsAll
         ? { returned: farms.length, totalFarms }
         : {
@@ -343,6 +392,13 @@ export const deleteField = async (req, res) => {
 
     if (!deletedFarmField) {
       return res.status(404).json({ message: "Farm field not found" });
+    }
+
+    // Multi-crop: a deleted farm shouldn't leave orphaned crop instances behind.
+    try {
+      await FieldCrop.deleteMany({ farmField: farmFieldId });
+    } catch (cropError) {
+      console.error("Error deleting crops for removed field:", cropError);
     }
 
     res.status(200).json({
@@ -414,6 +470,14 @@ export const updateField = async (req, res) => {
       { $set: updateData },
       { new: true, runValidators: true },
     );
+
+    /* ---------- Multi-crop: keep the primary FieldCrop in sync with the
+       legacy flat-field update (additive, non-breaking). ---------- */
+    try {
+      await syncPrimaryFieldCrop(fieldExists, updateData);
+    } catch (cropError) {
+      console.error("Error syncing primary FieldCrop on field update:", cropError);
+    }
 
     // Respond with the updated field
     return res.status(200).json({

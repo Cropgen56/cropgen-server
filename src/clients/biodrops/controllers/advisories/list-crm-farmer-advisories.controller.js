@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import FarmField from "../../../../models/field.model.js";
+import FieldCrop from "../../../../models/field-crop.model.js";
 import FarmAdvisory from "../../../../features/advisory/models/farmAdvisory.model.js";
 import { enrichAdvisoriesForClient } from "../../../../features/advisory/utils/enrichAdvisoryForClient.js";
 import { assertCrmFarmerAccess } from "../../services/crmSubscription.service.js";
@@ -20,9 +21,16 @@ function formatCrmAdvisory(advisory) {
     completedAt: formatDate(activity.completedAt),
   }));
 
+  // Multi-crop: which crop (of possibly several on this field) this
+  // advisory is for. Null for barren-land / pre-migration legacy advisories.
+  const crop = advisory.cropInstanceId;
+
   return {
     id: String(advisory._id),
     createdAt: formatDate(advisory.createdAt),
+    crop: crop
+      ? { id: String(crop._id), cropName: crop.cropName, variety: crop.variety, cropRole: crop.cropRole }
+      : null,
     activitiesCount: activities.length,
     activities,
     cropHealth: advisory.cropHealth
@@ -93,7 +101,20 @@ export async function listCrmFarmerAdvisories(req, res) {
       farmFieldId: { $in: fieldIds },
     })
       .sort({ createdAt: -1 })
+      .populate("cropInstanceId", "cropName variety cropRole")
       .lean();
+
+    // Multi-crop: attach each field's currently-active crops.
+    const activeCrops = await FieldCrop.find({
+      farmField: { $in: fieldIds },
+      isActive: true,
+    }).lean();
+    const cropsByFieldId = new Map();
+    activeCrops.forEach((c) => {
+      const key = String(c.farmField);
+      if (!cropsByFieldId.has(key)) cropsByFieldId.set(key, []);
+      cropsByFieldId.get(key).push(c);
+    });
 
     const enriched = enrichAdvisoriesForClient(advisories, { language: "en" });
 
@@ -123,11 +144,22 @@ export async function listCrmFarmerAdvisories(req, res) {
         field: {
           id: String(field._id),
           fieldName: field.fieldName || "—",
+          // Legacy/primary crop, kept for backward compatibility.
           cropName: field.cropName || "—",
           variety: field.variety || "—",
           acre: Number(field.acre) || 0,
           sowingDate: field.sowingDate || null,
           isBarrenLand: Boolean(field.isBarrenLand),
+          // Multi-crop: every currently-active crop on this field.
+          crops: (cropsByFieldId.get(key) || []).map((c) => ({
+            id: String(c._id),
+            cropName: c.cropName,
+            variety: c.variety,
+            cropRole: c.cropRole,
+            cropLifecycleType: c.cropLifecycleType,
+            startDate: c.startDate,
+            expectedEndDate: c.expectedEndDate,
+          })),
         },
         advisories: fieldAdvisories.map(formatCrmAdvisory),
         total: fieldTotal,

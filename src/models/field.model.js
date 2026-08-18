@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { FARMING_TYPES } from "../constants/farmEnums.js";
 
 const farmFieldSchema = new mongoose.Schema(
   {
@@ -24,7 +25,7 @@ const farmFieldSchema = new mongoose.Schema(
     typeOfIrrigation: { type: String, required: true },
     typeOfFarming: {
       type: String,
-      enum: ["Organic", "Inorganic", "Integrated"],
+      enum: FARMING_TYPES,
       required: true,
     },
     /** True when the plot has no standing crop; sowingDate stores expected sowing date. */

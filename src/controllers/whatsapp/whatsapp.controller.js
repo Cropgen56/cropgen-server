@@ -3,6 +3,7 @@ import { sendCustomWhatsAppMessage } from "../../services/whatsappService.js"
 import { formatFarmAdvisoryMessage } from "../../utils/whatsapp/messageFormat.js";
 import { saveWhatsAppOutbound } from "../../services/whatsappMessageStore.js";
 import FarmField from "../../models/field.model.js"
+import FieldCrop from "../../models/field-crop.model.js"
 import User from "../../models/user.model.js"
 
 
@@ -46,7 +47,7 @@ export const sendFarmAdvisoryMessage = async (req, res) => {
 
     /* ================= 4️⃣ GET FARM DETAILS (✅ FIXED) ================= */
 
-    const farmDetails = await FarmField.findById(advisory.farmFieldId);
+    const farmDetails = await FarmField.findById(advisory.farmFieldId).lean();
 
     if (!farmDetails) {
       return res.status(404).json({
@@ -55,12 +56,29 @@ export const sendFarmAdvisoryMessage = async (req, res) => {
       });
     }
 
+    /* ================= 4b️⃣ MULTI-CROP: SHOW THE CROP THIS ADVISORY IS ACTUALLY FOR ================= */
+    // farmDetails.cropName/variety/sowingDate are the farm's legacy/primary
+    // crop — wrong if this advisory belongs to a different active crop.
+
+    let messageFarmDetails = farmDetails;
+    if (advisory.cropInstanceId) {
+      const cropInstance = await FieldCrop.findById(advisory.cropInstanceId).lean();
+      if (cropInstance) {
+        messageFarmDetails = {
+          ...farmDetails,
+          cropName: cropInstance.cropName,
+          variety: cropInstance.variety,
+          sowingDate: cropInstance.startDate,
+        };
+      }
+    }
+
     /* ================= 5️⃣ FORMAT MESSAGE (WITH FARM DETAILS + CROP AGE) ================= */
 
 
     const formattedMessage = formatFarmAdvisoryMessage(
       advisory.activitiesToDo,
-      farmDetails,
+      messageFarmDetails,
       farmer,
       language,
     );

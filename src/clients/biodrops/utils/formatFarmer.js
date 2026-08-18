@@ -22,10 +22,24 @@ export function deriveFarmerDisplayStatus({ fields = [] } = {}) {
   return "registered";
 }
 
+/**
+ * Multi-crop: every currently-active crop name on a field, falling back to
+ * the legacy singular `cropName` for fields with no attached `.crops` (not
+ * yet migrated, or the caller didn't fetch FieldCrop data).
+ */
+function fieldCropNames(field) {
+  if (Array.isArray(field.crops) && field.crops.length) {
+    return field.crops.map((c) => c.cropName).filter(Boolean);
+  }
+  return field.cropName ? [field.cropName] : [];
+}
+
 function formatField(field) {
+  const activeCrops = Array.isArray(field.crops) ? field.crops : null;
   return {
     id: String(field._id),
     fieldName: field.fieldName || "—",
+    // Legacy/primary crop, kept for backward compatibility with existing CRM consumers.
     cropName: field.cropName || "—",
     variety: field.variety || "—",
     acre: field.acre || 0,
@@ -33,6 +47,17 @@ function formatField(field) {
     typeOfIrrigation: field.typeOfIrrigation || "—",
     typeOfFarming: field.typeOfFarming || "—",
     isBarrenLand: Boolean(field.isBarrenLand),
+    // Multi-crop: every active crop instance on this field, when available.
+    crops: activeCrops
+      ? activeCrops.map((c) => ({
+          cropName: c.cropName,
+          variety: c.variety,
+          cropRole: c.cropRole,
+          cropLifecycleType: c.cropLifecycleType,
+          startDate: c.startDate,
+          expectedEndDate: c.expectedEndDate,
+        }))
+      : null,
     createdAt: field.createdAt || null,
     updatedAt: field.updatedAt || null,
   };
@@ -41,7 +66,7 @@ function formatField(field) {
 export function formatCrmFarmerDetail(user, { fields = [] } = {}) {
   const summary = formatCrmFarmer(user, { fields });
   const formattedFields = fields.map(formatField);
-  const crops = [...new Set(fields.map((f) => f.cropName).filter(Boolean))];
+  const crops = [...new Set(fields.flatMap(fieldCropNames))];
   const irrigationTypes = [
     ...new Set(fields.map((f) => f.typeOfIrrigation).filter(Boolean)),
   ];
@@ -76,7 +101,7 @@ export function formatCrmFarmer(user, { fields = [] } = {}) {
 
   const totalAcre = fields.reduce((sum, f) => sum + (f.acre || 0), 0);
   const primaryField = fields[0];
-  const crops = [...new Set(fields.map((f) => f.cropName).filter(Boolean))];
+  const crops = [...new Set(fields.flatMap(fieldCropNames))];
 
   return {
     id: String(user._id),

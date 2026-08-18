@@ -3,9 +3,19 @@
  */
 
 function parseSowingDate(sowingDateStr) {
-  if (!sowingDateStr || typeof sowingDateStr !== "string") return null;
-  const d = new Date(sowingDateStr.trim());
+  if (!sowingDateStr) return null;
+  // Legacy FarmField.sowingDate is a String; FieldCrop.startDate (multi-crop)
+  // is a real Date — accept either.
+  const raw =
+    typeof sowingDateStr === "string" ? sowingDateStr.trim() : sowingDateStr;
+  const d = new Date(raw);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Renders a Date or date-string as YYYY-MM-DD for prompt text. */
+export function formatDateForPrompt(value) {
+  const d = value instanceof Date ? value : parseSowingDate(value);
+  return d ? d.toISOString().slice(0, 10) : String(value || "unknown");
 }
 
 /**

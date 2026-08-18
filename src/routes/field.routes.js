@@ -8,6 +8,12 @@ import {
   requestFieldMonitoring,
   getMonitoringRequests,
 } from "../controllers/field/field.controller.js";
+import {
+  addCropToField,
+  getCropsForField,
+  updateCropForField,
+  deleteCropForField,
+} from "../controllers/field-crop/field-crop.controller.js";
 import { isAuthenticated } from "../middleware/auth.middleware.js";
 const router = express.Router();
 
@@ -19,5 +25,11 @@ router.delete("/delete-field/:fieldId", isAuthenticated, deleteField);
 router.patch("/update-field/:fieldId", isAuthenticated, updateField);
 router.post("/request-monitoring/:userId", isAuthenticated, requestFieldMonitoring);
 router.get("/monitoring-requests/:userId", isAuthenticated, getMonitoringRequests);
+
+// Multi-crop: additional crops on a farm, beyond the default single-crop one.
+router.post("/:fieldId/crops", isAuthenticated, addCropToField);
+router.get("/:fieldId/crops", isAuthenticated, getCropsForField);
+router.patch("/:fieldId/crops/:cropId", isAuthenticated, updateCropForField);
+router.delete("/:fieldId/crops/:cropId", isAuthenticated, deleteCropForField);
 
 export default router;

@@ -1,5 +1,6 @@
 import User from "../../../../models/user.model.js";
 import FarmField from "../../../../models/field.model.js";
+import FieldCrop from "../../../../models/field-crop.model.js";
 import { resolveCrmUserBaseQuery } from "../../utils/crmUserQuery.js";
 import { formatCrmFarmer } from "../../utils/formatFarmer.js";
 
@@ -67,8 +68,27 @@ export const listBiodropsFarmers = async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
+    // Multi-crop: attach each field's currently-active crops so the crop
+    // roll-up below reflects all of them, not just the legacy singular one.
+    const fieldIds = fields.map((f) => f._id);
+    const activeCrops = fieldIds.length
+      ? await FieldCrop.find({ farmField: { $in: fieldIds }, isActive: true })
+          .select("farmField cropName")
+          .lean()
+      : [];
+    const cropsByFieldId = new Map();
+    activeCrops.forEach((c) => {
+      const key = String(c.farmField);
+      if (!cropsByFieldId.has(key)) cropsByFieldId.set(key, []);
+      cropsByFieldId.get(key).push(c);
+    });
+    const fieldsWithCrops = fields.map((f) => ({
+      ...f,
+      crops: cropsByFieldId.get(String(f._id)) || [],
+    }));
+
     const fieldsByUser = new Map();
-    for (const field of fields) {
+    for (const field of fieldsWithCrops) {
       const key = String(field.user);
       if (!fieldsByUser.has(key)) fieldsByUser.set(key, []);
       fieldsByUser.get(key).push(field);

@@ -43,8 +43,12 @@ export async function enqueueAdvisoryJob(payload, opts = {}) {
   const advisoryQueue = getAdvisoryQueue();
   if (!advisoryQueue) return null;
   const farmFieldId = String(payload.farmFieldId || "");
+  const cropInstanceId = payload.cropInstanceId
+    ? String(payload.cropInstanceId)
+    : "primary";
   const dayKey = new Date().toISOString().slice(0, 10);
-  const jobId = opts.jobId || `advisory:${farmFieldId}:${dayKey}`;
+  const jobId =
+    opts.jobId || `advisory:${farmFieldId}:${cropInstanceId}:${dayKey}`;
   return advisoryQueue.add("generate-advisory", payload, {
     jobId,
     ...opts,
@@ -62,6 +66,7 @@ export function startAdvisoryQueueWorker() {
         language,
         platform = "whatsapp",
         options = {},
+        cropInstanceId = null,
       } = job.data || {};
       if (!farmFieldId || !aoiId) {
         throw new Error("farmFieldId and aoiId are required");
@@ -72,6 +77,7 @@ export function startAdvisoryQueueWorker() {
         language || "en",
         platform,
         options,
+        cropInstanceId,
       );
       return { advisoryId: String(advisory?._id || "") };
     },

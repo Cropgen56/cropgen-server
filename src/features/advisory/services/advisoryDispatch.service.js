@@ -11,6 +11,7 @@ export async function dispatchAdvisoryGeneration({
   platform = "whatsapp",
   options = {},
   jobId,
+  cropInstanceId = null,
 }) {
   if (ADVISORY_QUEUE_ENABLED) {
     const job = await enqueueAdvisoryJob(
@@ -20,6 +21,7 @@ export async function dispatchAdvisoryGeneration({
         language: language || "en",
         platform,
         options,
+        cropInstanceId: cropInstanceId ? String(cropInstanceId) : null,
       },
       { jobId },
     );
@@ -35,6 +37,7 @@ export async function dispatchAdvisoryGeneration({
     language || "en",
     platform,
     options,
+    cropInstanceId,
   );
   return {
     queued: false,

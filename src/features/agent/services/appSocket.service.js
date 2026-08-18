@@ -2,10 +2,10 @@ import { createAppAgent, isGenericAgentFailure } from "../core/agent.js";
 import { getAgentOrgProfile } from "../core/systemPrompts.js";
 import User from "../../../models/user.model.js";
 import FarmField from "../../../models/field.model.js";
-import FarmAdvisory from "../../advisory/models/farmAdvisory.model.js";
 import AppUserChat from "../../../models/app-user-chat.model.js";
 import { formatAcresTwoDecimals } from "../../../utils/format/acres.js";
 import { normalizeFarmerLanguage } from "../../../utils/language/farmerLanguages.js";
+import { attachCropContextToFarms } from "../utils/agentCropContext.js";
 
 const userAgents = new Map();
 /** Last client brand used to build this user's agent (`CROPGEN` | `BIODROPS`). */
@@ -62,25 +62,6 @@ async function seedAgentHistory(agent, userId) {
   } catch (err) {
     console.error("Failed to seed agent chat history:", err);
   }
-}
-
-/**
- * Latest advisory document per farm (for agent system prompt).
- */
-async function getLatestAdvisoryByFarmId(farms) {
-  const map = {};
-  if (!farms?.length) return map;
-  await Promise.all(
-    farms.map(async (f) => {
-      const id = f._id?.toString?.();
-      if (!id) return;
-      const doc = await FarmAdvisory.findOne({ farmFieldId: f._id })
-        .sort({ createdAt: -1 })
-        .lean();
-      if (doc) map[id] = doc;
-    }),
-  );
-  return map;
 }
 
 function fallbackWelcome({ userName, profile, farms }) {
@@ -243,10 +224,12 @@ class AppSocketService {
       : String(farmsForAgent[0]?._id || "");
 
     const language = normalizeFarmerLanguage(user?.language);
-    const advisoryByFarmId = isGeneralMode
-      ? {}
-      : await getLatestAdvisoryByFarmId(farmsForAgent);
-    const agent = createAppAgent(userName, farmsForAgent, {
+    const { farms: farmsWithCrops, advisoryByCropId, advisoryByFarmId } =
+      isGeneralMode
+        ? { farms: [], advisoryByCropId: {}, advisoryByFarmId: {} }
+        : await attachCropContextToFarms(farmsForAgent);
+    const agent = createAppAgent(userName, farmsWithCrops, {
+      advisoryByCropId,
       advisoryByFarmId,
       organizationCode: orgCode,
       language,
@@ -263,10 +246,13 @@ class AppSocketService {
       return GENERAL_ACK;
     }
 
-    if (farmsForAgent.length === 1) {
-      const f = farmsForAgent[0];
+    if (farmsWithCrops.length === 1) {
+      const f = farmsWithCrops[0];
       const acres = formatAcresTwoDecimals(f.acre);
-      return `Now discussing ${f.fieldName} (${f.cropName}, ${acres} acre). What would you like to know?`;
+      const cropLabel = f.crops.length
+        ? f.crops.map((c) => c.cropName).join(" + ")
+        : f.cropName;
+      return `Now discussing ${f.fieldName} (${cropLabel}, ${acres} acre). What would you like to know?`;
     }
 
     return "Could not switch farm context. Please try again.";

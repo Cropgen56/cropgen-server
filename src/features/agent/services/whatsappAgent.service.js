@@ -2,7 +2,6 @@ import { createAppAgent } from "../core/agent.js";
 import { getAgentOrgProfile } from "../core/systemPrompts.js";
 import User from "../../../models/user.model.js";
 import FarmField from "../../../models/field.model.js";
-import FarmAdvisory from "../../advisory/models/farmAdvisory.model.js";
 import WhatsAppMessage from "../../../models/whatsapp-message.model.js";
 import { buildPhoneQueryFilter } from "../../../utils/whatsapp/phoneMatch.js";
 import {
@@ -11,6 +10,7 @@ import {
 } from "./whatsappSettings.service.js";
 import { log } from "../../../utils/logger.js";
 import { normalizeFarmerLanguage } from "../../../utils/language/farmerLanguages.js";
+import { attachCropContextToFarms } from "../utils/agentCropContext.js";
 
 const WHATSAPP_TEXT_MAX = 4096;
 const HISTORY_LIMIT = 20;
@@ -77,22 +77,6 @@ function compactMessageForHistory(msg) {
   return truncateText(raw, HISTORY_TEXT_MAX);
 }
 
-async function getLatestAdvisoryByFarmId(farms) {
-  const map = {};
-  if (!farms?.length) return map;
-  await Promise.all(
-    farms.map(async (f) => {
-      const id = f._id?.toString?.();
-      if (!id) return;
-      const doc = await FarmAdvisory.findOne({ farmFieldId: f._id })
-        .sort({ createdAt: -1 })
-        .lean();
-      if (doc) map[id] = doc;
-    }),
-  );
-  return map;
-}
-
 async function loadConversationSeed(farmerId, phone, excludeWaMessageId) {
   const rows = await WhatsAppMessage.find({
     farmerId,
@@ -135,9 +119,11 @@ async function getOrCreateAgent(farmer) {
   const userName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Farmer";
   const orgCode = user?.organization?.organizationCode || "CROPGEN";
-  const advisoryByFarmId = await getLatestAdvisoryByFarmId(farms);
+  const { farms: farmsWithCrops, advisoryByCropId, advisoryByFarmId } =
+    await attachCropContextToFarms(farms);
 
-  const agent = createAppAgent(userName, farms, {
+  const agent = createAppAgent(userName, farmsWithCrops, {
+    advisoryByCropId,
     advisoryByFarmId,
     organizationCode: orgCode,
     channel: "whatsapp",

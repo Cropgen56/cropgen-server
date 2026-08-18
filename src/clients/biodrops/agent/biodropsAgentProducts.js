@@ -30,15 +30,17 @@ export function buildBiodropsAgentProductBlock(farms = [], options = {}) {
   const today = options.today ?? new Date();
   const catalog = buildCatalogLines().join("\n");
 
-  const perFarm = [];
-  for (const f of farms) {
-    const timeline = getCropTimelineStatus(f.sowingDate, today);
+  function pushRecommendationLine(fieldName, cropName, sowingDate, typeOfFarming, acre) {
+    const timeline = getCropTimelineStatus(sowingDate, today);
     const mode = timeline.label === "PRE_SOWING" ? "barren" : "crop";
     const rec = getBiodropsRecommendations({
-      cropName: f.cropName,
-      acre: f.acre,
+      cropName,
+      // Multi-crop: no per-crop area breakdown exists (acre is farm-level,
+      // shared across crops) — same farm-total acreage used for every
+      // crop's dosage line, matching pre-multi-crop behavior.
+      acre,
       bbchStage: estimateBbchStage(timeline),
-      typeOfFarming: f.typeOfFarming || "Integrated",
+      typeOfFarming: typeOfFarming || "Integrated",
       mode,
     });
 
@@ -51,9 +53,24 @@ export function buildBiodropsAgentProductBlock(farms = [], options = {}) {
 
     if (hints) {
       perFarm.push(
-        `"${f.fieldName}" (${rec.cropLabel}, ${f.cropName}, ${f.typeOfFarming || "Integrated"}): ${hints}`,
+        `"${fieldName}" (${rec.cropLabel}, ${cropName}, ${typeOfFarming || "Integrated"}): ${hints}`,
       );
     }
+  }
+
+  const perFarm = [];
+  for (const f of farms) {
+    // Multi-crop: one recommendation line per active crop on the farm,
+    // sharing the farm's own typeOfFarming. Falls back to the farm's legacy
+    // singular crop when `.crops` wasn't attached by the caller.
+    if (Array.isArray(f.crops) && f.crops.length > 0) {
+      for (const crop of f.crops) {
+        pushRecommendationLine(f.fieldName, crop.cropName, crop.startDate, f.typeOfFarming, f.acre);
+      }
+    } else if (!Array.isArray(f.crops)) {
+      pushRecommendationLine(f.fieldName, f.cropName, f.sowingDate, f.typeOfFarming, f.acre);
+    }
+    // f.crops === [] (attached but empty, i.e. genuinely barren): no line.
   }
 
   const farmDoseBlock = perFarm.length

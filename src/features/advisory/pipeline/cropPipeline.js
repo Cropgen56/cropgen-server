@@ -16,9 +16,13 @@ const DEFER_OPTICAL_PASS =
   "true";
 
 /**
- * Crop-in-field advisory pipeline (modules 1 → 7).
+ * Crop-in-field advisory pipeline (modules 1 → 7). Runs once per crop
+ * instance — pass `cropInstance` (a FieldCrop doc) to advise a specific
+ * crop on a multi-crop farm; omitted, it falls back to the farm's own
+ * legacy flat cropName/variety/sowingDate fields (pre-multi-crop behavior).
  * @param {object} params
  * @param {object} params.farmField
+ * @param {object} [params.cropInstance]
  * @param {string} params.geometryId
  * @param {string} params.language
  * @param {string} [params.platform]
@@ -27,6 +31,7 @@ const DEFER_OPTICAL_PASS =
  */
 export async function runCropAdvisoryPipeline({
   farmField,
+  cropInstance = null,
   geometryId,
   language,
   platform = "whatsapp",
@@ -34,11 +39,13 @@ export async function runCropAdvisoryPipeline({
   preferShortHistoricalWindow = false,
 }) {
   const fieldIdStr = String(farmField._id);
-  const logStep = createStepLogger(`[Advisory] ${fieldIdStr}:`);
+  const logSuffix = cropInstance?.cropName ? `/${cropInstance.cropName}` : "";
+  const logStep = createStepLogger(`[Advisory] ${fieldIdStr}${logSuffix}:`);
 
   const ctx = createAdvisoryContext({
     mode: "crop",
     farmField,
+    cropInstance,
     geometryId,
     language,
     platform,

@@ -10,6 +10,7 @@ import {
   enrichAdvisoryForClient,
   enrichAdvisoriesForClient,
 } from "../utils/enrichAdvisoryForClient.js";
+import { buildFarmAdvisorySummary } from "../services/farmAdvisorySummary.service.js";
 
 function resolveResponseLanguage(req) {
   return req.query.language || req.user?.language || "en";
@@ -51,19 +52,44 @@ export const getFarmAdvisories = async (req, res) => {
       .lean();
 
     if (latest === "true") {
-      const advisories = await advisoryQuery.limit(1);
+      // Multi-crop: "latest" means the latest advisory per active crop
+      // instance on this farm (grouped by cropInstanceId — null groups
+      // together barren-land / pre-migration legacy docs), not just the
+      // single most recent row across the whole farm.
+      // Mongoose's query-casting layer doesn't run for aggregate() pipelines,
+      // so farmFieldId (a route param string) must be cast to ObjectId by hand.
+      const aggregateMatch = {
+        ...query,
+        farmFieldId: new mongoose.Types.ObjectId(farmFieldId),
+      };
+      const grouped = await FarmAdvisory.aggregate([
+        { $match: aggregateMatch },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: "$cropInstanceId", doc: { $first: "$$ROOT" } } },
+      ]);
+      const latestIds = grouped.map((g) => g.doc._id);
+
+      const advisories = await FarmAdvisory.find({ _id: { $in: latestIds } })
+        .populate("farmFieldId", "fieldName cropName variety sowingDate")
+        .populate(
+          "cropInstanceId",
+          "cropName variety cropRole cropLifecycleType startDate expectedEndDate isActive",
+        )
+        .sort({ createdAt: -1 })
+        .lean();
 
       if (advisories.length) {
-        const latest = advisories[0];
         setImmediate(async () => {
-          try {
-            await ensureAdvisoryOperationsSynced({
-              farmFieldId: latest.farmFieldId,
-              advisoryId: latest._id,
-              activitiesToDo: latest.activitiesToDo,
-            });
-          } catch (syncErr) {
-            console.error("ensureAdvisoryOperationsSynced:", syncErr.message);
+          for (const latest of advisories) {
+            try {
+              await ensureAdvisoryOperationsSynced({
+                farmFieldId: latest.farmFieldId,
+                advisoryId: latest._id,
+                activitiesToDo: latest.activitiesToDo,
+              });
+            } catch (syncErr) {
+              console.error("ensureAdvisoryOperationsSynced:", syncErr.message);
+            }
           }
         });
       }
@@ -85,12 +111,23 @@ export const getFarmAdvisories = async (req, res) => {
         { language: resolveResponseLanguage(req) },
       );
 
+      const farmSummary = buildFarmAdvisorySummary(
+        advisories
+          .filter((a) => a.cropInstanceId)
+          .map((a) => ({
+            cropInstanceId: a.cropInstanceId._id,
+            cropName: a.cropInstanceId.cropName,
+            advisory: a,
+          })),
+      );
+
       return res.status(200).json({
         status: "ok",
         message: advisories.length
           ? "Latest advisory fetched successfully."
           : "No advisory available.",
         advisories: advisoriesWithNotification,
+        farmSummary,
       });
     }
 
@@ -296,7 +333,7 @@ export const patchAdvisoryActivityProgress = async (req, res) => {
 
 export const generateFarmAdvisory = async (req, res) => {
   try {
-    const { farmFieldId, language, platform } = req.body;
+    const { farmFieldId, language, platform, cropInstanceId } = req.body;
 
     if (!farmFieldId) {
       return res.status(400).json({ message: "farmFieldId required" });
@@ -315,6 +352,7 @@ export const generateFarmAdvisory = async (req, res) => {
       aoiId,
       language: advisoryLanguage,
       platform: platform || "whatsapp",
+      cropInstanceId: cropInstanceId || null,
     });
 
     if (result.queued) {

@@ -1,4 +1,5 @@
 import FarmField from "../../../models/field.model.js";
+import FieldCrop from "../../../models/field-crop.model.js";
 import User from "../../../models/user.model.js";
 import UserSubscription from "../../../models/user-subscription.model.js";
 import FarmAdvisory from "../models/farmAdvisory.model.js";
@@ -8,6 +9,7 @@ import { resolveOrganizationByCode } from "../../../utils/auth/authUtils.js";
 import { getCropgenOrganizationUserIds } from "../utils/advisoryOrganization.js";
 
 import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
+import { isMaturityOrHarvestStage } from "../pipeline/advisoryContext.js";
 
 import {
   getBaseTemperature,
@@ -200,6 +202,126 @@ async function processWithConcurrency(items, concurrency, handler) {
   await Promise.allSettled([...inFlight]);
 }
 
+/** Barren-land re-advisory check (farm has no active crop right now). */
+async function runBarrenLandCheck({ farm, aoiId, language }) {
+  const lastAdvisory = await FarmAdvisory.findOne({
+    farmFieldId: farm._id,
+  }).sort({ createdAt: -1 });
+
+  if (!lastAdvisory) {
+    await dispatchAdvisoryGeneration({ farmFieldId: farm._id, aoiId, language });
+    return;
+  }
+
+  const [currentWeatherResp, forecastWeather] = await Promise.all([
+    getCurrentWeather(aoiId),
+    getForecastWeather(aoiId),
+  ]);
+  const weatherSummary = assembleWeatherSummary(currentWeatherResp, forecastWeather);
+  const currentSnapshot = buildWeatherSnapshot(weatherSummary);
+  const expectedSowingISO = formatDateISO(farm.sowingDate || new Date());
+
+  const barrenDecision = shouldGenerateBarrenLandAdvisory({
+    lastAdvisory,
+    currentSnapshot,
+    expectedSowingDateISO: expectedSowingISO,
+  });
+
+  if (!barrenDecision.generate) return;
+
+  await dispatchAdvisoryGeneration({ farmFieldId: farm._id, aoiId, language });
+}
+
+/**
+ * Growth-stage-gated re-advisory check for one active crop instance. Also
+ * opportunistically auto-retires seasonal crops that have reached
+ * maturity/harvest (reusing the same signal the pipeline itself uses),
+ * ahead of the date-based `expectedEndDate` fallback run at the top of the
+ * cron job.
+ */
+async function runCropCheck({ farm, crop, aoiId, language }) {
+  const lastAdvisory = await FarmAdvisory.findOne({
+    farmFieldId: farm._id,
+    cropInstanceId: crop._id,
+  }).sort({ createdAt: -1 });
+
+  if (!lastAdvisory) {
+    await dispatchAdvisoryGeneration({
+      farmFieldId: farm._id,
+      aoiId,
+      language,
+      cropInstanceId: crop._id,
+    });
+    return;
+  }
+
+  if (
+    crop.cropLifecycleType === "seasonal" &&
+    isMaturityOrHarvestStage(lastAdvisory.plantGrowthActivity)
+  ) {
+    crop.isActive = false;
+    crop.actualEndDate = new Date();
+    await crop.save();
+    console.log(
+      `[Advisory] auto-deactivated seasonal crop ${crop._id} (${crop.cropName}) on farm ${farm._id}: reached maturity/harvest`,
+    );
+    return;
+  }
+
+  const baseTemp = getBaseTemperature(crop.cropName);
+  const sowingDateISO = formatDateISO(crop.startDate || new Date());
+
+  const { data: weatherTillNow } = await getHistoricalWeatherWithFallback(
+    aoiId,
+    sowingDateISO,
+    formatDateISO(new Date()),
+    { preferShortWindows: false },
+  );
+
+  const gddNow = await resolveCumulativeGDDForFarm({
+    aoiId,
+    historicalWeather: weatherTillNow,
+    sowingDateISO,
+    baseTemp,
+    cropName: crop.cropName,
+    getCurrentWeather,
+    getForecastWeather,
+    assembleWeatherSummary,
+  });
+
+  const currentCumulativeGDD = gddNow.cumulativeGDD;
+  const lastAdvisoryGDD = lastAdvisory.plantGrowthActivity?.cumulativeGDD || 0;
+  const gddDelta = currentCumulativeGDD - lastAdvisoryGDD;
+  const cropKey = normalizeCropName(crop.cropName);
+  const threshold = CROP_GDD_THRESHOLDS[cropKey] || CROP_GDD_THRESHOLDS.default;
+
+  let currentSnapshot = null;
+  if (gddDelta < threshold) {
+    const [currentWeatherResp, forecastWeather] = await Promise.all([
+      getCurrentWeather(aoiId),
+      getForecastWeather(aoiId),
+    ]);
+    const weatherSummary = assembleWeatherSummary(currentWeatherResp, forecastWeather);
+    currentSnapshot = buildWeatherSnapshot(weatherSummary);
+  }
+
+  const decision = shouldGenerateAdvisory({
+    gddDelta,
+    threshold,
+    lastAdvisory,
+    currentSnapshot,
+  });
+
+  if (!decision.generate) return;
+
+  await dispatchAdvisoryGeneration({
+    farmFieldId: farm._id,
+    aoiId,
+    language,
+    cropInstanceId: crop._id,
+  });
+}
+
 export const runAdvisoryJob = async () => {
   cron.schedule(ADVISORY_CRON, async () => {
     if (advisoryRunInProgress) {
@@ -208,6 +330,24 @@ export const runAdvisoryJob = async () => {
     }
     advisoryRunInProgress = true;
     try {
+      // Multi-crop: seasonal crops past their expected harvest date auto-retire,
+      // independent of (and as a safety net alongside) the growth-stage-based
+      // maturity check further down. Perennial crops are untouched — they stay
+      // active until a farmer manually retires them.
+      const expiredSeasonalResult = await FieldCrop.updateMany(
+        {
+          cropLifecycleType: "seasonal",
+          isActive: true,
+          expectedEndDate: { $lt: new Date() },
+        },
+        { $set: { isActive: false, actualEndDate: new Date() } },
+      );
+      if (expiredSeasonalResult.modifiedCount) {
+        console.log(
+          `[Advisory] auto-deactivated ${expiredSeasonalResult.modifiedCount} seasonal crop(s) past their expected end date`,
+        );
+      }
+
       const cropgenUserIds = await getCropgenOrganizationUserIds(
         User,
         resolveOrganizationByCode,
@@ -244,110 +384,26 @@ export const runAdvisoryJob = async () => {
             const { aoiId } = await resolveAOIForFarm(farm);
             const language = farm.user.language || "en";
 
-            const lastAdvisory = await FarmAdvisory.findOne({
-              farmFieldId: farm._id,
-            }).sort({ createdAt: -1 });
+            const activeCrops = await FieldCrop.find({
+              farmField: farm._id,
+              isActive: true,
+            });
 
-            if (!lastAdvisory) {
-              await dispatchAdvisoryGeneration({
-                farmFieldId: farm._id,
-                aoiId,
-                language,
-              });
-              return;
-            }
-
-            if (farm.isBarrenLand) {
-              const [currentWeatherResp, forecastWeather] = await Promise.all([
-                getCurrentWeather(aoiId),
-                getForecastWeather(aoiId),
-              ]);
-              const weatherSummary = assembleWeatherSummary(
-                currentWeatherResp,
-                forecastWeather,
-              );
-              const currentSnapshot = buildWeatherSnapshot(weatherSummary);
-              const expectedSowingISO = formatDateISO(
-                farm.sowingDate || new Date(),
-              );
-
-              const barrenDecision = shouldGenerateBarrenLandAdvisory({
-                lastAdvisory,
-                currentSnapshot,
-                expectedSowingDateISO: expectedSowingISO,
-              });
-
-              if (!barrenDecision.generate) {
-                return;
+            if (!activeCrops.length) {
+              // Nothing currently growing — including a farm that just lost
+              // its last active crop (harvested/removed) but is still
+              // flagged non-barren; treat it as barren going forward.
+              if (!farm.isBarrenLand) {
+                farm.isBarrenLand = true;
+                await farm.save();
               }
-
-              await dispatchAdvisoryGeneration({
-                farmFieldId: farm._id,
-                aoiId,
-                language,
-              });
+              await runBarrenLandCheck({ farm, aoiId, language });
               return;
             }
 
-            const baseTemp = getBaseTemperature(farm.cropName);
-            const sowingDateISO = formatDateISO(farm.sowingDate || new Date());
-
-            const { data: weatherTillNow } =
-              await getHistoricalWeatherWithFallback(
-                aoiId,
-                sowingDateISO,
-                formatDateISO(new Date()),
-                { preferShortWindows: false },
-              );
-
-            const gddNow = await resolveCumulativeGDDForFarm({
-              aoiId,
-              historicalWeather: weatherTillNow,
-              sowingDateISO,
-              baseTemp,
-              cropName: farm.cropName,
-              getCurrentWeather,
-              getForecastWeather,
-              assembleWeatherSummary,
-            });
-
-            const currentCumulativeGDD = gddNow.cumulativeGDD;
-            const lastAdvisoryGDD =
-              lastAdvisory.plantGrowthActivity?.cumulativeGDD || 0;
-            const gddDelta = currentCumulativeGDD - lastAdvisoryGDD;
-            const cropKey = normalizeCropName(farm.cropName);
-            const threshold =
-              CROP_GDD_THRESHOLDS[cropKey] || CROP_GDD_THRESHOLDS.default;
-
-            let currentSnapshot = null;
-            if (gddDelta < threshold) {
-              const [currentWeatherResp, forecastWeather] = await Promise.all([
-                getCurrentWeather(aoiId),
-                getForecastWeather(aoiId),
-              ]);
-              const weatherSummary = assembleWeatherSummary(
-                currentWeatherResp,
-                forecastWeather,
-              );
-              currentSnapshot = buildWeatherSnapshot(weatherSummary);
+            for (const crop of activeCrops) {
+              await runCropCheck({ farm, crop, aoiId, language });
             }
-
-            const decision = shouldGenerateAdvisory({
-              gddDelta,
-              threshold,
-              lastAdvisory,
-              currentSnapshot,
-            });
-
-            if (!decision.generate) {
-              return;
-            }
-
-            await dispatchAdvisoryGeneration({
-              farmFieldId: farm._id,
-              aoiId,
-              language,
-            });
           } catch (err) {
             console.error("Advisory farm failed:", farm._id, err.message);
           }
