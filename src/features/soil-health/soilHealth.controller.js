@@ -16,20 +16,31 @@ function extractPolygonGeometry(input) {
     return input.geometry;
   }
 
+  if (input.type === "Feature" && input.geometry?.type === "MultiPolygon") {
+    return input.geometry;
+  }
+
   // Accept GeoJSON FeatureCollection and pick first Polygon feature.
   if (input.type === "FeatureCollection" && Array.isArray(input.features)) {
     const firstPolygonFeature = input.features.find(
       (f) => f?.geometry?.type === "Polygon",
     );
-    return firstPolygonFeature?.geometry || null;
+    if (firstPolygonFeature?.geometry) return firstPolygonFeature.geometry;
+
+    const firstMulti = input.features.find(
+      (f) => f?.geometry?.type === "MultiPolygon",
+    );
+    return firstMulti?.geometry || null;
   }
+
+  if (input.type === "MultiPolygon") return input;
 
   return null;
 }
 
 function validateGeometry(geometry) {
   if (!geometry || typeof geometry !== "object") return false;
-  if (geometry.type !== "Polygon") return false;
+  if (geometry.type !== "Polygon" && geometry.type !== "MultiPolygon") return false;
   if (!Array.isArray(geometry.coordinates) || !geometry.coordinates.length) return false;
   return true;
 }
@@ -55,7 +66,7 @@ export async function createSoilHealthReport(req, res) {
       return res.status(400).json({
         success: false,
         message:
-          "Invalid geometry. Send a GeoJSON Polygon, Feature(Polygon), or FeatureCollection with Polygon.",
+          "Invalid geometry. Send a GeoJSON Polygon, MultiPolygon, Feature, or FeatureCollection.",
       });
     }
 

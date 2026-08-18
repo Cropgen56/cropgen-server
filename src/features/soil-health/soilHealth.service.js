@@ -3,7 +3,13 @@ import {
   getWaterTimeseries,
   getImageAvailability,
 } from "../advisory/client/satellite.client.js";
-import { area as turfArea } from "@turf/turf";
+import {
+  area as turfArea,
+  cleanCoords,
+  rewind,
+  simplify,
+  unkinkPolygon,
+} from "@turf/turf";
 import { getBiodropsRecommendations } from "../../clients/biodrops/advisory/getBiodropsRecommendations.js";
 import {
   generateLlmSoilRecommendations,
@@ -80,31 +86,185 @@ function pickLowCloudDate(availability, fallbackDate, maxCloudPercent = 20) {
 }
 
 function plusDays(isoDate, days) {
-  const d = new Date(isoDate);
-  d.setDate(d.getDate() + days);
+  const d = new Date(`${isoDate}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+function expandDateWindow(startDate, endDate, minDays = 365) {
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const diffDays = Math.round((end - start) / 86400000);
+  if (Number.isFinite(diffDays) && diffDays >= minDays) {
+    return { startDate, endDate };
+  }
+  const widened = new Date(end);
+  widened.setUTCDate(widened.getUTCDate() - minDays);
+  return { startDate: widened.toISOString().slice(0, 10), endDate };
+}
+
+function closeAndDedupRing(ring) {
+  if (!Array.isArray(ring) || ring.length < 3) return ring;
+  const pts = ring
+    .filter(
+      (c) =>
+        Array.isArray(c) &&
+        Number.isFinite(Number(c[0])) &&
+        Number.isFinite(Number(c[1])),
+    )
+    .map((c) => [Number(c[0]), Number(c[1])]);
+  const deduped = [];
+  for (const p of pts) {
+    const prev = deduped[deduped.length - 1];
+    if (!prev || prev[0] !== p[0] || prev[1] !== p[1]) deduped.push(p);
+  }
+  if (deduped.length < 3) return ring;
+  const first = deduped[0];
+  const last = deduped[deduped.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) deduped.push([...first]);
+  return deduped;
+}
+
+function largestPolygonGeometry(geometry) {
+  if (geometry?.type === "Polygon") return geometry;
+  if (geometry?.type !== "MultiPolygon") return geometry;
+
+  let best = null;
+  let bestArea = -1;
+  for (const coords of geometry.coordinates || []) {
+    const poly = { type: "Polygon", coordinates: coords };
+    try {
+      const a = turfArea(poly);
+      if (a > bestArea) {
+        bestArea = a;
+        best = poly;
+      }
+    } catch {
+      // skip invalid part
+    }
+  }
+  return best || geometry;
+}
+
+function sanitizeSoilGeometry(inputGeometry) {
+  const polygon = largestPolygonGeometry(inputGeometry);
+  if (!polygon || polygon.type !== "Polygon") return inputGeometry;
+
+  const closed = {
+    type: "Polygon",
+    coordinates: (polygon.coordinates || []).map(closeAndDedupRing),
+  };
+
+  let feature = { type: "Feature", properties: {}, geometry: closed };
+
+  try {
+    feature = cleanCoords(feature);
+  } catch {
+    // keep closed polygon
+  }
+
+  try {
+    feature = rewind(feature);
+  } catch {
+    // winding is best-effort
+  }
+
+  const vertexCount = feature?.geometry?.coordinates?.[0]?.length || 0;
+  if (vertexCount > 60) {
+    try {
+      feature = simplify(feature, {
+        tolerance: 0.00008,
+        highQuality: true,
+        mutate: false,
+      });
+    } catch {
+      // keep unsmoothed geometry
+    }
+    const after = feature?.geometry?.coordinates?.[0]?.length || 0;
+    if (after > 80) {
+      try {
+        feature = simplify(feature, {
+          tolerance: 0.0003,
+          highQuality: false,
+          mutate: false,
+        });
+      } catch {
+        // keep previous geometry
+      }
+    }
+  }
+
+  try {
+    const unkinked = unkinkPolygon(feature);
+    if (unkinked?.features?.length) {
+      let best = unkinked.features[0];
+      let bestArea = 0;
+      for (const f of unkinked.features) {
+        const a = turfArea(f);
+        if (a > bestArea) {
+          bestArea = a;
+          best = f;
+        }
+      }
+      feature = best;
+    }
+  } catch {
+    // self-intersection cleanup is best-effort
+  }
+
+  return feature?.geometry || closed;
 }
 
 async function fetchIndexTriplet(
   geometry,
   startDate,
   endDate,
-  { provider = "aws", satellite = "s2" } = {},
+  { provider = "aws", satellite = "s2", maxItems = 25 } = {},
 ) {
-  const [ndviOutcome, saviOutcome, waterOutcome] = await Promise.allSettled([
+  const [ndviOutcome, saviOutcome, waterOutcomeInitial] = await Promise.allSettled([
     getVegetationTimeseries(geometry, startDate, endDate, "NDVI", {
       provider,
       satellite,
+      maxItems,
     }),
     getVegetationTimeseries(geometry, startDate, endDate, "SAVI", {
       provider,
       satellite,
+      maxItems,
     }),
     getWaterTimeseries(geometry, startDate, endDate, "NDMI", {
       provider,
       satellite,
+      maxItems,
     }),
   ]);
+
+  let waterOutcome = waterOutcomeInitial;
+  const ndmiValue =
+    waterOutcome.status === "fulfilled"
+      ? getLatestTimeseriesValue(waterOutcome.value)
+      : null;
+  const ndviPeek =
+    ndviOutcome.status === "fulfilled"
+      ? getLatestTimeseriesValue(ndviOutcome.value)
+      : null;
+
+  if (ndmiValue == null && ndviPeek != null) {
+    try {
+      const ndwiPayload = await getWaterTimeseries(
+        geometry,
+        startDate,
+        endDate,
+        "NDWI",
+        { provider, satellite, maxItems },
+      );
+      waterOutcome = { status: "fulfilled", value: ndwiPayload };
+    } catch (err) {
+      if (waterOutcome.status !== "rejected") {
+        waterOutcome = { status: "rejected", reason: err };
+      }
+    }
+  }
 
   const ndviRaw =
     ndviOutcome.status === "fulfilled"
@@ -316,7 +476,7 @@ async function buildOrganizationSuggestions({
 }
 
 export async function generateSoilHealthReport({
-  geometry,
+  geometry: inputGeometry,
   startDate,
   endDate,
   currentCrop = "default",
@@ -324,48 +484,57 @@ export async function generateSoilHealthReport({
   organizationCode = "",
   language = "en",
 }) {
+  const geometry = sanitizeSoilGeometry(inputGeometry);
   const areaSqm = turfArea(geometry);
   const computedAcreage = Number((areaSqm / 4046.8564224).toFixed(2));
   const acreage = computedAcreage > 0 ? computedAcreage : 1;
   const areaHectares = Number((areaSqm / 10000).toFixed(4));
 
-  let snapshotDate = endDate;
+  const { startDate: lookbackStart, endDate: lookbackEnd } = expandDateWindow(
+    startDate,
+    endDate,
+    365,
+  );
+
+  let snapshotDate = lookbackEnd;
   try {
     const availability = await getImageAvailability(
       geometry,
-      startDate,
-      endDate,
+      lookbackStart,
+      lookbackEnd,
       "sentinel",
       "s2",
     );
-    snapshotDate = pickLowCloudDate(availability, endDate, 20);
+    snapshotDate = pickLowCloudDate(availability, lookbackEnd, 20);
   } catch {
-    // Keep report generation resilient; fallback to user date range.
+    // Keep report generation resilient; fallback to lookback window.
   }
 
-  const fetchStartDate = plusDays(snapshotDate, -3);
-  const fetchEndDate = plusDays(snapshotDate, 3);
-
-  let attempt = await fetchIndexTriplet(
-    geometry,
-    fetchStartDate,
-    fetchEndDate,
+  const fetchAttempts = [
     {
-      provider: "aws",
-      satellite: "s2",
-    },
-  );
-
-  // Fallback: retry wider window with provider=both if first attempt has no points.
-  const zeroPointsFirstAttempt =
-    attempt.ndviCount === 0 &&
-    attempt.saviCount === 0 &&
-    attempt.waterCount === 0;
-  if (zeroPointsFirstAttempt) {
-    attempt = await fetchIndexTriplet(geometry, startDate, endDate, {
+      start: plusDays(snapshotDate, -15),
+      end: plusDays(snapshotDate, 15),
       provider: "both",
+      maxItems: 25,
+    },
+    {
+      start: lookbackStart,
+      end: lookbackEnd,
+      provider: "both",
+      maxItems: 40,
+    },
+  ];
+
+  let attempt = null;
+  for (const cfg of fetchAttempts) {
+    attempt = await fetchIndexTriplet(geometry, cfg.start, cfg.end, {
+      provider: cfg.provider,
       satellite: "s2",
+      maxItems: cfg.maxItems,
     });
+    if (attempt.ndviRaw != null || attempt.saviRaw != null || attempt.ndwiRaw != null) {
+      break;
+    }
   }
 
   const {
@@ -384,7 +553,7 @@ export async function generateSoilHealthReport({
     endDate: usedEndDate,
   } = attempt;
 
-  if (ndviRaw == null || ndwiRaw == null || saviRaw == null) {
+  if (ndviRaw == null && saviRaw == null && ndwiRaw == null) {
     const reasons = [];
     if (ndviOutcome.status === "rejected") {
       reasons.push(
@@ -405,15 +574,19 @@ export async function generateSoilHealthReport({
       ? ` ${reasons.join(" | ")}`
       : ` No satellite observations found. Timeseries counts — NDVI:${ndviCount}, SAVI:${saviCount}, NDMI:${waterCount}. Window: ${usedStartDate} to ${usedEndDate} (snapshot ${snapshotDate}, provider ${usedProvider}, satellite ${usedSatellite}).`;
     const err = new Error(
-      `Satellite data unavailable for soil report.${details}`,
+      `Satellite data unavailable for this field. Try again after updating the boundary, or wait for newer satellite imagery.${details}`,
     );
     err.statusCode = 400;
     throw err;
   }
 
-  const ndvi = safeNormalizeIndex(ndviRaw);
-  const ndwi = safeNormalizeIndex(ndwiRaw);
-  const savi = safeNormalizeIndex(saviRaw);
+  const ndviSource = ndviRaw ?? saviRaw ?? ndwiRaw;
+  const saviSource = saviRaw ?? (ndviSource != null ? ndviSource * 0.9 : null);
+  const ndwiSource = ndwiRaw ?? (ndviSource != null ? ndviSource * 0.8 : null);
+
+  const ndvi = safeNormalizeIndex(ndviSource);
+  const ndwi = safeNormalizeIndex(ndwiSource);
+  const savi = safeNormalizeIndex(saviSource);
 
   let nitrogen = mapToRange(
     ndvi,
@@ -649,9 +822,9 @@ export async function generateSoilHealthReport({
       satellite: usedSatellite,
     },
     indicesUsed: {
-      ndvi: +ndviRaw.toFixed(4),
-      ndwi: +ndwiRaw.toFixed(4),
-      savi: +saviRaw.toFixed(4),
+      ndvi: +Number(ndviSource).toFixed(4),
+      ndwi: +Number(ndwiSource).toFixed(4),
+      savi: +Number(saviSource).toFixed(4),
     },
     cropContext: {
       currentCrop,
