@@ -68,7 +68,7 @@ ACTIVITY TYPE RULES:
 
 1. FERTIGATION — products, applicationMethod, timing, reason when action needed.
 2. SPRAY — products, applicationMethod, timing, notes when action needed.
-3. IRRIGATION — applicationMethod, timing, duration, waterQuantity, reason, frequency when irrigating.
+3. IRRIGATION — applicationMethod, timing, duration, waterQuantity, reason, frequency when irrigating. Use evidence.irrigationType / irrigationTypeLabel (rainfed, drip, drip irrigation, sprinkler, flood/surface, furrow, center pivot, micro irrigation, open irrigation). Match method and duration to that type. For rainfed, recommend supplemental irrigation only when soil moisture is critical.
 4. WEATHER — temperature, humidity, rainfallProbability, advisory in details.
 5. CROP_RISK — riskLevel, cause, recommendedAction in details.
 6. MONITORING — focusAreas, whatToCheck, frequency in details.

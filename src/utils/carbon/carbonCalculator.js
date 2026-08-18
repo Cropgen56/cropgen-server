@@ -1,3 +1,5 @@
+import { resolveIrrigationFamily } from "../../constants/farmEnums.js";
+
 /**
  * Carbon Tracking Module - IPCC-based carbon accounting
  * Tracks: emissions (fertilizer, irrigation energy, diesel) and capture (crop biomass)
@@ -36,7 +38,8 @@ function irrigationEmissions(acre, needsIrrigation, irrigationType) {
   if (!needsIrrigation) return 0;
   const ha = acre / 2.471;
   // Rough: 0.5 kWh per ha per irrigation for electric pump
-  const kwhPerHa = irrigationType?.toLowerCase?.().includes("drip") ? 0.3 : 0.6;
+  const kwhPerHa =
+    resolveIrrigationFamily(irrigationType) === "drip" ? 0.3 : 0.6;
   return ha * kwhPerHa * CO2_PER_KWH;
 }
 

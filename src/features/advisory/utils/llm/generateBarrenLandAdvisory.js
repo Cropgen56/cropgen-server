@@ -50,7 +50,7 @@ STRICT RULES:
 4. Do NOT give in-season crop spray/fertigation advice as if a crop is standing.
 5. SPRAY = weed/stubble/pre-emergence on bare soil only if decisionHints.spray.shouldSpray is true.
 6. FERTIGATION = basal / soil fertilizer planning or application before sowing.
-7. IRRIGATION = pre-sowing seedbed moisture only if decisionHints.irrigation.shouldIrrigate is true.
+7. IRRIGATION = pre-sowing seedbed moisture only if decisionHints.irrigation.shouldIrrigate is true. Match applicationMethod to evidence.irrigationType (rainfed, drip, sprinkler, flood/surface, furrow, center pivot, micro, open irrigation).
 8. WEATHER must reference sowingWindow and daysUntilSowing.
 9. CROP_RISK = risks to timely sowing (rain, dry soil, delayed date).
 10. MONITORING = land prep checklist from decisionHints.landPreparation.tasks.

@@ -1,4 +1,5 @@
 import { CROP_PROFILES } from "../../../../utils/npk/cropProfiles.js";
+import { resolveIrrigationFamily } from "../../../../constants/farmEnums.js";
 
 const ACRES_PER_HA = 2.471;
 const ORGANIC_COMPOST_CAP_BY_STAGE_KG_HA = {
@@ -182,7 +183,7 @@ export function calculateFertilizerSchedule({
   const key = normalizeCropName(cropName);
   const profile = CROP_PROFILES[key];
   const cropNPK = profile?.totalNPK ?? { N: 120, P: 50, K: 40 };
-  const isDrip = (irrigationType || "").toLowerCase().includes("drip");
+  const isDrip = resolveIrrigationFamily(irrigationType) === "drip";
 
   const splits = BBCH_WINDOWS.map((w) =>
     buildSplit(w, cropNPK, w.splitFractions, acre, farmingType, isDrip),

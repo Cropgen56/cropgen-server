@@ -7,6 +7,7 @@ import {
 import { calculateFertilizerSchedule } from "./fertilizerCalculator.js";
 import { CROP_CATEGORY_MAP } from "../../../../utils/crop/growth/cropCategoryMap.js";
 import { normalizeAdvisoryLanguage } from "../i18n/advisoryLanguages.js";
+import { resolveIrrigationFamily } from "../../../../constants/farmEnums.js";
 
 function normalizeCropName(name) {
   return (name || "").toLowerCase().replace(/[^a-z]/g, "");
@@ -205,12 +206,8 @@ export function buildEvidencePayload({
     opticalIndicesSummary,
   );
 
-  const irrigationLower = (farmField?.typeOfIrrigation || "").toLowerCase();
-  const useDieselPump =
-    irrigationLower.includes("diesel") ||
-    irrigationLower.includes("pump") ||
-    irrigationLower.includes("flood") ||
-    irrigationLower.includes("open");
+  const irrigationFamily = resolveIrrigationFamily(farmField?.typeOfIrrigation);
+  const useDieselPump = irrigationFamily === "flood";
 
   const carbonData = calculateCarbonBalance({
     npkManagement,

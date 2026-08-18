@@ -1,3 +1,5 @@
+import { formatIrrigationTypeLabel } from "../../../../constants/farmEnums.js";
+
 /**
  * Slim evidence payload for LLM — keeps agronomic facts, drops bulky nested data.
  */
@@ -18,6 +20,7 @@ export function buildCompactEvidence(evidence) {
     cropHealth: evidence.cropHealth,
     soilMoisture: evidence.soilMoisture,
     irrigationType: evidence.irrigationType,
+    irrigationTypeLabel: formatIrrigationTypeLabel(evidence.irrigationType),
     irrigationRequirement: evidence.irrigationRequirement,
     nutrientDeficit: evidence.nutrientDeficit,
     weatherForecast: {

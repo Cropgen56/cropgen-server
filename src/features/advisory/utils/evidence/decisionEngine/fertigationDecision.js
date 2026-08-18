@@ -1,4 +1,5 @@
 import { normalizeTypeOfFarming } from "../../shared/farmingTypeNormalize.js";
+import { resolveIrrigationFamily } from "../../../../../constants/farmEnums.js";
 
 const ACRES_PER_HA = 2.471;
 
@@ -28,7 +29,7 @@ function formatProductsFromSchedule(products, acre) {
 export function getFertigationDecision(evidence) {
   const nutrientDeficit = evidence?.nutrientDeficit ?? {};
   const irrigationType = evidence?.irrigationType ?? "";
-  const isDrip = irrigationType?.toLowerCase?.().includes("drip");
+  const isDrip = resolveIrrigationFamily(irrigationType) === "drip";
   const acre = evidence?.acre ?? 1;
   const bbchStage = evidence?.bbchStage ?? 0;
   const currentApplication = evidence?.fertilizerSchedule?.currentApplication ?? null;

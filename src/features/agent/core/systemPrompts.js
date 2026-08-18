@@ -1,4 +1,4 @@
-import { formatAcresTwoDecimals } from "../../../utils/format/acres.js";
+import { formatIrrigationTypeLabel } from "../../../constants/farmEnums.js";
 import { buildFarmerLanguageRules } from "../../../utils/language/farmerLanguages.js";
 import { buildBiodropsAgentProductBlock } from "../../../clients/biodrops/agent/biodropsAgentProducts.js";
 import {
@@ -197,7 +197,7 @@ The farmer tapped General. This chat is NOT about any of their registered fields
       const fid = f._id?.toString?.() ?? "";
       const farmMeta = [
         `Area: ${formatAcresTwoDecimals(f.acre)} acre`,
-        `Irrigation: ${f.typeOfIrrigation}`,
+        `Irrigation: ${formatIrrigationTypeLabel(f.typeOfIrrigation) || f.typeOfIrrigation || "—"}`,
         `Farming: ${f.typeOfFarming}`,
       ];
       const header = `${i + 1}. "${f.fieldName}"`;

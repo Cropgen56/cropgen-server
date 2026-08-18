@@ -1,3 +1,5 @@
+import { resolveIrrigationFamily } from "../../../../constants/farmEnums.js";
+
 const KC_MAP = {
   cereal: { initial: 0.3, dev: 0.75, mid: 1.15, late: 0.45 },
   pulse: { initial: 0.4, dev: 0.7, mid: 1.1, late: 0.5 },
@@ -16,9 +18,10 @@ const SOIL_WHC_PER_10CM = {
 
 const IRRIGATION_EFFICIENCY = {
   drip: 0.92,
-  sprinkler: 0.75,
+  sprinkler: 0.8,
   flood: 0.58,
   open: 0.58,
+  rainfed: 1,
   default: 0.72,
 };
 
@@ -30,12 +33,9 @@ function bbchToPhase(bbch) {
 }
 
 function resolveIrrigationType(irrigationType) {
-  const raw = (irrigationType || "").toLowerCase();
-  if (raw.includes("drip")) return "drip";
-  if (raw.includes("sprinkler")) return "sprinkler";
-  if (raw.includes("flood")) return "flood";
-  if (raw.includes("open")) return "open";
-  return "default";
+  const family = resolveIrrigationFamily(irrigationType);
+  if (family === "flood") return "flood";
+  return family;
 }
 
 function computeIrrigationUrgency(soilMoisturePercent, et0, rainfallNext24h) {
@@ -83,7 +83,8 @@ export function calculateIrrigationRequirement({
   const efficiency = IRRIGATION_EFFICIENCY[itype] || IRRIGATION_EFFICIENCY.default;
   const grossIrr_mm = Math.ceil(netIrr_mm / efficiency);
 
-  const DELIVERY_MM_PER_HOUR = itype === "drip" || itype === "sprinkler" ? 8 : 12;
+  const DELIVERY_MM_PER_HOUR =
+    itype === "drip" || itype === "sprinkler" ? 8 : 12;
   const durationHours = Number((grossIrr_mm / DELIVERY_MM_PER_HOUR).toFixed(1));
   const durationMinutes = Math.round(durationHours * 60);
   const frequencyDays = Math.max(2, Math.min(7, Math.round(allowableDepletion_mm / Math.max(cropET, 1))));
@@ -92,7 +93,13 @@ export function calculateIrrigationRequirement({
   const HECTARE_DISCHARGE_LMIN = itype === "drip" ? 250 : itype === "sprinkler" ? 400 : 600;
   const totalDischarge_lmin = Math.round(HECTARE_DISCHARGE_LMIN * areaHa);
   const totalWater_m3 = Math.round(grossIrr_mm * areaHa * 10);
-  const shouldIrrigate = hasObservedSoilMoisture && grossIrr_mm > 2 && (rainfallNext24h ?? 0) < 10;
+  const rainfedAllows =
+    itype !== "rainfed" || soilMoisturePercent < 40;
+  const shouldIrrigate =
+    hasObservedSoilMoisture &&
+    rainfedAllows &&
+    grossIrr_mm > 2 &&
+    (rainfallNext24h ?? 0) < 10;
   const criticality = computeIrrigationUrgency(soilMoisturePercent, et0, rainfallNext24h);
 
   let recommendation;
