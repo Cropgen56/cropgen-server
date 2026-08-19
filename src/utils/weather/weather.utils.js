@@ -1,4 +1,8 @@
 import axios from "axios";
+import {
+  ADVISORY_SAMPLE_HECTARES,
+  buildCentroidSamplePolygon,
+} from "../geometry/farmGeometry.js";
 
 const OBSERVE_EARTH_BASE_URL = "https://observearth.com/api/geometry/";
 const OBSERVE_EARTH_API_KEY =
@@ -20,30 +24,9 @@ const aoiHttp = axios.create({ timeout: AOI_TIMEOUT_MS });
 
 /* ===================== HELPERS ===================== */
 
-function fieldToGeoJSON(field) {
-  if (!Array.isArray(field) || field.length < 3) {
-    throw new Error("Invalid farm polygon: minimum 3 points required");
-  }
-
-  const coords = field.map((p) => [p.lng, p.lat]);
-
-  const first = coords[0];
-  const last = coords[coords.length - 1];
-
-  // Close polygon if needed
-  if (first[0] !== last[0] || first[1] !== last[1]) {
-    coords.push(first);
-  }
-
-  return {
-    type: "Polygon",
-    coordinates: [coords],
-  };
+function compactAoiName(farmId) {
+  return `${farmId}-wx`;
 }
-
-/**
- * Fetch all AOIs from ObservEarth
- */
 
 async function fetchAllAOIs() {
   const res = await withAoiRetry(() =>
@@ -69,12 +52,17 @@ async function createAOI(name, geometry) {
 
 function formatAoiError(error) {
   const status = error?.response?.status;
+  const data = error?.response?.data;
   const detail =
-    error?.response?.data?.detail ||
-    error?.response?.data?.message ||
+    data?.detail ||
+    data?.message ||
+    data?.error ||
+    (typeof data === "string" ? data : null) ||
     error?.message ||
     "Unknown AOI error";
-  return status ? `status=${status} ${detail}` : String(detail);
+  const detailStr =
+    typeof detail === "object" ? JSON.stringify(detail) : String(detail);
+  return status ? `status=${status} ${detailStr}` : detailStr;
 }
 
 async function withAoiRetry(fn) {
@@ -106,14 +94,12 @@ export async function resolveAOIForFarm(farm) {
   }
 
   const aoiName = farm._id.toString();
+  const weatherName = compactAoiName(aoiName);
 
   let aois = [];
   try {
-    // 1. Fetch AOIs
     aois = await fetchAllAOIs();
   } catch (listErr) {
-    // Observearth listing occasionally fails with 5xx infra errors.
-    // Try direct create path to avoid blocking advisory end-to-end.
     console.warn(
       `[Advisory] AOI list failed for farm ${aoiName}; trying direct create (${formatAoiError(
         listErr,
@@ -122,8 +108,9 @@ export async function resolveAOIForFarm(farm) {
   }
 
   if (aois.length) {
-    // 2. Check existing AOI
-    const existing = aois.find((a) => a.name === aoiName);
+    const existing = aois.find(
+      (a) => a.name === aoiName || a.name === weatherName,
+    );
     if (existing) {
       return {
         aoiId: existing.id,
@@ -132,9 +119,10 @@ export async function resolveAOIForFarm(farm) {
     }
   }
 
-  // 3. Create AOI
-  const geometry = fieldToGeoJSON(farm.field);
-
+  const geometry = buildCentroidSamplePolygon(
+    farm.field,
+    ADVISORY_SAMPLE_HECTARES,
+  );
   const aoiId = await createAOI(aoiName, geometry);
 
   return {
@@ -142,7 +130,5 @@ export async function resolveAOIForFarm(farm) {
     created: true,
   };
 }
-
-/* ===================== EXPORT DEFAULT ===================== */
 
 export default resolveAOIForFarm;

@@ -150,7 +150,13 @@ export async function runSatelliteEnrichmentModule(ctx) {
     });
   }
 
-  ctx.logStep("satellite module: NDVI + NDMI timeseries");
+  ctx.logStep(
+    `satellite module: NDVI + NDMI timeseries${
+      ctx.geometryMeta?.sampled
+        ? ` (${ctx.geometryMeta.sampleHa}ha centroid sample)`
+        : ""
+    }`,
+  );
   const timeseriesStartedAt = Date.now();
   const [vegOutcome, waterOutcome] = await Promise.allSettled([
     getVegetationTimeseries(geometry, satelliteRange.start, satelliteRange.end, "NDVI"),

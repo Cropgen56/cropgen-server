@@ -1,4 +1,8 @@
-import { formatDateISO, buildGeometryFromFarmField } from "../utils/shared/helpers.js";
+import { formatDateISO } from "../utils/shared/helpers.js";
+import {
+  describeAdvisoryGeometry,
+  resolveAdvisoryApiGeometry,
+} from "../../../utils/geometry/farmGeometry.js";
 
 /**
  * @typedef {Object} AdvisoryPipelineContext
@@ -16,6 +20,8 @@ import { formatDateISO, buildGeometryFromFarmField } from "../utils/shared/helpe
  * @property {string} nowISO
  * @property {string} sowingDateISO
  * @property {object | null} geometry
+ * @property {object | null} fullGeometry
+ * @property {{ sampled: boolean, farmAreaHa: number|null, sampleHa: number|null } | null} geometryMeta
  * @property {Record<string, import('./moduleResult.js').moduleResult>} modules
  * @property {string[]} warnings
  * @property {string[]} errors
@@ -54,6 +60,8 @@ export function createAdvisoryContext({
       }
     : farmField;
   const sowingDateISO = formatDateISO(farmFieldDoc.sowingDate || now);
+  const apiGeometry = resolveAdvisoryApiGeometry(farmField);
+  logStep(`geometry: ${describeAdvisoryGeometry(apiGeometry)}`);
 
   return {
     mode,
@@ -69,7 +77,13 @@ export function createAdvisoryContext({
     farmFieldDoc,
     nowISO,
     sowingDateISO,
-    geometry: buildGeometryFromFarmField(farmField),
+    geometry: apiGeometry.geometry,
+    fullGeometry: apiGeometry.fullGeometry,
+    geometryMeta: {
+      sampled: apiGeometry.sampled,
+      farmAreaHa: apiGeometry.farmAreaHa,
+      sampleHa: apiGeometry.sampleHa,
+    },
     modules: {},
     warnings: [],
     errors: [],
