@@ -215,17 +215,14 @@ const cropSchema = new Schema(
     },
     pestProtection: [
       {
-        image: [
-          {
-            type: String,
-            required: [true, "Pest image URL is required"],
-            trim: true,
-            validate: {
-              validator: (url) => /^https?:\/\//.test(url),
-              message: "Invalid image URL format",
-            },
+        image: {
+          type: [String],
+          default: [],
+          validate: {
+            validator: (urls) => urls.every((url) => /^https?:\/\//.test(url)),
+            message: "Invalid image URL format",
           },
-        ],
+        },
         pest: {
           type: String,
           required: [true, "Pest information is required"],
@@ -274,17 +271,14 @@ const cropSchema = new Schema(
     ],
     diseaseProtection: [
       {
-        image: [
-          {
-            type: String,
-            required: [true, "Disease image URL is required"],
-            trim: true,
-            validate: {
-              validator: (url) => /^https?:\/\//.test(url),
-              message: "Invalid image URL format",
-            },
+        image: {
+          type: [String],
+          default: [],
+          validate: {
+            validator: (urls) => urls.every((url) => /^https?:\/\//.test(url)),
+            message: "Invalid image URL format",
           },
-        ],
+        },
         disease: {
           type: String,
           required: [true, "Disease information is required"],
