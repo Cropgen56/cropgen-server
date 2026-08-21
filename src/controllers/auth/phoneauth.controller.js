@@ -99,6 +99,32 @@ function isWebClient(req) {
   return resolveClientAppKey(req) === "cropgen_web";
 }
 
+function isCropgenClientRequest(req) {
+  const brand = String(
+    req.headers?.["x-client-brand"] ||
+      req.headers?.["X-Client-Brand"] ||
+      req.body?.clientBrand ||
+      "",
+  ).toLowerCase();
+  const app = resolveClientAppKey(req);
+  if (brand === "biodrops" || app === "biodrops_web") return false;
+  return brand === "cropgen" || app === "cropgen_web";
+}
+
+function isBiodropsOrganizationUser(user) {
+  return (
+    String(user?.organization?.organizationCode || "").toUpperCase() ===
+    "BIODROPS"
+  );
+}
+
+const CROPGEN_SIGNUP_FIRST_MESSAGE =
+  "User does not exist. Please sign up first.";
+
+function cropgenPhoneLoginDenied(user) {
+  return !user || isBiodropsOrganizationUser(user);
+}
+
 function isProfileComplete(user) {
   return (
     !!user?.organization &&
@@ -138,13 +164,24 @@ export const sendWhatsappOtp = async (req, res) => {
     const requestedOrgCode = normalizeOrgCode(organizationCode);
     const normalizedEmail = normalizeEmail(email);
 
-    let user = await User.findOne({ phone });
+    let user = await User.findOne({ phone }).populate(
+      "organization",
+      "organizationCode",
+    );
 
     if (user?.deletedAt) {
       return res.status(404).json({
         success: false,
         code: "USER_DELETED",
-        message: "User does not exist",
+        message: CROPGEN_SIGNUP_FIRST_MESSAGE,
+      });
+    }
+
+    // CropGen login: only existing CropGen users. Biodrops accounts cannot sign in here.
+    if (isLogin && isCropgenClientRequest(req) && cropgenPhoneLoginDenied(user)) {
+      return res.status(404).json({
+        success: false,
+        message: CROPGEN_SIGNUP_FIRST_MESSAGE,
       });
     }
 
@@ -153,7 +190,7 @@ export const sendWhatsappOtp = async (req, res) => {
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: "User does not exist",
+          message: CROPGEN_SIGNUP_FIRST_MESSAGE,
         });
       }
     }
@@ -161,9 +198,12 @@ export const sendWhatsappOtp = async (req, res) => {
     // Signup: reject duplicates, then create with profile + org.
     if (isSignup) {
       if (user) {
+        const alreadyBiodrops = isBiodropsOrganizationUser(user);
         return res.status(409).json({
           success: false,
-          message: "User already exists. Please log in.",
+          message: alreadyBiodrops
+            ? "This phone is already registered. Please use a different number to sign up."
+            : "User already exists. Please log in.",
         });
       }
 
@@ -309,7 +349,17 @@ export const verifyWhatsappOtp = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ phone }).populate(
+      "organization",
+      "organizationCode",
+    );
+
+    if (isCropgenClientRequest(req) && cropgenPhoneLoginDenied(user)) {
+      return res.status(404).json({
+        success: false,
+        message: CROPGEN_SIGNUP_FIRST_MESSAGE,
+      });
+    }
 
     if (!user || user.deletedAt || !user.otp || !user.otpExpires) {
       return res.status(400).json({
@@ -445,11 +495,18 @@ export const resendWhatsappOtp = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ phone });
-    if (!user || user.deletedAt) {
+    const user = await User.findOne({ phone }).populate(
+      "organization",
+      "organizationCode",
+    );
+    if (
+      !user ||
+      user.deletedAt ||
+      (isCropgenClientRequest(req) && isBiodropsOrganizationUser(user))
+    ) {
       return res.status(404).json({
         success: false,
-        message: "User does not exist",
+        message: CROPGEN_SIGNUP_FIRST_MESSAGE,
       });
     }
 

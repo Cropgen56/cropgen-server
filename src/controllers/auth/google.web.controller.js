@@ -104,7 +104,8 @@ const runGoogleWebLogin = async (
     });
 
     const payload = ticket.getPayload();
-    const { email, name, picture, sub } = payload;
+    const email = String(payload?.email || "").trim().toLowerCase();
+    const name = String(payload?.name || "").trim();
 
     // Split full name into first and last name
     const nameParts = name.split(" ");
@@ -113,25 +114,26 @@ const runGoogleWebLogin = async (
 
     const targetOrgCode = forcedOrgCode || (isBiodropsBrand ? "BIODROPS" : "CROPGEN");
 
-    // Check if user exists
+    // Check if user exists (include soft-deleted so Google can sign them up again)
     let user = await User.findOne({ email }).populate(
       "organization",
       "organizationCode",
     );
 
-    if (user?.deletedAt) {
-      return res.status(401).json({
-        success: false,
-        code: "USER_DELETED",
-        message: "User does not exist",
-      });
+    const wasDeleted = Boolean(user?.deletedAt);
+    if (wasDeleted) {
+      user.deletedAt = null;
     }
 
     const wasFullyRegistered =
-      !!user && !!user.organization && user.terms === true;
+      !!user &&
+      !wasDeleted &&
+      !!user.organization &&
+      user.terms === true;
 
     // Strict organization isolation: CropGen users cannot sign in on Biodrops (and vice versa).
-    if (user) {
+    // Soft-deleted accounts are re-signed-up on this brand instead of being blocked.
+    if (user && !wasDeleted) {
       const existingOrgCode = String(
         user.organization?.organizationCode || "",
       ).toUpperCase();
@@ -146,7 +148,7 @@ const runGoogleWebLogin = async (
         return res.status(403).json({
           success: false,
           message:
-            "Access denied. This account belongs to a different organization.",
+            "This Google account is registered on another app. Please sign up with a different Google account.",
         });
       }
     }
@@ -166,19 +168,28 @@ const runGoogleWebLogin = async (
     const brand = getEmailBrand(preset);
     let orgCode = user?.organization?.organizationCode || targetOrgCode;
 
-    // Create new user if they don't exist (signup / Biodrops Google)
-    if (!user) {
+    // Create or restore the CropGen user, then collect remaining details in the app modal.
+    if (!user || wasDeleted) {
       const { org: organization } = await resolveOrganizationByCode(targetOrgCode);
       orgCode = targetOrgCode;
-      user = new User({
-        firstName,
-        lastName,
-        email,
-        role: "farmer",
-        terms: true,
-        organization: organization?._id,
-        clientSource: resolveClientSource(req),
-      });
+      if (!user) {
+        user = new User({
+          firstName,
+          lastName,
+          email,
+          role: "farmer",
+          terms: true,
+          organization: organization?._id,
+          clientSource: resolveClientSource(req),
+        });
+      } else {
+        user.firstName = user.firstName || firstName;
+        user.lastName = user.lastName || lastName;
+        user.role = user.role || "farmer";
+        user.terms = true;
+        user.organization = organization?._id;
+        user.clientSource = resolveClientSource(req);
+      }
     }
 
     // Do not block login on email. Welcome mail is only for new accounts.
@@ -207,22 +218,12 @@ const runGoogleWebLogin = async (
       organization: user.organization,
     };
 
-    const profileComplete =
-      !!user.organization && user.terms === true;
-    const onboardingRequired = !profileComplete;
-    const profileDetailsRequired = isBiodropsBrand
-      ? !String(user.phone || "").trim() ||
-        !String(user.country || "").trim() ||
-        !String(user.state || "").trim() ||
-        !String(user.city || "").trim() ||
-        !String(user.village || "").trim() ||
-        !String(user.pincode || "").trim() ||
-        !String(user.firstName || "").trim() ||
-        !String(user.lastName || "").trim()
-      : !String(user.phone || "").trim() ||
-        !String(user.country || "").trim() ||
-        !String(user.firstName || "").trim() ||
-        !String(user.lastName || "").trim();
+    const missingName =
+      !String(user.firstName || "").trim() ||
+      !String(user.lastName || "").trim();
+    // Returning users go straight in. New Google accounts collect org + details once.
+    const profileDetailsRequired = !wasFullyRegistered || missingName;
+    const onboardingRequired = !wasFullyRegistered || missingName;
     const accessToken = signAccessToken({
       ...tokenPayload,
       onboardingRequired,
@@ -241,6 +242,7 @@ const runGoogleWebLogin = async (
       accessToken,
       refreshToken,
       role: user.role,
+      isNewUser: !wasFullyRegistered,
       user: {
         id: user._id,
         email: user.email,
