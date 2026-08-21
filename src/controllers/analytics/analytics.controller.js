@@ -10,6 +10,7 @@ import {
   startOfYear,
   endOfYear,
 } from "date-fns";
+import { getOrgScopeId, getOrgScopedUserIds } from "../../utils/auth/orgScope.js";
 
 export const getDashboardAnalytics = async (req, res) => {
   try {
@@ -56,29 +57,47 @@ export const getDashboardAnalytics = async (req, res) => {
 
     /* ---------------- User Metrics ---------------- */
 
-    const totalUsers = await User.countDocuments();
+    const orgId = getOrgScopeId(req.user);
+    const scopedUserIds = await getOrgScopedUserIds(req.user);
+    const userMatch = orgId
+      ? { organization: orgId, deletedAt: null }
+      : { deletedAt: null };
+    const fieldMatch =
+      scopedUserIds == null ? {} : { user: { $in: scopedUserIds } };
+
+    const totalUsers = await User.countDocuments(userMatch);
 
     const newUsers = hasDateFilter
-      ? await User.countDocuments({ createdAt: { $gte: start, $lte: end } })
+      ? await User.countDocuments({
+          ...userMatch,
+          createdAt: { $gte: start, $lte: end },
+        })
       : totalUsers;
 
     const activeUsersCount = hasDateFilter
-      ? await User.countDocuments({ lastActiveAt: { $gte: start, $lte: end } })
-      : await User.countDocuments({ lastActiveAt: { $ne: null } });
+      ? await User.countDocuments({
+          ...userMatch,
+          lastActiveAt: { $gte: start, $lte: end },
+        })
+      : await User.countDocuments({ ...userMatch, lastActiveAt: { $ne: null } });
 
     const activeUsers = hasDateFilter
-      ? await User.find({ lastActiveAt: { $gte: start, $lte: end } })
+      ? await User.find({
+          ...userMatch,
+          lastActiveAt: { $gte: start, $lte: end },
+        })
           .sort({ lastActiveAt: -1 })
           .select(
             "firstName lastName email phone role clientSource lastActiveAt"
           )
-      : await User.find({ lastActiveAt: { $ne: null } })
+      : await User.find({ ...userMatch, lastActiveAt: { $ne: null } })
           .sort({ lastActiveAt: -1 })
           .select(
             "firstName lastName email phone role clientSource lastActiveAt"
           );
 
     const usersByRole = await User.aggregate([
+      { $match: userMatch },
       { $group: { _id: "$role", count: { $sum: 1 } } },
       { $project: { role: "$_id", count: 1, _id: 0 } },
     ]);
@@ -86,9 +105,14 @@ export const getDashboardAnalytics = async (req, res) => {
     /* ---------------- Platform Users ---------------- */
 
     const platformAgg = await User.aggregate([
-      ...(hasDateFilter
-        ? [{ $match: { createdAt: { $gte: start, $lte: end } } }]
-        : []),
+      {
+        $match: {
+          ...userMatch,
+          ...(hasDateFilter
+            ? { createdAt: { $gte: start, $lte: end } }
+            : {}),
+        },
+      },
       {
         $group: {
           _id: { $ifNull: ["$clientSource", "unknown"] },
@@ -118,12 +142,15 @@ export const getDashboardAnalytics = async (req, res) => {
     });
 
     const newUsersDetails = hasDateFilter
-      ? await User.find({ createdAt: { $gte: start, $lte: end } })
+      ? await User.find({
+          ...userMatch,
+          createdAt: { $gte: start, $lte: end },
+        })
           .sort({ createdAt: -1 })
           .select(
             "firstName lastName avatar email phone role clientSource lastLoginAt lastActiveAt createdAt"
           )
-      : await User.find()
+      : await User.find(userMatch)
           .sort({ createdAt: -1 })
           .select(
             "firstName lastName avatar email phone role clientSource lastLoginAt lastActiveAt createdAt"
@@ -131,46 +158,49 @@ export const getDashboardAnalytics = async (req, res) => {
 
     /* ---------------- FarmField Metrics ---------------- */
 
-    const totalFields = await FarmField.countDocuments();
+    const totalFields = await FarmField.countDocuments(fieldMatch);
 
     const newFields = hasDateFilter
       ? await FarmField.countDocuments({
+          ...fieldMatch,
           createdAt: { $gte: start, $lte: end },
         })
       : totalFields;
 
+    const fieldDateMatch = {
+      ...fieldMatch,
+      ...(hasDateFilter ? { createdAt: { $gte: start, $lte: end } } : {}),
+    };
+
     const fieldsByCrop = await FarmField.aggregate([
-      ...(hasDateFilter
-        ? [{ $match: { createdAt: { $gte: start, $lte: end } } }]
-        : []),
+      { $match: fieldDateMatch },
       { $group: { _id: "$cropName", count: { $sum: 1 } } },
       { $project: { crop: "$_id", count: 1, _id: 0 } },
     ]);
 
     const fieldsByFarmingType = await FarmField.aggregate([
-      ...(hasDateFilter
-        ? [{ $match: { createdAt: { $gte: start, $lte: end } } }]
-        : []),
+      { $match: fieldDateMatch },
       { $group: { _id: "$typeOfFarming", count: { $sum: 1 } } },
       { $project: { type: "$_id", count: 1, _id: 0 } },
     ]);
 
     const fieldsByIrrigation = await FarmField.aggregate([
-      ...(hasDateFilter
-        ? [{ $match: { createdAt: { $gte: start, $lte: end } } }]
-        : []),
+      { $match: fieldDateMatch },
       { $group: { _id: "$typeOfIrrigation", count: { $sum: 1 } } },
       { $project: { type: "$_id", count: 1, _id: 0 } },
     ]);
 
     const newFieldsDetails = hasDateFilter
-      ? await FarmField.find({ createdAt: { $gte: start, $lte: end } })
+      ? await FarmField.find({
+          ...fieldMatch,
+          createdAt: { $gte: start, $lte: end },
+        })
           .sort({ createdAt: -1 })
           .populate("user", "firstName lastName email phone role")
           .select(
             "fieldName cropName variety sowingDate acre typeOfIrrigation typeOfFarming createdAt"
           )
-      : await FarmField.find()
+      : await FarmField.find(fieldMatch)
           .sort({ createdAt: -1 })
           .populate("user", "firstName lastName email phone role")
           .select(

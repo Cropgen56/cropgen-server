@@ -91,23 +91,21 @@ export const updateUserById = async (req, res) => {
 
     /* ================= ORGANIZATION HANDLING ================= */
     if (req.body.organizationCode !== undefined) {
-      const code = String(req.body.organizationCode || "").trim();
-      if (!code) {
-        updateData.organization = null;
-      } else {
-        const organization = await Organization.findOne({
-          organizationCode: code.toUpperCase(),
+      const code = String(req.body.organizationCode || "")
+        .trim()
+        .toUpperCase() || "CROPGEN";
+      const organization = await Organization.findOne({
+        organizationCode: code,
+      });
+
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          message: `Organization '${code}' not found. Leave blank to join CROPGEN.`,
         });
-
-        if (!organization) {
-          return res.status(404).json({
-            success: false,
-            message: `Organization '${code}' not found`,
-          });
-        }
-
-        updateData.organization = organization._id;
       }
+
+      updateData.organization = organization._id;
     }
 
     if (Object.keys(updateData).length === 0) {

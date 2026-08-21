@@ -6,7 +6,7 @@ export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(id)
       .select(
-        "_id email phone role firstName lastName avatar terms lastLoginAt createdAt organization lastActiveAt language country state city village pincode",
+        "_id email phone role firstName lastName avatar terms lastLoginAt createdAt organization lastActiveAt language country state city village pincode deletedAt",
       )
       .populate({
         path: "organization",
@@ -15,18 +15,21 @@ export const getProfile = async (req, res) => {
       })
       .lean();
 
-    if (!user) {
-      return res.status(404).json({
+    if (!user || user.deletedAt) {
+      return res.status(401).json({
         success: false,
-        message: "User not found.",
+        code: "USER_DELETED",
+        message: "User does not exist",
       });
     }
+
+    const { deletedAt, ...safeUser } = user;
 
     return res.status(200).json({
       success: true,
       message: "User fetched successfully.",
       user: {
-        ...user,
+        ...safeUser,
         id: String(user._id),
       },
     });

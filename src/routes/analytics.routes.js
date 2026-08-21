@@ -6,7 +6,7 @@ import { updateUserActivity } from '../middleware/update.user.activity.middlewar
 
 const router = express.Router();
 
-router.get('/', getDashboardAnalytics);
+router.get('/', isAuthenticated, getDashboardAnalytics);
 router.post('/ping',isAuthenticated,updateUserActivity,clientPing);
 
 export default router;

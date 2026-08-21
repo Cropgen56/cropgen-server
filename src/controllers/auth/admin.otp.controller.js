@@ -1,17 +1,17 @@
-import User from "../../models/user.model.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
 import { genOtp, hash } from "../../utils/auth/authUtils.js";
 import { htmlAdminOtp } from "../../utils/email/template.js";
+import { canAccessAdminPanel, findAdminLoginUser, normalizeLoginEmail } from "../../utils/auth/orgScope.js";
 
 export const requestAdminOtp = async (req, res) => {
   try {
-    const { email } = req.body;
+    const email = normalizeLoginEmail(req.body?.email);
     if (!email)
       return res
         .status(400)
         .json({ success: false, message: "Email is required." });
 
-    const user = await User.findOne({ email });
+    const user = await findAdminLoginUser(email);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -19,8 +19,7 @@ export const requestAdminOtp = async (req, res) => {
       });
     }
 
-    // CRITICAL: Only allow admin roles
-    if (!["admin", "developer"].includes(user.role)) {
+    if (!canAccessAdminPanel(user)) {
       return res.status(403).json({
         success: false,
         message: "Access denied. This OTP is only for admin users.",

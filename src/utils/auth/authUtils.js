@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import Organization from "../../models/organization.model.js";
+import User from "../../models/user.model.js";
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET + "_r";
@@ -245,4 +246,41 @@ export function isBiodropsClientBrand(req) {
 /** Subscription plan catalog brand (biodrops vs cropgen). */
 export function resolveSubscriptionPlanBrand(req) {
   return isBiodropsClientBrand(req) ? "biodrops" : "cropgen";
+}
+
+export const USER_DELETED_CODE = "USER_DELETED";
+
+export function userDeletedPayload() {
+  return {
+    success: false,
+    code: USER_DELETED_CODE,
+    message: "User does not exist",
+  };
+}
+
+export function isDeletedUser(user) {
+  return Boolean(user?.deletedAt);
+}
+
+/** Mongo filter for accounts that can still authenticate. */
+export const ACTIVE_USER_FILTER = { deletedAt: null };
+
+export async function findActiveAuthUser(userId) {
+  if (!userId) return null;
+  const user = await User.findById(userId)
+    .select("_id deletedAt role organization")
+    .populate({ path: "organization", select: "organizationCode organizationName" })
+    .lean();
+  if (!user || user.deletedAt) return null;
+  return user;
+}
+
+export function revokeAllRefreshSessions(user) {
+  if (!user) return;
+  user.refreshTokenId = null;
+  if (user.refreshTokenIds?.clear) {
+    user.refreshTokenIds.clear();
+  } else {
+    user.refreshTokenIds = undefined;
+  }
 }

@@ -19,7 +19,7 @@ const router = express.Router();
 
 // Define the routes
 router.post("/add-field/:userId", isAuthenticated, addField);
-router.get("/get-field/:userId", getField);
+router.get("/get-field/:userId", isAuthenticated, getField);
 router.get("/get-all-field", isAuthenticated, getAllField);
 router.delete("/delete-field/:fieldId", isAuthenticated, deleteField);
 router.patch("/update-field/:fieldId", isAuthenticated, updateField);

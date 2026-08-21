@@ -20,10 +20,10 @@ router.patch(
   patchAdvisoryActivityProgress,
 );
 router.get("/:farmFieldId/npk-breakdown", isAuthenticated, getLatestNpkBreakdown);
-router.get("/", getAllFarmAdvisories);
-router.get("/farmers", getFarmersWithAdvisories);
-router.get("/by-id/:advisoryId", getAdvisoryById);
-router.get("/user/:userId", getFarmAdvisoriesByUser);
-router.get("/:farmFieldId", getFarmAdvisories);
+router.get("/", isAuthenticated, getAllFarmAdvisories);
+router.get("/farmers", isAuthenticated, getFarmersWithAdvisories);
+router.get("/by-id/:advisoryId", isAuthenticated, getAdvisoryById);
+router.get("/user/:userId", isAuthenticated, getFarmAdvisoriesByUser);
+router.get("/:farmFieldId", isAuthenticated, getFarmAdvisories);
 
 export default router;

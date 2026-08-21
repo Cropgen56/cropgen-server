@@ -11,6 +11,8 @@ import {
   enrichAdvisoriesForClient,
 } from "../utils/enrichAdvisoryForClient.js";
 import { buildFarmAdvisorySummary } from "../services/farmAdvisorySummary.service.js";
+import { getOrgScopeId, getOrgScopedUserIds, sameOrg } from "../../../utils/auth/orgScope.js";
+import User from "../../../models/user.model.js";
 
 function resolveResponseLanguage(req) {
   return req.query.language || req.user?.language || "en";
@@ -29,11 +31,31 @@ export const getFarmAdvisories = async (req, res) => {
       });
     }
 
-    const fieldExists = await FarmField.exists({ _id: farmFieldId });
-    if (!fieldExists) {
+    const field = await FarmField.findById(farmFieldId)
+      .populate("user", "organization")
+      .lean();
+    if (!field) {
       return res.status(404).json({
         status: "error",
         message: "Farm field not found.",
+        advisories: [],
+      });
+    }
+
+    let ownerOrg =
+      field.user?.organization?._id || field.user?.organization || null;
+    if (!ownerOrg && field.user) {
+      const ownerId = field.user._id || field.user;
+      if (mongoose.Types.ObjectId.isValid(ownerId)) {
+        const owner = await User.findById(ownerId).select("organization").lean();
+        ownerOrg = owner?.organization || null;
+      }
+    }
+
+    if (req.user && !sameOrg(req.user, ownerOrg)) {
+      return res.status(403).json({
+        status: "error",
+        message: "You can only view advisories in your organization.",
         advisories: [],
       });
     }
@@ -388,6 +410,21 @@ export const getFarmAdvisoriesByUser = async (req, res) => {
         .json({ success: false, message: "Invalid user ID" });
     }
 
+    const farmer = await User.findById(userId).select("organization");
+    if (!farmer) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (req.user && !sameOrg(req.user, farmer.organization)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view advisories in your organization.",
+      });
+    }
+
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const limit = Math.min(parseInt(req.query.limit) || 10, 100);
     const skip = (page - 1) * limit;
@@ -482,6 +519,15 @@ export const getFarmersWithAdvisories = async (req, res) => {
       { $unwind: "$farmer" },
     ];
 
+    const orgId = getOrgScopeId(req.user);
+    if (orgId) {
+      pipeline.push({
+        $match: {
+          "farmer.organization": new mongoose.Types.ObjectId(String(orgId)),
+        },
+      });
+    }
+
     if (search) {
       const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
       pipeline.push({
@@ -563,7 +609,7 @@ export const getAdvisoryById = async (req, res) => {
         select: "fieldName cropName variety sowingDate acre user",
         populate: {
           path: "user",
-          select: "firstName lastName email phone",
+          select: "firstName lastName email phone organization",
         },
       })
       .lean();
@@ -572,6 +618,20 @@ export const getAdvisoryById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Advisory not found",
+      });
+    }
+
+    if (
+      req.user &&
+      !sameOrg(
+        req.user,
+        advisory.farmFieldId?.user?.organization?._id ||
+          advisory.farmFieldId?.user?.organization,
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view advisories in your organization.",
       });
     }
 
@@ -605,8 +665,19 @@ export const getAllFarmAdvisories = async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const skip = (page - 1) * limit;
 
+    const scopedUserIds = await getOrgScopedUserIds(req.user);
+    const advisoryQuery = {};
+    if (scopedUserIds) {
+      const orgFields = await FarmField.find({
+        user: { $in: scopedUserIds },
+      })
+        .select("_id")
+        .lean();
+      advisoryQuery.farmFieldId = { $in: orgFields.map((f) => f._id) };
+    }
+
     const [advisories, total] = await Promise.all([
-      FarmAdvisory.find({})
+      FarmAdvisory.find(advisoryQuery)
         .populate({
           path: "farmFieldId",
           select: "fieldName cropName variety sowingDate acre user",
@@ -620,7 +691,7 @@ export const getAllFarmAdvisories = async (req, res) => {
         .limit(limit)
         .lean(),
 
-      FarmAdvisory.countDocuments({}),
+      FarmAdvisory.countDocuments(advisoryQuery),
     ]);
 
     const advisoryIds = advisories.map((a) => a._id);

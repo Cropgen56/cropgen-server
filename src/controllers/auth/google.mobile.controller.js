@@ -91,6 +91,13 @@ const runGoogleMobileLogin = async (
     const lastName = nameParts.slice(1).join(" ") || "";
 
     let user = await User.findOne({ email }).populate("organization");
+    if (user?.deletedAt) {
+      return res.status(401).json({
+        success: false,
+        code: "USER_DELETED",
+        message: "User does not exist",
+      });
+    }
     const wasFullyRegistered =
       !!user && !!user.organization && user.terms === true;
 

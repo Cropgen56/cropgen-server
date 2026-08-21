@@ -1,22 +1,30 @@
 import User from "../../models/user.model.js";
 import UserSubscription from "../../models/user-subscription.model.js";
+import { getOrgScopeId, canAccessAdminPanel } from "../../utils/auth/orgScope.js";
 
 export const getAllUsers = async (req, res) => {
   try {
-    const { role, organization } = req.user;
+    const { role } = req.user;
     const { page = 1, limit = 10, all = "false" } = req.query;
 
-    if (!["admin", "developer", "client"].includes(role)) {
+    if (!canAccessAdminPanel(req.user)) {
       return res.status(403).json({
         success: false,
         message: "Access denied. You do not have permission to view users!",
       });
     }
 
-    const baseQuery = role === "client" ? { organization } : {};
+    const orgId = getOrgScopeId(req.user);
+    const baseQuery = orgId
+      ? { organization: orgId, deletedAt: null }
+      : { deletedAt: null };
 
     const wantsAll = String(all).toLowerCase() === "true";
-    if (wantsAll && !["admin", "developer"].includes(role)) {
+    if (
+      wantsAll &&
+      !orgId &&
+      !["admin", "developer"].includes(role)
+    ) {
       return res.status(403).json({
         success: false,
         message: "Only admin or developer can fetch all users.",

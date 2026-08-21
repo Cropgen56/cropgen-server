@@ -31,6 +31,13 @@ export const loginWithPhone = async (req, res) => {
 
     // Check if user exists
     let user = await User.findOne({ phone });
+    if (user?.deletedAt) {
+      return res.status(404).json({
+        success: false,
+        message: "User does not exist",
+        data: null,
+      });
+    }
 
     const resolvedSource = resolveClientSource(req);
     if (user) {

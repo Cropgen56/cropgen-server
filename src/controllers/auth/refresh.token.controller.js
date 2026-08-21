@@ -48,6 +48,15 @@ export const refreshTokenHandler = async (req, res) => {
       "organization",
       "organizationCode",
     );
+    if (!user || user.deletedAt) {
+      clearRefreshCookie(res, req);
+      return res.status(401).json({
+        success: false,
+        code: "USER_DELETED",
+        message: "User does not exist",
+      });
+    }
+
     const clientAppKey = resolveClientAppKey(req);
     let storedRid = getClientRefreshId(user, clientAppKey);
 
@@ -57,7 +66,7 @@ export const refreshTokenHandler = async (req, res) => {
         getClientRefreshId(user, "biodrops_web") || user?.refreshTokenId || null;
     }
 
-    if (!user || !storedRid) {
+    if (!storedRid) {
       clearRefreshCookie(res, req);
       return res
         .status(403)

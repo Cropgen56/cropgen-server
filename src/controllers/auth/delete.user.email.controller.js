@@ -1,13 +1,14 @@
-import User from "../../models/user.model.js"
+import User from "../../models/user.model.js";
+import { revokeAllRefreshSessions } from "../../utils/auth/authUtils.js";
 
-
-// Delete a user by email
 export const deleteUserByEmail = async (req, res) => {
   const { email } = req.params;
 
   try {
-    // Find and delete user by email
-    const user = await User.findOneAndDelete({ email });
+    const user = await User.findOne({
+      email: String(email || "").trim().toLowerCase(),
+      deletedAt: null,
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -15,6 +16,10 @@ export const deleteUserByEmail = async (req, res) => {
         message: "User not found",
       });
     }
+
+    user.deletedAt = new Date();
+    revokeAllRefreshSessions(user);
+    await user.save();
 
     res.status(200).json({
       success: true,

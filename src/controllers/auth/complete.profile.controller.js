@@ -25,6 +25,7 @@ export const completeProfile = async (req, res) => {
       firstName = "",
       lastName = "",
       phone = "",
+      email = "",
       language,
       role = "farmer",
       organizationCode,
@@ -109,7 +110,9 @@ export const completeProfile = async (req, res) => {
       if (preset === "biodrops") {
         ({ org, orgCode } = await resolveOrganizationByCode("BIODROPS"));
       } else {
-        ({ org, orgCode } = await resolveOrganizationByCode(organizationCode));
+        ({ org, orgCode } = await resolveOrganizationByCode(
+          organizationCode || "CROPGEN",
+        ));
       }
     } catch (err) {
       if (err.status === 404) {
@@ -125,6 +128,9 @@ export const completeProfile = async (req, res) => {
     user.firstName = firstName;
     user.lastName = lastName;
     user.phone = phone;
+    if (email) {
+      user.email = String(email).trim().toLowerCase();
+    }
     if (language) {
       user.language = String(language).toLowerCase();
     }

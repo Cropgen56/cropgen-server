@@ -34,6 +34,7 @@ import {
   checkApiKey,
 } from "../middleware/auth.middleware.js";
 import { updateUserActivity } from "../middleware/update.user.activity.middleware.js";
+import { validateOrganizationCode } from "../controllers/organization/organization.controller.js";
 
 const router = express.Router();
 
@@ -46,7 +47,6 @@ router.get(
   "/users",
   isAuthenticated,
   updateUserActivity,
-  authorizeRoles("admin", "developer", "client"),
   getAllUsers,
 );
 
@@ -61,7 +61,6 @@ router.get(
   "/user/:id",
   isAuthenticated,
   updateUserActivity,
-  authorizeRoles("admin", "developer", "client"),
   getUserById,
 );
 
@@ -94,6 +93,7 @@ router.post("/complete-profile", requireAuth, completeProfile);
 router.post("/refresh", refreshTokenHandler);
 router.post("/logout", logoutHandler);
 router.post("/google", loginWithGoogleWebCropgen);
+router.get("/organization-code/:code", validateOrganizationCode);
 
 router.use(biodropsRoutes);
 router.use(cropydealsAuthRoutes);

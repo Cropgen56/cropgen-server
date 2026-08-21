@@ -9,6 +9,7 @@ import {
   createPrimaryFieldCrop,
   syncPrimaryFieldCrop,
 } from "../../utils/crop/fieldCropSync.js";
+import { getOrgScopedUserIds, sameOrg } from "../../utils/auth/orgScope.js";
 function fieldAcreCount(field) {
   return Number(field?.acre) || 0;
 }
@@ -56,6 +57,13 @@ export const addField = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+    }
+
+    if (req.user && !sameOrg(req.user, user.organization)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only add farms in your organization.",
+      });
     }
 
     /* ---------- Create farm ---------- */
@@ -120,11 +128,18 @@ export const getField = async (req, res) => {
       });
     }
 
-    const user = await User.findById(userId).select("_id");
+    const user = await User.findById(userId).select("_id organization");
     if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
+      });
+    }
+
+    if (req.user && !sameOrg(req.user, user.organization)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view farms in your organization.",
       });
     }
 
@@ -297,11 +312,15 @@ export const getAllField = async (req, res) => {
     const parsedLimit = Math.max(1, parseInt(limit, 10) || 10);
     const parsedPage = Math.max(1, parseInt(page, 10) || 1);
 
+    const scopedUserIds = await getOrgScopedUserIds(req.user);
+    const farmQuery =
+      scopedUserIds == null ? {} : { user: { $in: scopedUserIds } };
+
     let farms;
     let totalFarms;
 
     if (wantsAll) {
-      farms = await FarmField.find()
+      farms = await FarmField.find(farmQuery)
         .sort({ createdAt: -1 })
         .populate({
           path: "user",
@@ -313,7 +332,7 @@ export const getAllField = async (req, res) => {
       const skip = (parsedPage - 1) * parsedLimit;
 
       [farms, totalFarms] = await Promise.all([
-        FarmField.find()
+        FarmField.find(farmQuery)
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(parsedLimit)
@@ -322,7 +341,7 @@ export const getAllField = async (req, res) => {
             select: "firstName lastName email phone avatar role clientSource language createdAt",
           })
           .lean(),
-        FarmField.countDocuments(),
+        FarmField.countDocuments(farmQuery),
       ]);
     }
 
@@ -388,11 +407,20 @@ export const deleteField = async (req, res) => {
       return res.status(400).json({ message: "Farm field ID is required" });
     }
 
-    const deletedFarmField = await FarmField.findByIdAndDelete(farmFieldId);
-
-    if (!deletedFarmField) {
+    const farmField = await FarmField.findById(farmFieldId);
+    if (!farmField) {
       return res.status(404).json({ message: "Farm field not found" });
     }
+
+    const owner = await User.findById(farmField.user).select("organization");
+    if (req.user && !sameOrg(req.user, owner?.organization)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete farms in your organization.",
+      });
+    }
+
+    const deletedFarmField = await FarmField.findByIdAndDelete(farmFieldId);
 
     // Multi-crop: a deleted farm shouldn't leave orphaned crop instances behind.
     try {
@@ -463,6 +491,14 @@ export const updateField = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Farm field not found." });
+    }
+
+    const owner = await User.findById(fieldExists.user).select("organization");
+    if (req.user && !sameOrg(req.user, owner?.organization)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only update farms in your organization.",
+      });
     }
 
     const updatedField = await FarmField.findByIdAndUpdate(

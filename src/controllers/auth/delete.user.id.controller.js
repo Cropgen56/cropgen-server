@@ -1,5 +1,7 @@
 import User from "../../models/user.model.js"
 import Organization from "../../models/organization.model.js";
+import { revokeAllRefreshSessions } from "../../utils/auth/authUtils.js";
+import { isOrgScopedAdmin, organizationIdOf } from "../../utils/auth/orgScope.js";
 
 
 // Delete a user by ID
@@ -9,7 +11,7 @@ export const deleteUserById = async (req, res) => {
 
   try {
     const user = await User.findById(id);
-    if (!user) {
+    if (!user || user.deletedAt) {
       return res.status(404).json({
         success: false,
         message: "User not found",
@@ -17,11 +19,11 @@ export const deleteUserById = async (req, res) => {
     }
 
     // Check the role of the requesting user
-    if (requestingUser.role === "client") {
+    if (requestingUser.role === "client" || isOrgScopedAdmin(requestingUser)) {
       // For client: reassign user to organization with code "CROPGEN"
       if (
         !user.organization ||
-        user.organization.toString() !== requestingUser.organization.toString()
+        user.organization.toString() !== String(organizationIdOf(requestingUser) || requestingUser.organization)
       ) {
         return res.status(403).json({
           success: false,
@@ -50,13 +52,15 @@ export const deleteUserById = async (req, res) => {
         user,
       });
     } else if (["admin", "developer"].includes(requestingUser.role)) {
-      // For admin or developer: perform hard delete
-      await User.findByIdAndDelete(id);
+      // Soft-delete so existing web sessions and Google/phone login are revoked.
+      user.deletedAt = new Date();
+      revokeAllRefreshSessions(user);
+      await user.save();
 
       return res.status(200).json({
         success: true,
-        message: "User permanently deleted successfully",
-        user,
+        message: "User deleted successfully",
+        user: { id: user._id, email: user.email, phone: user.phone },
       });
     } else {
       return res.status(403).json({

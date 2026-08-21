@@ -165,6 +165,13 @@ const userSchema = new Schema(
       default: null,
       index: true,
     },
+
+    /** Set when an admin deletes the account. Deleted users cannot log in. */
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

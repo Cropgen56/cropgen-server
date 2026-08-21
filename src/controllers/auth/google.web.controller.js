@@ -13,7 +13,6 @@ import {
 import { sendBasicEmail } from "../../config/sesClient.js";
 import {
   getEmailBrand,
-  htmlWelcomeBack,
   htmlWelcome,
   resolveAuthEmailPreset,
 } from "../../utils/email/template.js";
@@ -112,13 +111,22 @@ const runGoogleWebLogin = async (
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    // Resolve organization by brand so CropGen and Biodrops stay isolated.
     const targetOrgCode = forcedOrgCode || (isBiodropsBrand ? "BIODROPS" : "CROPGEN");
-    const { org: organization, orgCode } =
-      await resolveOrganizationByCode(targetOrgCode);
 
     // Check if user exists
-    let user = await User.findOne({ email }).populate("organization");
+    let user = await User.findOne({ email }).populate(
+      "organization",
+      "organizationCode",
+    );
+
+    if (user?.deletedAt) {
+      return res.status(401).json({
+        success: false,
+        code: "USER_DELETED",
+        message: "User does not exist",
+      });
+    }
+
     const wasFullyRegistered =
       !!user && !!user.organization && user.terms === true;
 
@@ -127,10 +135,18 @@ const runGoogleWebLogin = async (
       const existingOrgCode = String(
         user.organization?.organizationCode || "",
       ).toUpperCase();
-      if (existingOrgCode && existingOrgCode !== targetOrgCode) {
+      if (isBiodropsBrand) {
+        if (existingOrgCode && existingOrgCode !== targetOrgCode) {
+          return res.status(403).json({
+            success: false,
+            message: `Access denied. Only ${targetOrgCode} organization users can sign in here.`,
+          });
+        }
+      } else if (existingOrgCode === "BIODROPS") {
         return res.status(403).json({
           success: false,
-          message: `Access denied. Only ${targetOrgCode} organization users can sign in here.`,
+          message:
+            "Access denied. This account belongs to a different organization.",
         });
       }
     }
@@ -148,25 +164,12 @@ const runGoogleWebLogin = async (
     }
 
     const brand = getEmailBrand(preset);
-    // Prepare email details based on user status
-    const emailDetails = wasFullyRegistered
-      ? {
-          to: email,
-          subject: `Signed in to ${brand.name}`,
-          html: htmlWelcomeBack(user.firstName || user.email, preset),
-          text: `You're signed in to ${brand.name}.`,
-          errorMessage: "Welcome back email error:",
-        }
-      : {
-          to: email,
-          subject: `Welcome to ${brand.name}`,
-          html: htmlWelcome(firstName || "Farmer", "", preset),
-          text: `Thank you for registering with ${brand.name}!`,
-          errorMessage: "Welcome email error:",
-        };
+    let orgCode = user?.organization?.organizationCode || targetOrgCode;
 
-    // Create new user if they don't exist
+    // Create new user if they don't exist (signup / Biodrops Google)
     if (!user) {
+      const { org: organization } = await resolveOrganizationByCode(targetOrgCode);
+      orgCode = targetOrgCode;
       user = new User({
         firstName,
         lastName,
@@ -178,17 +181,17 @@ const runGoogleWebLogin = async (
       });
     }
 
-    // Send appropriate email (non-critical)
-    try {
-      await sendBasicEmail({
-        to: emailDetails.to,
-        subject: emailDetails.subject,
-        html: emailDetails.html,
-        text: emailDetails.text,
+    // Do not block login on email. Welcome mail is only for new accounts.
+    if (!wasFullyRegistered) {
+      sendBasicEmail({
+        to: email,
+        subject: `Welcome to ${brand.name}`,
+        html: htmlWelcome(firstName || "Farmer", "", preset),
+        text: `Thank you for registering with ${brand.name}!`,
         preset,
+      }).catch((e) => {
+        console.error("Welcome email error:", e);
       });
-    } catch (e) {
-      console.error(emailDetails.errorMessage, e);
     }
 
     // Generate refreshId and update user
@@ -207,15 +210,19 @@ const runGoogleWebLogin = async (
     const profileComplete =
       !!user.organization && user.terms === true;
     const onboardingRequired = !profileComplete;
-    const profileDetailsRequired =
-      !String(user.phone || "").trim() ||
-      !String(user.country || "").trim() ||
-      !String(user.state || "").trim() ||
-      !String(user.city || "").trim() ||
-      !String(user.village || "").trim() ||
-      !String(user.pincode || "").trim() ||
-      !String(user.firstName || "").trim() ||
-      !String(user.lastName || "").trim();
+    const profileDetailsRequired = isBiodropsBrand
+      ? !String(user.phone || "").trim() ||
+        !String(user.country || "").trim() ||
+        !String(user.state || "").trim() ||
+        !String(user.city || "").trim() ||
+        !String(user.village || "").trim() ||
+        !String(user.pincode || "").trim() ||
+        !String(user.firstName || "").trim() ||
+        !String(user.lastName || "").trim()
+      : !String(user.phone || "").trim() ||
+        !String(user.country || "").trim() ||
+        !String(user.firstName || "").trim() ||
+        !String(user.lastName || "").trim();
     const accessToken = signAccessToken({
       ...tokenPayload,
       onboardingRequired,
@@ -234,22 +241,20 @@ const runGoogleWebLogin = async (
       accessToken,
       refreshToken,
       role: user.role,
-      user: profileComplete
-        ? {
-            id: user._id,
-            email: user.email,
-            role: user.role,
-            organizationCode: orgCode,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            phone: user.phone,
-            country: user.country,
-            state: user.state,
-            city: user.city,
-            village: user.village,
-            pincode: user.pincode,
-          }
-        : { id: user._id, email: user.email },
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        organizationCode: orgCode,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        country: user.country,
+        state: user.state,
+        city: user.city,
+        village: user.village,
+        pincode: user.pincode,
+      },
       onboardingRequired,
       profileDetailsRequired,
     });

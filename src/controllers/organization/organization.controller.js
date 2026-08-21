@@ -1,4 +1,14 @@
 import Organization from "../../models/organization.model.js";
+import { isOrgScopedAdmin, ensureOrganizationClientUser } from "../../utils/auth/orgScope.js";
+
+function denyOrgScopedAdmin(req, res) {
+  if (!isOrgScopedAdmin(req.user)) return false;
+  res.status(403).json({
+    success: false,
+    message: "Access denied.",
+  });
+  return true;
+}
 
 // Create a new organization
 export const createOrganization = async (req, res) => {
@@ -35,6 +45,12 @@ export const createOrganization = async (req, res) => {
       phoneNumber,
     });
 
+    try {
+      await ensureOrganizationClientUser(organization);
+    } catch (clientError) {
+      console.error("Failed to create organization login user:", clientError);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Organization created successfully.",
@@ -53,6 +69,8 @@ export const createOrganization = async (req, res) => {
 // Get all organizations
 export const getAllOrganizations = async (req, res) => {
   try {
+    if (denyOrgScopedAdmin(req, res)) return;
+
     const organizations = await Organization.find().sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -73,6 +91,8 @@ export const getAllOrganizations = async (req, res) => {
 // Get single organization by ID
 export const getOrganizationById = async (req, res) => {
   try {
+    if (denyOrgScopedAdmin(req, res)) return;
+
     const { id } = req.params;
 
     // Validate ID format
@@ -158,6 +178,12 @@ export const updateOrganization = async (req, res) => {
       { new: true, runValidators: true }
     );
 
+    try {
+      await ensureOrganizationClientUser(updatedOrganization);
+    } catch (clientError) {
+      console.error("Failed to sync organization login user:", clientError);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Organization updated successfully.",
@@ -205,6 +231,50 @@ export const deleteOrganization = async (req, res) => {
       success: false,
       message: "Internal server error.",
       error: error.message,
+    });
+  }
+};
+
+/** Public lookup so signup/login can verify an organization code. */
+export const validateOrganizationCode = async (req, res) => {
+  try {
+    const code = String(req.params.code || "")
+      .trim()
+      .toUpperCase();
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: "Organization code is required.",
+      });
+    }
+
+    const organization = await Organization.findOne({
+      organizationCode: code,
+    })
+      .select("organizationCode organizationName")
+      .lean();
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: `Organization '${code}' not found. Leave blank to join CROPGEN.`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Organization found.",
+      data: {
+        organizationCode: organization.organizationCode,
+        organizationName: organization.organizationName,
+      },
+    });
+  } catch (error) {
+    console.error("Validate Organization Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
     });
   }
 };

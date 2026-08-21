@@ -9,6 +9,7 @@ import {
   setClientRefreshId,
 } from "../../utils/auth/authUtils.js";
 import { enrichBiodropsAuthPayload } from "../../clients/biodrops/utils/authPayload.js";
+import { canAccessAdminPanel, normalizeLoginEmail } from "../../utils/auth/orgScope.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
 import {
   getEmailBrand,
@@ -18,7 +19,8 @@ import {
 
 export const verifyOtp = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const email = normalizeLoginEmail(req.body?.email);
+    const { otp } = req.body;
     const clientBrand = String(
       req.headers?.["x-client-brand"] || req.headers?.["X-Client-Brand"] || "",
     ).toLowerCase();
@@ -29,7 +31,13 @@ export const verifyOtp = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Email and OTP are required." });
 
-    const user = await User.findOne({ email }).populate("organization");
+    const user =
+      (await User.findOne({
+        email,
+        deletedAt: null,
+        otp: { $ne: null },
+      }).populate("organization")) ||
+      (await User.findOne({ email, deletedAt: null }).populate("organization"));
     if (!user || !user.otp || !user.otpExpires) {
       return res.status(400).json({
         success: false,
@@ -81,6 +89,18 @@ export const verifyOtp = async (req, res) => {
             "Access denied. Only BIODROPS organization users can sign in here.",
         });
       }
+    }
+
+    const clientApp = resolveClientAppKey(req);
+    if (clientApp === "admin" && !canAccessAdminPanel(user)) {
+      user.otp = null;
+      user.otpExpires = null;
+      user.otpAttemptCount = 0;
+      await user.save();
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. This login is only for admin users.",
+      });
     }
 
     // success → clear OTP meta
