@@ -1,12 +1,9 @@
 import FarmField from "../../../models/field.model.js";
 import FieldCrop from "../../../models/field-crop.model.js";
-import User from "../../../models/user.model.js";
 import UserSubscription from "../../../models/user-subscription.model.js";
 import FarmAdvisory from "../models/farmAdvisory.model.js";
 import "../../../models/user.model.js";
 import cron from "node-cron";
-import { resolveOrganizationByCode } from "../../../utils/auth/authUtils.js";
-import { getCropgenOrganizationUserIds } from "../utils/advisoryOrganization.js";
 
 import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
 import { isMaturityOrHarvestStage } from "../pipeline/advisoryContext.js";
@@ -348,27 +345,23 @@ export const runAdvisoryJob = async () => {
         );
       }
 
-      const cropgenUserIds = await getCropgenOrganizationUserIds(
-        User,
-        resolveOrganizationByCode,
-      );
-      const cropgenUserIdSet = new Set(cropgenUserIds.map((id) => String(id)));
-
       const subscriptions = await UserSubscription.find({
         status: "active",
         $or: [{ endDate: null }, { endDate: { $gte: new Date() } }],
-      }).select("fieldId userId");
+      }).select("fieldId");
 
       const fieldIdSet = new Set(
-        subscriptions
-          .filter((s) => cropgenUserIdSet.has(String(s.userId)))
-          .map((s) => String(s.fieldId)),
+        subscriptions.map((s) => String(s.fieldId)).filter(Boolean),
       );
 
       const fieldIds = [...fieldIdSet];
       if (!fieldIds.length) {
         return;
       }
+
+      console.log(
+        `[Advisory] cron processing ${fieldIds.length} subscribed farm(s) across all organizations`,
+      );
 
       const farms = await FarmField.find({
         _id: { $in: fieldIds },

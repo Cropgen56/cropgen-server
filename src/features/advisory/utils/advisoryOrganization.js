@@ -8,8 +8,9 @@ export function isCropgenOrganizationCode(code) {
 }
 
 /**
- * User IDs eligible for scheduled advisories and email/WhatsApp delivery.
+ * User IDs eligible for CROPGEN email/WhatsApp advisory delivery.
  * Includes users with no organization (legacy defaults to CROPGEN).
+ * Scheduled advisory generation itself runs for every org's subscribed farms.
  */
 export async function getCropgenOrganizationUserIds(User, resolveOrganizationByCode) {
   const { org } = await resolveOrganizationByCode(ADVISORY_NOTIFICATION_ORG_CODE);
