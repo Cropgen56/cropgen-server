@@ -1,5 +1,6 @@
 import SubscriptionPlan from "../../models/subscription-plan.model.js";
 import { idSchema } from "../../validation/subscription/schema.js";
+import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
 
 export const getSubscriptionPlanById = async (req, res) => {
   try {
@@ -12,6 +13,12 @@ export const getSubscriptionPlanById = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Plan not found" });
+
+    if (plan.brand !== resolveSubscriptionPlanBrand(req)) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Plan not found" });
+    }
 
     res.json({ success: true, data: plan });
   } catch (e) {

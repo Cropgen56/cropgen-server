@@ -40,10 +40,17 @@ const SubscriptionPlanSchema = new Schema(
 
     brand: {
       type: String,
-      enum: ["cropgen", "biodrops"],
+      enum: ["cropgen", "biodrops", "aat"],
       default: "cropgen",
       required: true,
       index: true,
+    },
+
+    /** AAT SaaS hectare cap. Null/0 = unlimited (Enterprise). Ignored for other brands. */
+    maxHectares: {
+      type: Number,
+      min: 0,
+      default: null,
     },
 
     platform: {

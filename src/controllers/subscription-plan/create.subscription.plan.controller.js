@@ -1,5 +1,6 @@
 import SubscriptionPlan from "../../models/subscription-plan.model.js";
 import { subscriptionPlanSchema } from "../../validation/subscription/schema.js";
+import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
 
 export const createSubscriptionPlan = async (req, res) => {
   try {
@@ -20,6 +21,8 @@ export const createSubscriptionPlan = async (req, res) => {
         message: `Slug "${req.body.slug}" is already in use`,
       });
     }
+
+    req.body.brand = resolveSubscriptionPlanBrand(req);
 
     const plan = await SubscriptionPlan.create(req.body);
     res.status(201).json({ success: true, data: plan });

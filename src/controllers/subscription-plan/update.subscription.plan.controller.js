@@ -3,6 +3,7 @@ import {
   subscriptionPlanSchema,
   idSchema,
 } from "../../validation/subscription/schema.js";
+import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
 
 export const updateSubscriptionPlan = async (req, res) => {
   try {
@@ -39,6 +40,15 @@ export const updateSubscriptionPlan = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Plan not found" });
+
+    const brand = resolveSubscriptionPlanBrand(req);
+    if (current.brand !== brand) {
+      return res.status(403).json({
+        success: false,
+        message: "This plan belongs to another brand and cannot be edited here.",
+      });
+    }
+    req.body.brand = brand;
 
     const updated = await SubscriptionPlan.findByIdAndUpdate(
       req.params.id,

@@ -12,7 +12,7 @@ import {
   cancelSubscriptionAdmin,
 } from "../controllers/subscription/index.js";
 
-import { isAuthenticated, authorizeRoles } from "../middleware/auth.middleware.js";
+import { isAuthenticated, authorizeAdminOrOrgScoped } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -22,6 +22,7 @@ router.post("/verify-order", isAuthenticated, verifySubscriptionOrder);
 router.post(
   "/active-subscription",
   isAuthenticated,
+  authorizeAdminOrOrgScoped,
   activateSubscriptionManually,
 );
 router.post(
@@ -31,21 +32,21 @@ router.post(
 );
 
 // crud apis
-router.get("/", getUserSubscriptions);
+router.get("/", isAuthenticated, authorizeAdminOrOrgScoped, getUserSubscriptions);
 router.get(
   "/admin/:id/detail",
   isAuthenticated,
-  authorizeRoles("admin"),
+  authorizeAdminOrOrgScoped,
   getSubscriptionAdminDetail,
 );
 router.post(
   "/admin/:id/cancel",
   isAuthenticated,
-  authorizeRoles("admin"),
+  authorizeAdminOrOrgScoped,
   cancelSubscriptionAdmin,
 );
-router.get("/:id", getUserSubscriptionById);
-router.patch("/:id", updateUserSubscription);
-router.delete("/:id", deleteUserSubscription);
+router.get("/:id", isAuthenticated, authorizeAdminOrOrgScoped, getUserSubscriptionById);
+router.patch("/:id", isAuthenticated, authorizeAdminOrOrgScoped, updateUserSubscription);
+router.delete("/:id", isAuthenticated, authorizeAdminOrOrgScoped, deleteUserSubscription);
 
 export default router;

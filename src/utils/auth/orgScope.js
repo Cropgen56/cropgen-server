@@ -61,6 +61,32 @@ export function sameOrg(viewer, targetOrgId) {
   return String(scopeId) === String(targetOrgId);
 }
 
+/**
+ * Global CropGen admin/developer: any user.
+ * AAT/client org-scoped admin: only farmers in the same organization.
+ */
+export async function assertCanManageTargetUser(viewer, userId) {
+  if (!canAccessAdminPanel(viewer)) {
+    return { ok: false, status: 403, message: "Access denied." };
+  }
+  if (!isOrgScopedAdmin(viewer)) return { ok: true };
+  if (!userId) {
+    return { ok: false, status: 400, message: "User is required." };
+  }
+  const target = await User.findById(userId).select("organization").lean();
+  if (!target) {
+    return { ok: false, status: 404, message: "User not found." };
+  }
+  if (!sameOrg(viewer, target.organization)) {
+    return {
+      ok: false,
+      status: 403,
+      message: "You can only manage users in your organization.",
+    };
+  }
+  return { ok: true };
+}
+
 export function normalizeLoginEmail(email) {
   return String(email || "").trim().toLowerCase();
 }

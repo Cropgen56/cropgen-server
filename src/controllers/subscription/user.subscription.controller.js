@@ -1,5 +1,9 @@
 import UserSubscription from "../../models/user-subscription.model.js";
 import mongoose from "mongoose";
+import {
+  getOrgScopeId,
+  assertCanManageTargetUser,
+} from "../../utils/auth/orgScope.js";
 
 /* ================= GET ALL (PAGINATED) ================= */
 export const getUserSubscriptions = async (req, res) => {
@@ -18,6 +22,8 @@ export const getUserSubscriptions = async (req, res) => {
     if (platform) {
       matchStage.platform = platform;
     }
+
+    const orgId = getOrgScopeId(req.user);
 
     /* ================= SEARCH FILTER ================= */
 
@@ -49,6 +55,16 @@ export const getUserSubscriptions = async (req, res) => {
         },
       },
       { $unwind: "$user" },
+
+      ...(orgId
+        ? [
+            {
+              $match: {
+                "user.organization": new mongoose.Types.ObjectId(String(orgId)),
+              },
+            },
+          ]
+        : []),
 
       {
         $lookup: {
@@ -114,7 +130,7 @@ export const getUserSubscriptionById = async (req, res) => {
   }
 
   const subscription = await UserSubscription.findById(id)
-    .populate("userId", "firstName lastName email phone")
+    .populate("userId", "firstName lastName email phone organization")
     .populate(
       "fieldId",
       "fieldName acre cropName variety sowingDate typeOfFarming typeOfIrrigation",
@@ -130,6 +146,17 @@ export const getUserSubscriptionById = async (req, res) => {
     return res.status(404).json({
       success: false,
       message: "Subscription not found",
+    });
+  }
+
+  const access = await assertCanManageTargetUser(
+    req.user,
+    subscription.userId?._id || subscription.userId,
+  );
+  if (!access.ok) {
+    return res.status(access.status).json({
+      success: false,
+      message: access.message,
     });
   }
 
@@ -157,17 +184,26 @@ export const updateUserSubscription = async (req, res) => {
       updateData.area * updateData.pricePerUnitMinor;
   }
 
-  const updated = await UserSubscription.findByIdAndUpdate(id, updateData, {
-    new: true,
-    runValidators: true,
-  });
-
-  if (!updated) {
+  const existing = await UserSubscription.findById(id).select("userId");
+  if (!existing) {
     return res.status(404).json({
       success: false,
       message: "Subscription not found",
     });
   }
+
+  const access = await assertCanManageTargetUser(req.user, existing.userId);
+  if (!access.ok) {
+    return res.status(access.status).json({
+      success: false,
+      message: access.message,
+    });
+  }
+
+  const updated = await UserSubscription.findByIdAndUpdate(id, updateData, {
+    new: true,
+    runValidators: true,
+  });
 
   res.json({
     success: true,
@@ -179,14 +215,23 @@ export const updateUserSubscription = async (req, res) => {
 export const deleteUserSubscription = async (req, res) => {
   const { id } = req.params;
 
-  const deleted = await UserSubscription.findByIdAndDelete(id);
-
-  if (!deleted) {
+  const existing = await UserSubscription.findById(id).select("userId");
+  if (!existing) {
     return res.status(404).json({
       success: false,
       message: "Subscription not found",
     });
   }
+
+  const access = await assertCanManageTargetUser(req.user, existing.userId);
+  if (!access.ok) {
+    return res.status(access.status).json({
+      success: false,
+      message: access.message,
+    });
+  }
+
+  await UserSubscription.findByIdAndDelete(id);
 
   res.json({
     success: true,

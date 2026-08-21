@@ -5,6 +5,7 @@ import {
   getRazorpay,
   cancelRazorpaySubscriptionBestEffort,
 } from "../../services/razorpay.subscription.service.js";
+import { assertCanManageTargetUser } from "../../utils/auth/orgScope.js";
 
 const razorpay = getRazorpay();
 
@@ -56,7 +57,7 @@ export const getSubscriptionAdminDetail = async (req, res) => {
     }
 
     const subscription = await UserSubscription.findById(id)
-      .populate("userId", "firstName lastName email phone")
+      .populate("userId", "firstName lastName email phone organization")
       .populate(
         "fieldId",
         "fieldName acre cropName variety sowingDate typeOfFarming typeOfIrrigation",
@@ -72,6 +73,17 @@ export const getSubscriptionAdminDetail = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Subscription not found",
+      });
+    }
+
+    const access = await assertCanManageTargetUser(
+      req.user,
+      subscription.userId?._id || subscription.userId,
+    );
+    if (!access.ok) {
+      return res.status(access.status).json({
+        success: false,
+        message: access.message,
       });
     }
 
@@ -134,6 +146,14 @@ export const cancelSubscriptionAdmin = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Subscription not found",
+      });
+    }
+
+    const access = await assertCanManageTargetUser(req.user, subscription.userId);
+    if (!access.ok) {
+      return res.status(access.status).json({
+        success: false,
+        message: access.message,
       });
     }
 

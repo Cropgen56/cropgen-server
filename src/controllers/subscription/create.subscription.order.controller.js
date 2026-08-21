@@ -20,6 +20,7 @@ import {
   resolveDisplayPricing,
 } from "../../utils/subscription/pricing.js";
 import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
+import { assertAatFieldWithinPlan, aatChargeArea } from "../../utils/subscription/aatPlan.js";
 import { createBiodropsCardHybridOrder } from "../../clients/biodrops/controllers/subscriptions/card-hybrid-order.controller.js";
 
 const razorpay = getRazorpay();
@@ -199,7 +200,14 @@ export const createSubscriptionOrder = async (req, res) => {
       }
     }
 
+    const aatLimitMessage = assertAatFieldWithinPlan(plan, fieldArea);
+    if (aatLimitMessage) {
+      return res.status(400).json({ message: aatLimitMessage });
+    }
+
     const area = planBrand === "biodrops" ? razorpayBillableArea : fieldArea;
+    const chargeArea = aatChargeArea(planBrand, area);
+    const coverageArea = planBrand === "aat" ? fieldArea : area;
 
     /* ================= TRIAL + POST-TRIAL (web + mobile: one Razorpay subscription, charge at trial end via start_at) ================= */
     const webPaidAsTrial =
@@ -242,17 +250,17 @@ export const createSubscriptionOrder = async (req, res) => {
 
       const trialDisplayCurrency = bodyDisplayCurrency || "USD";
 
-      const charge = resolveRazorpayChargeMinor(plan, area, commitBillingCycle);
+      const charge = resolveRazorpayChargeMinor(plan, chargeArea, commitBillingCycle);
       let display = resolveDisplayPricing(
         plan,
-        area,
+        chargeArea,
         commitBillingCycle,
         trialDisplayCurrency,
       );
       if (!display) {
         display = resolveDisplayPricing(
           plan,
-          area,
+          chargeArea,
           commitBillingCycle,
           "INR",
         );
@@ -269,7 +277,7 @@ export const createSubscriptionOrder = async (req, res) => {
               fieldId: farmId,
               planId,
               platform: plan.platform,
-              area,
+              area: coverageArea,
               unit: "acre",
               billingCycle: "trial",
               displayCurrency: null,
@@ -318,7 +326,7 @@ export const createSubscriptionOrder = async (req, res) => {
             fieldId: farmId,
             planId,
             platform: plan.platform,
-            area,
+            area: coverageArea,
             unit: "acre",
             billingCycle: "trial",
             commitBillingCycle,
@@ -346,7 +354,7 @@ export const createSubscriptionOrder = async (req, res) => {
             userId,
             userSubscriptionId: subscription._id,
             plan,
-            area,
+            area: chargeArea,
             commitBillingCycle,
             trialEndDate: endDate,
           });
@@ -398,13 +406,13 @@ export const createSubscriptionOrder = async (req, res) => {
       return res.status(400).json({ message: "Pricing not found" });
     }
 
-    const displayAmountMinor = Math.round(area * pricing.pricePerUnitMinor);
+    const displayAmountMinor = Math.round(chargeArea * pricing.pricePerUnitMinor);
     let exchangeRate = null;
     if (displayCurrency === "USD") {
       exchangeRate = Number(process.env.RAZORPAY_USD_INR_RATE || "91.46");
     }
 
-    const chargeResolved = resolveRazorpayChargeMinor(plan, area, billingCycle);
+    const chargeResolved = resolveRazorpayChargeMinor(plan, chargeArea, billingCycle);
     if (!chargeResolved) {
       return res.status(400).json({
         message: "Could not resolve INR charge for this plan and billing cycle",
@@ -426,7 +434,7 @@ export const createSubscriptionOrder = async (req, res) => {
       fieldId: farmId,
       planId,
       platform: plan.platform,
-      area,
+      area: coverageArea,
       unit: "acre",
       billingCycle,
       displayCurrency,
@@ -460,7 +468,7 @@ export const createSubscriptionOrder = async (req, res) => {
       interval: 1,
       itemName: `CropGen ${plan.slug} ${String(subscription._id).slice(-8)}`,
       amountMinor: chargedAmountMinor,
-      description: `${area} acres ${billingCycle}`,
+      description: `${chargeArea} ${planBrand === "aat" ? "package" : "acres"} ${billingCycle}`,
     });
 
     const rzSub = await createRazorpaySubscription(razorpay, {

@@ -348,11 +348,19 @@ export const runAdvisoryJob = async () => {
       const subscriptions = await UserSubscription.find({
         status: "active",
         $or: [{ endDate: null }, { endDate: { $gte: new Date() } }],
-      }).select("fieldId");
+      })
+        .select("fieldId planId")
+        .populate("planId", "brand features");
 
-      const fieldIdSet = new Set(
-        subscriptions.map((s) => String(s.fieldId)).filter(Boolean),
-      );
+      const fieldIdSet = new Set();
+      for (const s of subscriptions) {
+        if (!s.fieldId) continue;
+        const plan = s.planId;
+        if (plan?.brand === "aat" && !plan.features?.smartAdvisorySystem) {
+          continue;
+        }
+        fieldIdSet.add(String(s.fieldId));
+      }
 
       const fieldIds = [...fieldIdSet];
       if (!fieldIds.length) {
@@ -360,7 +368,7 @@ export const runAdvisoryJob = async () => {
       }
 
       console.log(
-        `[Advisory] cron processing ${fieldIds.length} subscribed farm(s) across all organizations`,
+        `[Advisory] cron processing ${fieldIds.length} subscribed farm(s) (all orgs; AAT Starter excluded)`,
       );
 
       const farms = await FarmField.find({

@@ -8,7 +8,8 @@ import {
 } from "../controllers/subscription-plan/index.js";
 import {
   isAuthenticated,
-  authorizeRoles,
+  optionalAuthenticate,
+  authorizeAdminOrOrgScoped,
 } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -16,22 +17,22 @@ const router = express.Router();
 router.post(
   "/",
   isAuthenticated,
-  authorizeRoles("admin"),
+  authorizeAdminOrOrgScoped,
   createSubscriptionPlan,
 );
-router.get("/", getAllSubscriptionPlans);
+router.get("/", optionalAuthenticate, getAllSubscriptionPlans);
 router.get("/:id", isAuthenticated, getSubscriptionPlanById);
 router.patch(
   "/:id",
   isAuthenticated,
-  authorizeRoles("admin"),
+  authorizeAdminOrOrgScoped,
   updateSubscriptionPlan,
 );
 
 router.delete(
   "/:id",
   isAuthenticated,
-  authorizeRoles("admin"),
+  authorizeAdminOrOrgScoped,
   deleteSubscriptionPlan,
 );
 

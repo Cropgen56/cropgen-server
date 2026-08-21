@@ -5,6 +5,7 @@ import {
   findActiveAuthUser,
   userDeletedPayload,
 } from "../utils/auth/authUtils.js";
+import { canAccessAdminPanel } from "../utils/auth/orgScope.js";
 
 const JWT_SECRET = process.env.JWT_ACCESS_SECRET;
 
@@ -37,6 +38,26 @@ const isAuthenticated = async (req, res, next) => {
   }
 };
 
+/** Attach req.user when a valid token is present; otherwise continue anonymously. */
+const optionalAuthenticate = async (req, res, next) => {
+  const token = req.header("Authorization")?.split(" ")[1];
+  if (!token) return next();
+  try {
+    const user = jwt.verify(token, JWT_SECRET);
+    const active = await findActiveAuthUser(user.id || user._id);
+    if (!active) return next();
+    req.user = {
+      ...user,
+      id: user.id || user._id,
+      role: active.role || user.role,
+      organization: active.organization || user.organization,
+    };
+  } catch {
+    /* ignore invalid token on public catalog */
+  }
+  next();
+};
+
 // Role-based authorization middleware
 const authorizeRoles = (...roles) => {
   return (req, res, next) => {
@@ -47,6 +68,16 @@ const authorizeRoles = (...roles) => {
     }
     next();
   };
+};
+
+/** CropGen admin/developer, org clients, and AAT staff. */
+const authorizeAdminOrOrgScoped = (req, res, next) => {
+  if (!canAccessAdminPanel(req.user)) {
+    return res.status(403).json({
+      message: "Access denied. You do not have permission to manage subscriptions.",
+    });
+  }
+  next();
 };
 
 // protect the api with the api key
@@ -89,4 +120,11 @@ const requireAuth = async (req, res, next) => {
     return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
-export { isAuthenticated, authorizeRoles, checkApiKey, requireAuth };
+export {
+  isAuthenticated,
+  optionalAuthenticate,
+  authorizeRoles,
+  authorizeAdminOrOrgScoped,
+  checkApiKey,
+  requireAuth,
+};

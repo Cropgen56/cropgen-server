@@ -243,9 +243,20 @@ export function isBiodropsClientBrand(req) {
   return clientBrand === "biodrops";
 }
 
-/** Subscription plan catalog brand (biodrops vs cropgen). */
+/** Subscription plan catalog brand (biodrops vs cropgen vs aat). */
 export function resolveSubscriptionPlanBrand(req) {
-  return isBiodropsClientBrand(req) ? "biodrops" : "cropgen";
+  if (isBiodropsClientBrand(req)) return "biodrops";
+  const headerBrand = String(
+    req?.headers?.["x-client-brand"] || req?.headers?.["X-Client-Brand"] || "",
+  ).toLowerCase();
+  if (headerBrand === "aat") return "aat";
+  const orgCode = String(
+    req?.user?.organization?.organizationCode || req?.user?.organizationCode || "",
+  )
+    .trim()
+    .toUpperCase();
+  if (orgCode === "AAT") return "aat";
+  return "cropgen";
 }
 
 export const USER_DELETED_CODE = "USER_DELETED";
