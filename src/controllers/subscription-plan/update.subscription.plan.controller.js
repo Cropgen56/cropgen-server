@@ -4,6 +4,9 @@ import {
   idSchema,
 } from "../../validation/subscription/schema.js";
 import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
+import { isOrgScopedAdmin } from "../../utils/auth/orgScope.js";
+
+const VALID_BRANDS = ["cropgen", "biodrops", "aat"];
 
 export const updateSubscriptionPlan = async (req, res) => {
   try {
@@ -41,14 +44,25 @@ export const updateSubscriptionPlan = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Plan not found" });
 
-    const brand = resolveSubscriptionPlanBrand(req);
-    if (current.brand !== brand) {
-      return res.status(403).json({
-        success: false,
-        message: "This plan belongs to another brand and cannot be edited here.",
-      });
+    // Org-scoped admins (AAT staff/client) may only edit their own brand's
+    // plans. A global CropGen admin/developer has no organization of their
+    // own, so they may edit any plan and — if editing this one — optionally
+    // rebrand it explicitly instead of being forced to "cropgen".
+    if (isOrgScopedAdmin(req.user)) {
+      const ownBrand = resolveSubscriptionPlanBrand(req);
+      if (current.brand !== ownBrand) {
+        return res.status(403).json({
+          success: false,
+          message: "This plan belongs to another brand and cannot be edited here.",
+        });
+      }
+      req.body.brand = ownBrand;
+    } else {
+      const requestedBrand = String(req.body.brand || "").toLowerCase();
+      req.body.brand = VALID_BRANDS.includes(requestedBrand)
+        ? requestedBrand
+        : current.brand;
     }
-    req.body.brand = brand;
 
     const updated = await SubscriptionPlan.findByIdAndUpdate(
       req.params.id,

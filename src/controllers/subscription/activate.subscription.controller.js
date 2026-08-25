@@ -2,12 +2,9 @@ import UserSubscription from "../../models/user-subscription.model.js";
 import SubscriptionPlan from "../../models/subscription-plan.model.js";
 import FarmField from "../../models/field.model.js";
 import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
-import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
+import { resolveSubscriptionPlanBrandForTarget } from "../../utils/auth/authUtils.js";
 import { assertAatFieldWithinPlan } from "../../utils/subscription/aatPlan.js";
-import {
-  assertCanManageTargetUser,
-  isOrgScopedAdmin,
-} from "../../utils/auth/orgScope.js";
+import { assertCanManageTargetUser } from "../../utils/auth/orgScope.js";
 
 export const activateSubscriptionManually = async (req, res) => {
   try {
@@ -30,10 +27,14 @@ export const activateSubscriptionManually = async (req, res) => {
       return res.status(404).json({ message: "Plan not found" });
     }
 
-    const planBrand = resolveSubscriptionPlanBrand(req);
-    if (isOrgScopedAdmin(req.user) && plan.brand !== planBrand) {
+    // Resolve brand from the *target farmer's* organization, not the admin's —
+    // otherwise a global CropGen admin (no org of their own) always resolves to
+    // "cropgen" and could silently activate a wrong-brand plan on an AAT farm,
+    // since a global admin has no organization of their own to compare against.
+    const planBrand = await resolveSubscriptionPlanBrandForTarget(req, userId);
+    if (plan.brand !== planBrand) {
       return res.status(403).json({
-        message: "This plan is not available for your organization.",
+        message: "This plan is not available for this farmer's organization.",
       });
     }
 

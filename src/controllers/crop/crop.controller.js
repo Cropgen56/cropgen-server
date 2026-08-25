@@ -2,6 +2,11 @@ import Crop from "../../models/crop.model.js";
 import { deleteFileFromS3 } from "../../utils/storage/s3.js";
 import { cropValidationSchema } from "../../validation/crop/schema.js";
 
+/** Escape regex metacharacters so free-text search can't break (or abuse) $regex. */
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // create the crop information
 export const createCrop = async (req, res) => {
   try {
@@ -395,9 +400,10 @@ export const getAllCrops = async (req, res) => {
     const skip = (page - 1) * limit;
     const sort = req.query.sort || "-createdAt";
 
-    // Search query
+    // Search query — escape regex metacharacters so e.g. "corn (sweet)" or a
+    // bare "(" doesn't throw an invalid-regex error instead of just matching.
     const search = req.query.search
-      ? { cropName: { $regex: req.query.search, $options: "i" } }
+      ? { cropName: { $regex: escapeRegex(req.query.search), $options: "i" } }
       : {};
 
     // Fetch crops with pagination, sorting, and search

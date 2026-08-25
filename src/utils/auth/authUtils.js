@@ -3,6 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import Organization from "../../models/organization.model.js";
 import User from "../../models/user.model.js";
+import { isOrgScopedAdmin, canAccessAdminPanel } from "./orgScope.js";
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET + "_r";
@@ -257,6 +258,42 @@ export function resolveSubscriptionPlanBrand(req) {
     .toUpperCase();
   if (orgCode === "AAT") return "aat";
   return "cropgen";
+}
+
+/**
+ * Subscription plan catalog brand for an admin action taken on behalf of
+ * another user (browse plans, create/activate a subscription for a farm).
+ *
+ * Org-scoped admins (AAT staff/client) can only ever manage users in their
+ * own organization, so their own brand and the target's brand are always
+ * the same — just resolve normally. A global CropGen admin/developer has no
+ * organization of their own, so `resolveSubscriptionPlanBrand(req)` always
+ * fell back to "cropgen" for them regardless of who they were acting on —
+ * this resolves the *target* user's organization instead, so a global admin
+ * correctly sees/activates AAT (or biodrops) plans for an AAT/biodrops user.
+ */
+export async function resolveSubscriptionPlanBrandForTarget(req, targetUserId) {
+  if (isOrgScopedAdmin(req.user)) return resolveSubscriptionPlanBrand(req);
+  // Only an authenticated admin-panel user may look up another user's brand —
+  // this also runs on the public plan catalog (optionalAuthenticate), so an
+  // anonymous or farmer request must never resolve a target on someone else's behalf.
+  if (!targetUserId || !canAccessAdminPanel(req.user)) {
+    return resolveSubscriptionPlanBrand(req);
+  }
+
+  const target = await User.findById(targetUserId)
+    .select("organization organizationCode")
+    .populate({ path: "organization", select: "organizationCode" })
+    .lean();
+  if (!target) return resolveSubscriptionPlanBrand(req);
+
+  const orgCode = String(
+    target?.organization?.organizationCode || target?.organizationCode || "",
+  )
+    .trim()
+    .toUpperCase();
+  if (orgCode === "AAT") return "aat";
+  return resolveSubscriptionPlanBrand(req);
 }
 
 export const USER_DELETED_CODE = "USER_DELETED";
