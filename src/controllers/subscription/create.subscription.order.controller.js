@@ -219,7 +219,7 @@ export const createSubscriptionOrder = async (req, res) => {
       ["monthly", "yearly", "season"].includes(billingCycle);
 
     const mobilePaidAsTrial =
-      plan.platform === "mobile" &&
+      (plan.platform === "mobile" || plan.platform === "all") &&
       plan.isTrialEnabled &&
       ["monthly", "yearly", "season"].includes(billingCycle);
 

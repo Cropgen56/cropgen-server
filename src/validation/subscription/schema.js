@@ -14,7 +14,7 @@ export const subscriptionPlanSchema = Joi.object({
   slug: Joi.string().min(1).max(100).required(),
   description: Joi.string().max(500).allow("").optional(),
 
-  platform: Joi.string().valid("mobile", "web").required(),
+  platform: Joi.string().valid("mobile", "web", "all").required(),
 
   brand: Joi.string().valid("cropgen", "biodrops", "aat").default("cropgen"),
 

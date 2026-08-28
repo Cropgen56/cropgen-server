@@ -1,70 +1,34 @@
 import mongoose from "mongoose";
-import FarmField from "../../../../models/field.model.js";
 import SubscriptionPlan from "../../../../models/subscription-plan.model.js";
 import UserSubscription from "../../../../models/user-subscription.model.js";
-import {
-  allocateAcresFromCardEntitlement,
-  getPoolSummary,
-} from "../../services/acreEntitlement.service.js";
-import {
-  ensureCardEntitlementForFarmer,
-  resolveHybridCardCheckout,
-} from "../../services/cardCheckout.service.js";
+import BiodropsAcreEntitlement from "../../models/biodrops-acre-entitlement.model.js";
+import { getPoolSummary } from "../../services/acreEntitlement.service.js";
+import { resolveCardForPackageRedemption } from "../../services/cardCheckout.service.js";
 import { logCardEvent } from "../../services/cardEvent.service.js";
 
-async function resolveBiodropsMobilePlan() {
+/** A card entitles the farmer to the BioDrops plan whose acre package matches the card exactly. */
+async function resolveMatchingPackagePlan(acreLimit) {
   return SubscriptionPlan.findOne({
     brand: "biodrops",
-    platform: "mobile",
     active: true,
     isInternal: false,
+    maxAcres: acreLimit,
   })
     .sort({ createdAt: 1 })
     .lean();
 }
 
-async function activateFieldFromCard({
-  userId,
-  field,
-  plan,
-  cardAcres,
-  paidAcres,
-  validUntil,
-  sourceCardId,
-  entitlementId,
-  activationSource,
-}) {
-  const area = Number(field.acre) || 1;
-
-  await UserSubscription.updateMany(
-    { userId, fieldId: field._id, status: "active" },
-    { $set: { status: "expired" } },
-  );
-
-  const startDate = new Date();
-
-  await UserSubscription.create({
-    userId,
-    fieldId: field._id,
-    planId: plan._id,
-    platform: plan.platform,
-    area,
-    unit: "acre",
-    billingCycle: "yearly",
-    displayCurrency: "INR",
-    pricePerUnitMinor: 0,
-    totalAmountMinor: 0,
-    chargedCurrency: null,
-    status: "active",
-    startDate,
-    endDate: validUntil,
-    activationSource,
-    cardAcres,
-    paidAcres,
-    entitlementId,
-    sourceCardId,
-    billingMode: "legacy_order",
-  });
+/**
+ * Cards generated after the CRM's plan-picker dropdown carry an explicit
+ * planId — the reliable path. Cards generated before that (or a plan that
+ * was deleted since) fall back to matching by acre cap, same as before.
+ */
+async function resolveCardPlan(card) {
+  if (card.planId) {
+    const plan = await SubscriptionPlan.findById(card.planId).lean();
+    if (plan) return plan;
+  }
+  return resolveMatchingPackagePlan(card.acreLimit);
 }
 
 export async function redeemAccessCard(req, res) {
@@ -95,60 +59,69 @@ export async function redeemAccessCard(req, res) {
       });
     }
 
-    const { field, card, existingEntitlement, split } =
-      await resolveHybridCardCheckout({ userId, code, fieldId });
+    const { field, card } = await resolveCardForPackageRedemption({
+      userId,
+      code,
+      fieldId,
+    });
 
-    const plan = await resolveBiodropsMobilePlan();
+    const plan = await resolveCardPlan(card);
     if (!plan) {
       return res.status(503).json({
         success: false,
-        message: "No active BioDrops subscription plan configured",
+        message: `No active BioDrops plan is configured for a ${card.acreLimit}-acre package. Ask an admin to create one.`,
       });
     }
 
-    if (split.remainderAcres > 0) {
-      return res.status(200).json({
-        success: true,
-        fieldUnlocked: false,
-        needsRazorpayPayment: true,
-        cardAcresAvailable: split.cardAcres,
-        remainderAcresToPay: split.remainderAcres,
-        fieldAcres: split.fieldAcres,
-        message: `Your card covers ${split.cardAcres.toFixed(2)} of ${split.fieldAcres.toFixed(2)} acres. Pay for the remaining ${split.remainderAcres.toFixed(2)} acres to unlock this field.`,
-      });
-    }
+    const validUntil = new Date();
+    validUntil.setMonth(validUntil.getMonth() + card.durationMonths);
 
-    let entitlement = existingEntitlement;
-    let validUntil;
-
-    if (card.status === "unused") {
-      const ensured = await ensureCardEntitlementForFarmer({
-        userId,
-        card,
-        fieldId: field._id,
-      });
-      entitlement = ensured.entitlement;
-      validUntil = ensured.validUntil;
-    } else {
-      validUntil = entitlement.validUntil;
-    }
-
-    const alloc = await allocateAcresFromCardEntitlement(
+    // The card's whole allotment is consumed activating its one matching
+    // package — record it as fully used immediately (no partial/remaining
+    // balance, unlike the old per-acre pool model).
+    const entitlement = await BiodropsAcreEntitlement.create({
       userId,
-      card._id,
-      split.fieldAcres,
+      sourceCardId: card._id,
+      totalAcres: card.acreLimit,
+      usedAcres: card.acreLimit,
+      validUntil,
+      status: "exhausted",
+    });
+
+    card.status = "redeemed";
+    card.redeemedBy = userId;
+    card.redeemedAt = new Date();
+    await card.save();
+
+    await UserSubscription.updateMany(
+      { userId, fieldId: field._id, status: "active" },
+      { $set: { status: "expired" } },
     );
 
-    await activateFieldFromCard({
+    const startDate = new Date();
+    const fieldAcres = Number(field.acre) || 1;
+
+    const subscription = await UserSubscription.create({
       userId,
-      field,
-      plan,
-      cardAcres: alloc.allocatedAcres,
-      paidAcres: 0,
-      validUntil,
-      sourceCardId: card._id,
-      entitlementId: entitlement._id,
+      fieldId: field._id,
+      planId: plan._id,
+      platform: plan.platform,
+      area: fieldAcres,
+      unit: "acre",
+      billingCycle: "yearly",
+      displayCurrency: "INR",
+      pricePerUnitMinor: 0,
+      totalAmountMinor: 0,
+      chargedCurrency: null,
+      status: "active",
+      startDate,
+      endDate: validUntil,
       activationSource: "product_card",
+      cardAcres: card.acreLimit,
+      paidAcres: 0,
+      entitlementId: entitlement._id,
+      sourceCardId: card._id,
+      billingMode: "legacy_order",
     });
 
     await logCardEvent({
@@ -157,17 +130,27 @@ export async function redeemAccessCard(req, res) {
       eventType: "subscription_activated",
       actorType: "farmer",
       actorId: userId,
-      metadata: { fieldId: field._id, cardAcresApplied: alloc.allocatedAcres },
+      metadata: {
+        fieldId: field._id,
+        planId: plan._id,
+        packageAcres: card.acreLimit,
+      },
     });
+
+    const overCap = fieldAcres > card.acreLimit + 0.05;
 
     return res.status(200).json({
       success: true,
       fieldUnlocked: true,
-      cardAcresApplied: alloc.allocatedAcres,
-      fieldAcres: split.fieldAcres,
-      remainingAcresToPay: 0,
+      planId: plan._id,
+      planName: plan.name,
+      packageAcres: card.acreLimit,
+      fieldAcres,
       entitlementValidUntil: validUntil,
-      message: "Field unlocked with your product card",
+      subscriptionId: subscription._id,
+      message: overCap
+        ? `Field unlocked with the ${plan.name} package. Note: this field is ${fieldAcres.toFixed(2)} acres, larger than the card's ${card.acreLimit}-acre cap.`
+        : `Field unlocked with the ${plan.name} package.`,
     });
   } catch (error) {
     const statusCode = error.status || 500;

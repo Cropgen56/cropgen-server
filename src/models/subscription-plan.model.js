@@ -60,9 +60,10 @@ const SubscriptionPlanSchema = new Schema(
       default: null,
     },
 
+    /** "all" = platform-agnostic plan, shown on both mobile and web (BioDrops only uses this). */
     platform: {
       type: String,
-      enum: ["mobile", "web"],
+      enum: ["mobile", "web", "all"],
       required: true,
       index: true,
     },

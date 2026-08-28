@@ -8,7 +8,8 @@ export const getAllSubscriptionPlans = async (req, res) => {
       brand: await resolveSubscriptionPlanBrandForTarget(req, forUserId),
     };
     if (platform === "mobile" || platform === "web") {
-      filter.platform = platform;
+      // "all" = platform-agnostic plan (BioDrops) — surface it for either request.
+      filter.platform = { $in: [platform, "all"] };
     }
 
     const plans = await SubscriptionPlan.find(filter)

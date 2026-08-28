@@ -27,7 +27,7 @@ const UserSubscriptionSchema = new Schema(
 
     platform: {
       type: String,
-      enum: ["mobile", "web"],
+      enum: ["mobile", "web", "all"],
       required: true,
     },
 
