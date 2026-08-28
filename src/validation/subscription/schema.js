@@ -20,6 +20,8 @@ export const subscriptionPlanSchema = Joi.object({
 
   maxHectares: Joi.number().min(0).allow(null).optional(),
 
+  maxAcres: Joi.number().min(0).allow(null).optional(),
+
   // ✅ Added isInternal
   isInternal: Joi.boolean().default(false),
 
@@ -57,6 +59,8 @@ export const subscriptionPlanSchema = Joi.object({
     diseaseDetectionAlerts: Joi.boolean().default(false),
     smartAdvisorySystem: Joi.boolean().default(false),
     soilReportGeneration: Joi.boolean().default(false),
+    cropCalendar: Joi.boolean().default(false),
+    zoningAnalysis: Joi.boolean().default(false),
   }).required(),
 
   active: Joi.boolean().default(true),
