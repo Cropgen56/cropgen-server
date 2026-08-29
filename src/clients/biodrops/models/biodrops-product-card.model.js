@@ -17,7 +17,7 @@ const BiodropsProductCardSchema = new mongoose.Schema(
       required: true,
     },
     acreLimit: { type: Number, required: true, min: 0.1 },
-    durationMonths: { type: Number, enum: [6, 12], required: true },
+    durationMonths: { type: Number, min: 1, max: 12, required: true },
     status: {
       type: String,
       enum: ["unused", "redeemed", "revoked", "expired"],

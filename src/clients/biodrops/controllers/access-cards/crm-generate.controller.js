@@ -33,10 +33,14 @@ export async function generateAccessCards(req, res) {
       });
     }
 
-    if (![6, 12].includes(Number(durationMonths))) {
+    if (
+      !Number.isInteger(Number(durationMonths)) ||
+      Number(durationMonths) < 1 ||
+      Number(durationMonths) > 12
+    ) {
       return res.status(400).json({
         success: false,
-        message: "durationMonths must be 6 or 12",
+        message: "durationMonths must be an integer between 1 and 12",
       });
     }
 
