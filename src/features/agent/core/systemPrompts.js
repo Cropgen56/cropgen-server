@@ -1,4 +1,5 @@
 import { formatIrrigationTypeLabel } from "../../../constants/farmEnums.js";
+import { formatAcresTwoDecimals } from "../../../utils/format/acres.js";
 import { buildFarmerLanguageRules } from "../../../utils/language/farmerLanguages.js";
 import { buildBiodropsAgentProductBlock } from "../../../clients/biodrops/agent/biodropsAgentProducts.js";
 import {

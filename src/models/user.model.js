@@ -23,6 +23,7 @@ const userSchema = new Schema(
 
     email: {
       type: String,
+      unique: true,
       sparse: true,
       lowercase: true,
       trim: true,
@@ -187,8 +188,13 @@ userSchema.index(
   { phone: 1 },
   {
     unique: true,
-    sparse: true,
-    partialFilterExpression: { phone: { $type: "string", $ne: "" } },
+    // `partialFilterExpression` already limits the index to real,
+    // non-empty phone values — MongoDB rejects combining it with `sparse`
+    // (mutually exclusive) and doesn't support `$ne` in partial filters at
+    // all, so this index has never actually built; the intended uniqueness
+    // was silently unenforced. `$gt: ""` is the standard idiom for
+    // "non-empty string" where `$ne` isn't allowed.
+    partialFilterExpression: { phone: { $gt: "" } },
   },
 );
 

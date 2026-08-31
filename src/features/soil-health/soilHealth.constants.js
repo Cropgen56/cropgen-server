@@ -124,6 +124,71 @@ export const CROP_COEFFICIENTS = {
   tobacco: { N: 22, P: 13, K: 18, SOC: 8.5 },
   jute: { N: 16, P: 10, K: 13, SOC: 6.5 },
 
+  // New crops (143-crop expansion) — these have no bespoke coefficients yet,
+  // so each is assigned its category's plurality value from the set above
+  // (per CROP_CATEGORY_MAP.js), instead of silently falling back to the
+  // unrelated generic `default`. Refine individually as real agronomic data
+  // becomes available — this is a category-level approximation, not a
+  // crop-specific tuning.
+  // Cereal plurality: { N: 16, P: 10, K: 13, SOC: 6.5 } (barley/pearlmillet/sorghum/fingermillet)
+  oats: { N: 16, P: 10, K: 13, SOC: 6.5 },
+  rye: { N: 16, P: 10, K: 13, SOC: 6.5 },
+  triticale: { N: 16, P: 10, K: 13, SOC: 6.5 },
+  teff: { N: 16, P: 10, K: 13, SOC: 6.5 },
+  buckwheat: { N: 16, P: 10, K: 13, SOC: 6.5 },
+  amaranthgrain: { N: 16, P: 10, K: 13, SOC: 6.5 },
+  quinoa: { N: 16, P: 10, K: 13, SOC: 6.5 },
+  feedsorghum: { N: 16, P: 10, K: 13, SOC: 6.5 },
+  napiergrass: { N: 16, P: 10, K: 13, SOC: 6.5 },
+  // Oilseed plurality: { N: 18, P: 11, K: 15, SOC: 7 } (mustard/sunflower/sesame/...)
+  canolarapeseed: { N: 18, P: 11, K: 15, SOC: 7 },
+  hemp: { N: 18, P: 11, K: 15, SOC: 7 },
+  // Pulse: uniform { N: 20, P: 15, K: 18, SOC: 8 } across every existing pulse
+  guarclusterbean: { N: 20, P: 15, K: 18, SOC: 8 },
+  lucernealfalfa: { N: 20, P: 15, K: 18, SOC: 8 },
+  berseem: { N: 20, P: 15, K: 18, SOC: 8 },
+  covercrop: { N: 20, P: 15, K: 18, SOC: 8 },
+  // Vegetable plurality: { N: 22, P: 13, K: 18, SOC: 8.5 } (majority of the vegetable list)
+  sugarbeet: { N: 22, P: 13, K: 18, SOC: 8.5 },
+  // Fruit plurality: { N: 24, P: 15, K: 20, SOC: 9.5 } (majority of the fruit list)
+  pears: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  peach: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  nectarine: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  plum: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  apricot: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  cherry: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  avocado: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  olive: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  citrus: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  tablegrapes: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  winegrapes: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  blueberry: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  raspberry: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  blackberry: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  cranberry: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  persimmon: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  lychee: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  rambutan: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  durian: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  jackfruit: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  custardapple: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  passionfruit: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  starfruit: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  datepalm: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  cacaococoa: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  vanilla: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  oilpalm: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  almond: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  walnut: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  cashew: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  pistachio: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  hazelnut: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  chestnut: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  brazilnut: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  pinenut: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  macadamianuts: { N: 24, P: 15, K: 20, SOC: 9.5 },
+  pecannuts: { N: 24, P: 15, K: 20, SOC: 9.5 },
+
   // Fallback
   default: { N: 12.5, P: 8, K: 10.5, SOC: 5 },
 };

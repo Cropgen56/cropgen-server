@@ -310,17 +310,38 @@ async function fetchIndexTriplet(
   };
 }
 
+// Matches the crop-key convention used elsewhere in the codebase (see
+// normalizeCropName in utils/crop/growth/gddCalculator.js) and the
+// CROP_COEFFICIENTS keys themselves (e.g. "greengram", "kidneybeansrajma").
+// A bare .toLowerCase().trim() never matched real crop names that include a
+// space or a "(variety)" suffix — e.g. "Green Gram" or "amaranth (grain)" —
+// so most non-single-word crops silently fell back to generic coefficients.
+function normalizeCropKey(cropName) {
+  return String(cropName || "").toLowerCase().replace(/[^a-z]/g, "");
+}
+
 function getCropCoeff(cropName) {
-  const key = String(cropName || "default")
-    .toLowerCase()
-    .trim();
+  const key = normalizeCropKey(cropName);
   return CROP_COEFFICIENTS[key] || CROP_COEFFICIENTS.default;
 }
 
+// Every satellite-index-derived metric is produced by mapToRange(), which
+// linearly maps a clamped [0,1] normalized index onto [range.min, range.max]
+// — so its output can NEVER fall outside that interval. The old two-way
+// split (`value < min` for Low, else bisect at the midpoint) meant "Low" was
+// mathematically unreachable, and the Medium/High boundary sat at exactly
+// 50% of the range, i.e. at whichever raw NDVI/NDWI/SAVI value normalizes to
+// 0.5. Since several metrics share the same source index, they flipped
+// between Medium and High together, in lockstep, on a hair's-width threshold
+// with no way to ever register Low. A real 3-way tertile split fixes both:
+// every tier is reachable, and the classification is less sensitive to a
+// sign flip right at the boundary.
 function classifyValue(value, range) {
-  if (value < range.min) return "Low";
-  const mid = (range.min + range.max) / 2;
-  if (value <= mid) return "Medium";
+  const span = range.max - range.min;
+  const lowCutoff = range.min + span / 3;
+  const highCutoff = range.min + (span * 2) / 3;
+  if (value < lowCutoff) return "Low";
+  if (value <= highCutoff) return "Medium";
   return "High";
 }
 
@@ -666,9 +687,7 @@ export async function generateSoilHealthReport({
   );
   const ph = 6.5 + ndvi * 0.3 + ndwi * 0.5 - savi * 0.2;
 
-  const prevCropKey = String(previousCrop || "")
-    .toLowerCase()
-    .trim();
+  const prevCropKey = normalizeCropKey(previousCrop);
   if (N_FIXING_CROPS.has(prevCropKey)) {
     nitrogen *= 0.7;
   }

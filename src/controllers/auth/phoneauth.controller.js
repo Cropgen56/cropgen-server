@@ -120,9 +120,25 @@ function isBiodropsOrganizationUser(user) {
 
 const CROPGEN_SIGNUP_FIRST_MESSAGE =
   "User does not exist. Please sign up first.";
+// A number registered under a different platform (e.g. BioDrops) DOES
+// exist — telling the user to "sign up" here just sends them into a
+// signup flow that immediately fails with "already registered" instead.
+// The web client's error handling special-cases any message containing
+// "does not exist" or "sign up first" into that same generic text, so
+// this message must avoid both phrases to actually reach the user as-is.
+const CROPGEN_CROSS_PLATFORM_MESSAGE =
+  "This phone number is already registered on a different CropGen platform. Please use another number, or contact support.";
 
 function cropgenPhoneLoginDenied(user) {
   return !user || isBiodropsOrganizationUser(user);
+}
+
+/** Denial message matching the specific reason: no account at all vs. an
+ * existing account that belongs to another platform/brand. */
+function cropgenPhoneLoginDeniedMessage(user) {
+  return user && isBiodropsOrganizationUser(user)
+    ? CROPGEN_CROSS_PLATFORM_MESSAGE
+    : CROPGEN_SIGNUP_FIRST_MESSAGE;
 }
 
 function isProfileComplete(user) {
@@ -181,7 +197,7 @@ export const sendWhatsappOtp = async (req, res) => {
     if (isLogin && isCropgenClientRequest(req) && cropgenPhoneLoginDenied(user)) {
       return res.status(404).json({
         success: false,
-        message: CROPGEN_SIGNUP_FIRST_MESSAGE,
+        message: cropgenPhoneLoginDeniedMessage(user),
       });
     }
 
@@ -357,7 +373,7 @@ export const verifyWhatsappOtp = async (req, res) => {
     if (isCropgenClientRequest(req) && cropgenPhoneLoginDenied(user)) {
       return res.status(404).json({
         success: false,
-        message: CROPGEN_SIGNUP_FIRST_MESSAGE,
+        message: cropgenPhoneLoginDeniedMessage(user),
       });
     }
 
@@ -506,7 +522,7 @@ export const resendWhatsappOtp = async (req, res) => {
     ) {
       return res.status(404).json({
         success: false,
-        message: CROPGEN_SIGNUP_FIRST_MESSAGE,
+        message: cropgenPhoneLoginDeniedMessage(user?.deletedAt ? null : user),
       });
     }
 

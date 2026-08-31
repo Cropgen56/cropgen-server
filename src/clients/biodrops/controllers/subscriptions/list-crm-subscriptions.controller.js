@@ -2,6 +2,7 @@ import User from "../../../../models/user.model.js";
 import UserSubscription from "../../../../models/user-subscription.model.js";
 import { resolveCrmUserBaseQuery } from "../../utils/crmUserQuery.js";
 import { formatCrmSubscriptionRow } from "../../utils/subscriptionRowFormat.js";
+import { buildFarmerRoleQuery } from "../farmers/list-farmers.controller.js";
 
 function buildFarmerSearchFilter(search) {
   if (!search?.trim()) return null;
@@ -24,11 +25,7 @@ export async function listCrmSubscriptions(req, res) {
     const skip = (page - 1) * limit;
     const { status, search } = req.query;
 
-    let farmerQuery = {
-      ...baseQuery,
-      role: "farmer",
-      organization: org._id,
-    };
+    let farmerQuery = await buildFarmerRoleQuery(baseQuery, org);
 
     const searchFilter = buildFarmerSearchFilter(search);
     if (searchFilter) {
