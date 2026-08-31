@@ -66,6 +66,17 @@ export const addField = async (req, res) => {
       });
     }
 
+    // The org check above only confirms the target user is a same-brand
+    // account — it does not confirm the caller IS that user. Without this,
+    // any authenticated same-org user could create a field attributed to
+    // someone else just by changing :userId in the URL.
+    if (req.user && String(req.user.id) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only add farms to your own account.",
+      });
+    }
+
     /* ---------- Create farm ---------- */
     const newFarmField = new FarmField({
       field: latlng,
@@ -140,6 +151,16 @@ export const getField = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: "You can only view farms in your organization.",
+      });
+    }
+
+    // Same-org is not the same as same-account — without this, any
+    // authenticated same-org user could read another user's farm list by
+    // swapping :userId in the URL.
+    if (req.user && String(req.user.id) !== String(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view your own farms.",
       });
     }
 

@@ -21,6 +21,7 @@ import {
 } from "../../utils/subscription/pricing.js";
 import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
 import { assertAatFieldWithinPlan, aatChargeArea } from "../../utils/subscription/aatPlan.js";
+import { isBiodropsTierPlan, biodropsTierChargeArea } from "../../utils/subscription/biodropsTierPlan.js";
 import { createBiodropsCardHybridOrder } from "../../clients/biodrops/controllers/subscriptions/card-hybrid-order.controller.js";
 
 const razorpay = getRazorpay();
@@ -151,7 +152,7 @@ export const createSubscriptionOrder = async (req, res) => {
     let cardAcresApplied = 0;
     let razorpayBillableArea = fieldArea;
 
-    if (planBrand === "biodrops") {
+    if (planBrand === "biodrops" && !isBiodropsTierPlan(plan)) {
       const { allocateAcresFromPool, getPoolSummary } = await import(
         "../../clients/biodrops/services/acreEntitlement.service.js"
       );
@@ -206,8 +207,11 @@ export const createSubscriptionOrder = async (req, res) => {
     }
 
     const area = planBrand === "biodrops" ? razorpayBillableArea : fieldArea;
-    const chargeArea = aatChargeArea(planBrand, area);
-    const coverageArea = planBrand === "aat" ? fieldArea : area;
+    const chargeArea = isBiodropsTierPlan(plan)
+      ? biodropsTierChargeArea(plan, area)
+      : aatChargeArea(planBrand, area);
+    const isFlatPackagePlan = planBrand === "aat" || isBiodropsTierPlan(plan);
+    const coverageArea = isFlatPackagePlan ? fieldArea : area;
 
     /* ================= TRIAL + POST-TRIAL (web + mobile: one Razorpay subscription, charge at trial end via start_at) ================= */
     const webPaidAsTrial =
@@ -215,7 +219,7 @@ export const createSubscriptionOrder = async (req, res) => {
       ["monthly", "yearly", "season"].includes(billingCycle);
 
     const mobilePaidAsTrial =
-      plan.platform === "mobile" &&
+      (plan.platform === "mobile" || plan.platform === "all") &&
       plan.isTrialEnabled &&
       ["monthly", "yearly", "season"].includes(billingCycle);
 
@@ -468,7 +472,7 @@ export const createSubscriptionOrder = async (req, res) => {
       interval: 1,
       itemName: `CropGen ${plan.slug} ${String(subscription._id).slice(-8)}`,
       amountMinor: chargedAmountMinor,
-      description: `${chargeArea} ${planBrand === "aat" ? "package" : "acres"} ${billingCycle}`,
+      description: `${chargeArea} ${isFlatPackagePlan ? "package" : "acres"} ${billingCycle}`,
     });
 
     const rzSub = await createRazorpaySubscription(razorpay, {

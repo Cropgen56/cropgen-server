@@ -1,5 +1,6 @@
 import BiodropsCardBatch from "../../models/biodrops-card-batch.model.js";
 import BiodropsProductCard from "../../models/biodrops-product-card.model.js";
+import SubscriptionPlan from "../../../../models/subscription-plan.model.js";
 import {
   generateCardCode,
   hashCardCode,
@@ -18,24 +19,52 @@ export async function generateAccessCards(req, res) {
       label,
       productSku,
       productName,
-      acreLimit,
+      planId,
       durationMonths,
       quantity,
       redeemBy,
       notes,
     } = req.body || {};
 
-    if (!label || !acreLimit || !durationMonths || !quantity) {
+    if (!label || !planId || !durationMonths || !quantity) {
       return res.status(400).json({
         success: false,
-        message: "label, acreLimit, durationMonths, and quantity are required",
+        message: "label, planId, durationMonths, and quantity are required",
       });
     }
 
-    if (![6, 12].includes(Number(durationMonths))) {
+    if (
+      !Number.isInteger(Number(durationMonths)) ||
+      Number(durationMonths) < 1 ||
+      Number(durationMonths) > 12
+    ) {
       return res.status(400).json({
         success: false,
-        message: "durationMonths must be 6 or 12",
+        message: "durationMonths must be an integer between 1 and 12",
+      });
+    }
+
+    // Cards are always tied to a real acre-package plan — the acre limit
+    // printed on the card comes from the plan, never typed separately, so
+    // redemption is guaranteed to find a match.
+    const plan = await SubscriptionPlan.findOne({
+      _id: planId,
+      brand: "biodrops",
+      active: true,
+    }).lean();
+
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: "Selected plan not found or is not an active BioDrops plan",
+      });
+    }
+
+    if (!(Number(plan.maxAcres) > 0)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This plan has no acre package configured (Max acres covered) — cards can only be linked to acre-package plans",
       });
     }
 
@@ -45,7 +74,8 @@ export async function generateAccessCards(req, res) {
       label: String(label).trim(),
       productSku: productSku || null,
       productName: productName || null,
-      acreLimit: Number(acreLimit),
+      planId: plan._id,
+      acreLimit: Number(plan.maxAcres),
       durationMonths: Number(durationMonths),
       quantity: count,
       redeemBy: redeemBy ? new Date(redeemBy) : null,
@@ -75,6 +105,7 @@ export async function generateAccessCards(req, res) {
         batchId: batch._id,
         codeHash,
         codePrefix: cardCodePrefix(plainCode),
+        planId: batch.planId,
         acreLimit: batch.acreLimit,
         durationMonths: batch.durationMonths,
         redeemBy: batch.redeemBy,
@@ -108,6 +139,9 @@ export async function generateAccessCards(req, res) {
       batchId: batch._id,
       label: batch.label,
       quantity: count,
+      planId: plan._id,
+      planName: plan.name,
+      acreLimit: batch.acreLimit,
       codes: codesWithIds,
       message: "Store codes securely — they cannot be retrieved again.",
     });
@@ -132,6 +166,7 @@ export async function listAccessCards(req, res) {
 
     const [items, total] = await Promise.all([
       BiodropsProductCard.find(filter)
+        .populate("planId", "name maxAcres")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -171,6 +206,7 @@ export async function getAccessCardById(req, res) {
     const card = await BiodropsProductCard.findById(id)
       .populate("redeemedBy", "firstName lastName phone email")
       .populate("batchId", "label productName productSku")
+      .populate("planId", "name maxAcres")
       .lean();
 
     if (!card) {

@@ -3,17 +3,17 @@ import FarmField from "../../../../models/field.model.js";
 import FieldCrop from "../../../../models/field-crop.model.js";
 import { resolveCrmUserBaseQuery } from "../../utils/crmUserQuery.js";
 import { formatCrmFarmerDetail } from "../../utils/formatFarmer.js";
+import { buildFarmerRoleQuery } from "./list-farmers.controller.js";
 
 export const getBiodropsFarmerById = async (req, res) => {
   try {
     const { baseQuery, org } = await resolveCrmUserBaseQuery(req);
     const { id } = req.params;
 
+    const roleQuery = await buildFarmerRoleQuery(baseQuery, org);
     const user = await User.findOne({
-      ...baseQuery,
+      ...roleQuery,
       _id: id,
-      role: "farmer",
-      organization: org._id,
     })
       .select("-password -otp -__v")
       .lean();

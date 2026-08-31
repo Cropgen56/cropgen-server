@@ -14,11 +14,13 @@ export const subscriptionPlanSchema = Joi.object({
   slug: Joi.string().min(1).max(100).required(),
   description: Joi.string().max(500).allow("").optional(),
 
-  platform: Joi.string().valid("mobile", "web").required(),
+  platform: Joi.string().valid("mobile", "web", "all").required(),
 
   brand: Joi.string().valid("cropgen", "biodrops", "aat").default("cropgen"),
 
   maxHectares: Joi.number().min(0).allow(null).optional(),
+
+  maxAcres: Joi.number().min(0).allow(null).optional(),
 
   // ✅ Added isInternal
   isInternal: Joi.boolean().default(false),
@@ -57,6 +59,8 @@ export const subscriptionPlanSchema = Joi.object({
     diseaseDetectionAlerts: Joi.boolean().default(false),
     smartAdvisorySystem: Joi.boolean().default(false),
     soilReportGeneration: Joi.boolean().default(false),
+    cropCalendar: Joi.boolean().default(false),
+    zoningAnalysis: Joi.boolean().default(false),
   }).required(),
 
   active: Joi.boolean().default(true),

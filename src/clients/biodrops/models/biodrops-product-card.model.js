@@ -10,8 +10,14 @@ const BiodropsProductCardSchema = new mongoose.Schema(
     },
     codeHash: { type: String, required: true, unique: true, index: true },
     codePrefix: { type: String, required: true },
+    /** The BioDrops acre-package plan this card redeems into. */
+    planId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubscriptionPlan",
+      required: true,
+    },
     acreLimit: { type: Number, required: true, min: 0.1 },
-    durationMonths: { type: Number, enum: [6, 12], required: true },
+    durationMonths: { type: Number, min: 1, max: 12, required: true },
     status: {
       type: String,
       enum: ["unused", "redeemed", "revoked", "expired"],

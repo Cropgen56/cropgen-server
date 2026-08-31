@@ -206,6 +206,48 @@ export async function rollbackStaleHybridPendingSubs(userId, fieldId) {
   return stalePending.length;
 }
 
+/**
+ * Package-model redemption: a card entitles the farmer to its exact
+ * matching acre-package plan (found by SubscriptionPlan.maxAcres ===
+ * card.acreLimit), activated in full — no acre-split, no Razorpay
+ * remainder top-up. Field acreage exceeding the card's cap is a soft
+ * warning the caller can surface, never a block (same as any other
+ * BioDrops acre-package plan).
+ */
+export async function resolveCardForPackageRedemption({
+  userId,
+  code,
+  fieldId,
+}) {
+  const field = await FarmField.findOne({ _id: fieldId, user: userId });
+  if (!field) {
+    const err = new Error("Farm field not found");
+    err.status = 404;
+    throw err;
+  }
+
+  const { card } = await resolveCardByCode(code);
+  if (!card) {
+    const err = new Error("Invalid product card code");
+    err.status = 404;
+    throw err;
+  }
+
+  await assertCardUsableByFarmer(userId, card);
+  await rollbackStaleHybridPendingSubs(userId, field._id);
+  await assertFieldCanReceiveCard(userId, field._id, card._id);
+
+  if (card.redeemBy && new Date(card.redeemBy) < new Date()) {
+    card.status = "expired";
+    await card.save();
+    const err = new Error("Card has expired");
+    err.status = 400;
+    throw err;
+  }
+
+  return { field, card };
+}
+
 export async function resolveHybridCardCheckout({
   userId,
   code,

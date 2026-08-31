@@ -53,9 +53,17 @@ const SubscriptionPlanSchema = new Schema(
       default: null,
     },
 
+    /** BioDrops acre-tier cap (flat package price up to N acres). Null/0 = normal per-acre plan. Ignored for other brands. */
+    maxAcres: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+
+    /** "all" = platform-agnostic plan, shown on both mobile and web (BioDrops only uses this). */
     platform: {
       type: String,
-      enum: ["mobile", "web"],
+      enum: ["mobile", "web", "all"],
       required: true,
       index: true,
     },
@@ -86,6 +94,8 @@ const SubscriptionPlanSchema = new Schema(
       diseaseDetectionAlerts: { type: Boolean, default: false },
       smartAdvisorySystem: { type: Boolean, default: false },
       soilReportGeneration: { type: Boolean, default: false },
+      cropCalendar: { type: Boolean, default: false },
+      zoningAnalysis: { type: Boolean, default: false },
     },
 
     active: { type: Boolean, default: true, index: true },

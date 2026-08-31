@@ -196,7 +196,7 @@ export async function generateLlmSoilRecommendations({
   const normalizedOrgCode = String(organizationCode || "CROPGEN").toUpperCase();
   const isBiodropsOrg = normalizedOrgCode === "BIODROPS";
   const bokashiRule = isBiodropsOrg
-    ? "4) Include one Bokashi-related soil application line."
+    ? '4) Include one soil application line recommending FYM (Farm Yard Manure) mixed with Bokashi before application — not Bokashi alone. Phrase it like: "Apply X tons/ha of FYM mixed with Bokashi (total Y tons for this field) to enhance soil health," following rule 2b for the field-total quantity.'
     : "4) Do not mention Bokashi, Biodrops, or Satagro products.";
   const prompt = `
 Generate a practical fertilizer and micronutrient soil plan for an Indian farm.

@@ -17,6 +17,37 @@ function buildFarmerSearchFilter(search) {
   };
 }
 
+/**
+ * Farmers list = role:"farmer", plus role:"staff" accounts that have actually
+ * added a farm (own a FarmField). Staff often add a test/demo field under
+ * their own account, and that ownership — not the role string — is what
+ * should decide whether they show up here.
+ */
+export async function buildFarmerRoleQuery(baseQuery, org) {
+  const staffCandidates = await User.find({
+    ...baseQuery,
+    organization: org._id,
+    role: "staff",
+  })
+    .select("_id")
+    .lean();
+
+  const staffIdsWithFarms = staffCandidates.length
+    ? await FarmField.distinct("user", {
+        user: { $in: staffCandidates.map((u) => u._id) },
+      })
+    : [];
+
+  return {
+    ...baseQuery,
+    organization: org._id,
+    $or: [
+      { role: "farmer" },
+      { role: "staff", _id: { $in: staffIdsWithFarms } },
+    ],
+  };
+}
+
 export const listBiodropsFarmers = async (req, res) => {
   try {
     const { baseQuery, org } = await resolveCrmUserBaseQuery(req);
@@ -26,11 +57,7 @@ export const listBiodropsFarmers = async (req, res) => {
     const parsedPage = Math.max(1, parseInt(page, 10) || 1);
     const skip = (parsedPage - 1) * parsedLimit;
 
-    let query = {
-      ...baseQuery,
-      role: "farmer",
-      organization: org._id,
-    };
+    let query = await buildFarmerRoleQuery(baseQuery, org);
 
     const searchFilter = buildFarmerSearchFilter(search);
     if (searchFilter) {
@@ -125,11 +152,7 @@ export const getBiodropsFarmerStats = async (req, res) => {
   try {
     const { baseQuery, org } = await resolveCrmUserBaseQuery(req);
 
-    const query = {
-      ...baseQuery,
-      role: "farmer",
-      organization: org._id,
-    };
+    const query = await buildFarmerRoleQuery(baseQuery, org);
 
     const farmerIds = await User.find(query).select("_id").lean();
     const userIds = farmerIds.map((u) => u._id);

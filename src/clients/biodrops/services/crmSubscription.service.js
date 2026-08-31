@@ -3,6 +3,7 @@ import FarmField from "../../../models/field.model.js";
 import SubscriptionPlan from "../../../models/subscription-plan.model.js";
 import UserSubscription from "../../../models/user-subscription.model.js";
 import { resolveCrmUserBaseQuery } from "../utils/crmUserQuery.js";
+import { buildFarmerRoleQuery } from "../controllers/farmers/list-farmers.controller.js";
 import { BRAND_ID } from "../constants.js";
 import { createSubscriptionActivationNotification } from "../../../services/notification.service.js";
 import {
@@ -15,11 +16,10 @@ const VALID_BILLING_CYCLES = ["monthly", "yearly", "season"];
 export async function assertCrmFarmerAccess(req, farmerId) {
   const { baseQuery, org } = await resolveCrmUserBaseQuery(req);
 
+  const roleQuery = await buildFarmerRoleQuery(baseQuery, org);
   const user = await User.findOne({
-    ...baseQuery,
+    ...roleQuery,
     _id: farmerId,
-    role: "farmer",
-    organization: org._id,
   }).lean();
 
   if (!user) {
