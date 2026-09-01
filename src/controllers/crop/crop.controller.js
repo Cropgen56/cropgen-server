@@ -255,8 +255,8 @@ export const updateCrop = async (req, res) => {
           const newImages = newPestImagesGrouped[index] || [];
           const existingImages = pest.image || [];
           const combinedImages = [...existingImages, ...newImages];
-          if (combinedImages.length < 1 || combinedImages.length > 5) {
-            throw new Error(`Pest at index ${index} must have 1-5 images`);
+          if (combinedImages.length > 5) {
+            throw new Error(`Pest at index ${index} can have at most 5 images`);
           }
           return { ...pest, image: combinedImages };
         }
@@ -299,8 +299,8 @@ export const updateCrop = async (req, res) => {
           const newImages = newDiseaseImagesGrouped[index] || [];
           const existingImages = disease.image || [];
           const combinedImages = [...existingImages, ...newImages];
-          if (combinedImages.length < 1 || combinedImages.length > 5) {
-            throw new Error(`Disease at index ${index} must have 1-5 images`);
+          if (combinedImages.length > 5) {
+            throw new Error(`Disease at index ${index} can have at most 5 images`);
           }
           return { ...disease, image: combinedImages };
         }
@@ -363,7 +363,7 @@ export const updateCrop = async (req, res) => {
     if (error instanceof SyntaxError) {
       return res.status(400).json({ success: false, message: error.message });
     }
-    if (error.message.includes("must have 1-5 images")) {
+    if (error.message.includes("can have at most 5 images")) {
       return res.status(400).json({ success: false, message: error.message });
     }
     if (error.name === "ValidationError") {
