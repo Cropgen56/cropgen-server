@@ -9,7 +9,11 @@ import {
   createPrimaryFieldCrop,
   syncPrimaryFieldCrop,
 } from "../../utils/crop/fieldCropSync.js";
-import { getOrgScopedUserIds, sameOrg } from "../../utils/auth/orgScope.js";
+import {
+  getOrgScopedUserIds,
+  sameOrg,
+  canAccessAdminPanel,
+} from "../../utils/auth/orgScope.js";
 function fieldAcreCount(field) {
   return Number(field?.acre) || 0;
 }
@@ -68,9 +72,15 @@ export const addField = async (req, res) => {
 
     // The org check above only confirms the target user is a same-brand
     // account — it does not confirm the caller IS that user. Without this,
-    // any authenticated same-org user could create a field attributed to
-    // someone else just by changing :userId in the URL.
-    if (req.user && String(req.user.id) !== String(userId)) {
+    // any authenticated same-org farmer could create a field attributed to
+    // someone else just by changing :userId in the URL. Admin-panel roles
+    // are allowed to add farms on behalf of a farmer (that's what the admin
+    // panel's "Add Field" action does) and are already org-scoped above.
+    if (
+      req.user &&
+      String(req.user.id) !== String(userId) &&
+      !canAccessAdminPanel(req.user)
+    ) {
       return res.status(403).json({
         success: false,
         message: "You can only add farms to your own account.",
@@ -155,9 +165,17 @@ export const getField = async (req, res) => {
     }
 
     // Same-org is not the same as same-account — without this, any
-    // authenticated same-org user could read another user's farm list by
-    // swapping :userId in the URL.
-    if (req.user && String(req.user.id) !== String(userId)) {
+    // authenticated same-org farmer could read another farmer's farm list by
+    // swapping :userId in the URL. Admin-panel roles (admin/developer/client/
+    // staff) are allowed to view farms belonging to other users within their
+    // scope — that's the whole point of the admin panel's farmer detail page —
+    // and are already restricted to their own organization by the sameOrg
+    // check above.
+    if (
+      req.user &&
+      String(req.user.id) !== String(userId) &&
+      !canAccessAdminPanel(req.user)
+    ) {
       return res.status(403).json({
         success: false,
         message: "You can only view your own farms.",
