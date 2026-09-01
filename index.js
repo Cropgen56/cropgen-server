@@ -112,6 +112,8 @@ const defaultProductionOrigins = [
   "http://localhost:5176",
 ];
 
+// corss origin allowed for
+
 const defaultDevelopmentOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
