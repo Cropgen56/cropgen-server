@@ -88,6 +88,8 @@ const envAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+// corss origin allowed for local development
+
 const defaultProductionOrigins = [
   "https://admin.cropgenapp.com",
   "https://www.cropgenapp.com",
