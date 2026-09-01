@@ -7,6 +7,7 @@ import {
   MAX_SUPER_ADMINS,
 } from "../constants/adminLevels.js";
 import { ORGANIZATION_CODE } from "../constants.js";
+import { stateCodeToNameVariants } from "./indianStates.js";
 
 function normalizeCode(value) {
   if (value == null || value === "") return null;
@@ -54,13 +55,30 @@ export function buildUserScopeFilter(assignments = []) {
   for (const a of assignments) {
     const clause = { organization: a.tenantId };
 
-    const country = normalizeCode(a.countryCode);
-    const state = normalizeCode(a.stateCode);
-    const district = normalizeCode(a.districtCode);
+    // Super admins see every user/farmer in their tenant — no geographic
+    // narrowing, regardless of what country/state/district codes happen to
+    // be left on the assignment record (mirrors assignmentCoversTarget,
+    // which already grants "super" unconditional access below).
+    if (a.level !== "super") {
+      const country = normalizeCode(a.countryCode);
+      const state = normalizeCode(a.stateCode);
+      const district = normalizeCode(a.districtCode);
 
-    if (country) clause.country = country;
-    if (state) clause.state = state;
-    if (district) clause.district = district;
+      if (country) clause.country = country;
+      // Farmer records store state as free text ("KERALA", "TAMIL NADU", ...)
+      // while assignments store the CRM location-picker's short code ("KL",
+      // "TN", ...) — match against every known spelling, not just the code
+      // itself, or a region-scoped admin sees zero farmers. See indianStates.js.
+      if (state) clause.state = { $in: stateCodeToNameVariants(state) };
+      // District has no equivalent code/name split (both sides use free
+      // text), but casing still varies — match case-insensitively.
+      if (district) {
+        clause.district = {
+          $regex: `^${district.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+          $options: "i",
+        };
+      }
+    }
 
     if (a.managedOrganizationId) {
       clause.organization = a.managedOrganizationId;

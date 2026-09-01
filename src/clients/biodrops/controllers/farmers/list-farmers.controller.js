@@ -18,33 +18,19 @@ function buildFarmerSearchFilter(search) {
 }
 
 /**
- * Farmers list = role:"farmer", plus role:"staff" accounts that have actually
- * added a farm (own a FarmField). Staff often add a test/demo field under
- * their own account, and that ownership — not the role string — is what
- * should decide whether they show up here.
+ * Farmers list = every account registered under the org (farmer, staff,
+ * admin alike) — matches cropgen-admin-panel's generic "all users" view
+ * filtered to this org. Not just role:"farmer": a BioDrops staff/admin
+ * login is still a BIODROPS org account and belongs on this list even with
+ * zero farms of their own.
  */
 export async function buildFarmerRoleQuery(baseQuery, org) {
-  const staffCandidates = await User.find({
-    ...baseQuery,
-    organization: org._id,
-    role: "staff",
-  })
-    .select("_id")
-    .lean();
-
-  const staffIdsWithFarms = staffCandidates.length
-    ? await FarmField.distinct("user", {
-        user: { $in: staffCandidates.map((u) => u._id) },
-      })
-    : [];
-
   return {
     ...baseQuery,
     organization: org._id,
-    $or: [
-      { role: "farmer" },
-      { role: "staff", _id: { $in: staffIdsWithFarms } },
-    ],
+    // Matches getAllUsers' reference baseQuery — soft-deleted accounts don't
+    // belong on any admin-facing list.
+    deletedAt: null,
   };
 }
 
