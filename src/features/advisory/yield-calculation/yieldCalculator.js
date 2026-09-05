@@ -28,6 +28,11 @@ const OPTIMAL_TEMP = {
   oilseed: { min: 15, max: 30 },
   vegetable: { min: 18, max: 32 },
   fruit: { min: 15, max: 35 },
+  // 65-crop expansion (flowers/herbs/spices/plantation) — see CROP_YIELD_PROFILE
+  flower: { min: 15, max: 32 },
+  herb: { min: 15, max: 32 },
+  spice: { min: 18, max: 34 },
+  plantation: { min: 15, max: 32 },
   default: { min: 15, max: 32 },
 };
 

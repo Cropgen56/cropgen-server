@@ -36,6 +36,11 @@ const NDVI_CATEGORY_RANGES = {
   oilseed:   { low: 0.40, high: 0.70 },
   vegetable: { low: 0.55, high: 0.85 },
   fruit:     { low: 0.50, high: 0.80 },
+  // 65-crop expansion (flowers/herbs/spices/plantation) — see CROP_YIELD_PROFILE
+  flower:     { low: 0.45, high: 0.80 },
+  herb:       { low: 0.45, high: 0.75 },
+  spice:      { low: 0.45, high: 0.80 },
+  plantation: { low: 0.45, high: 0.80 },
   default:   { low: 0.40, high: 0.70 },
 };
 
