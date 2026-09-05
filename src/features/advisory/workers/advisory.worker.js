@@ -176,6 +176,101 @@ export const CROP_GDD_THRESHOLDS = {
   feedsorghum: 30,
   napiergrass: 30,
 
+  /* ===================== New crops (65-crop expansion) ===================== */
+  // Flower — fast bedding annuals (short cycle, harvested/reset quickly) get
+  // a low threshold like the fast vegetables above; perennial flowering
+  // shrubs/rhizomes with a longer continuous-harvest cycle get a higher one
+  // closer to the perennial fruit crops.
+  marigold: 25,
+  aster: 25,
+  zinnia: 25,
+  petunia: 25,
+  tulip: 30,
+  dahlia: 30,
+  chrysanthemum: 35,
+  tuberose: 35,
+  gerbera: 35,
+  carnation: 35,
+  gladiolus: 35,
+  lily: 35,
+  rose: 40,
+  jasmine: 40,
+  hibiscus: 40,
+  lavender: 40,
+  poinsettia: 40,
+  orchid: 45,
+  anthurium: 45,
+
+  // Herb — quick leafy/cutting herbs vs. slower woody perennial herbs.
+  basil: 25,
+  mint: 25,
+  chamomile: 25,
+  lemongrass: 30,
+  stevia: 30,
+  oregano: 30,
+  ashwagandha: 35,
+  thyme: 35,
+  aloevera: 40,
+  rosemary: 40,
+
+  // Spice — saffron is a fast annual-corm bloom window; the rest are slow
+  // perennial trees/rhizomes similar to blackpepper/cacaococoa above.
+  saffron: 25,
+  cardamom: 50,
+  cinnamon: 50,
+  staranise: 50,
+  clove: 55,
+  nutmeg: 55,
+
+  // Vegetable — fast leafy vs. brassica/root-tuber crops (matches the
+  // existing cabbage=45/onion=40/celery=40 style spread above).
+  bokchoy: 30,
+  fennel: 35,
+  chicory: 35,
+  taro: 40,
+  arrowroot: 40,
+  asparagus: 40,
+  artichoke: 40,
+  leek: 40,
+  kale: 40,
+  cassava: 45,
+  yam: 45,
+  brusselssprouts: 45,
+
+  // Fruit — berry bushes (faster) vs. slow-bearing tropical fruit trees
+  // (matches blueberry=35 / mango=45 / durian=50 style spread above).
+  redcurrant: 35,
+  gooseberry: 35,
+  elderberry: 35,
+  mandarin: 45,
+  pomelo: 45,
+  soursop: 45,
+  longan: 45,
+  breadfruit: 45,
+  tamarind: 50,
+  mangosteen: 55,
+
+  // Pulse — in line with chickpea=50/greengram=40 above.
+  limabean: 40,
+  adzukibean: 40,
+  fababean: 45,
+  lupin: 45,
+
+  // Cereal/fiber — flax is a fast ~100-day fiber crop; kenaf tracks jute;
+  // sisal is a very slow perennial agave (tracks rubber=60 above).
+  flaxfiber: 35,
+  kenaf: 40,
+  sisal: 55,
+
+  // Plantation — slow perennial shrub, tracks tea/coffee=40 above.
+  yerbamate: 40,
+
+  // Crop-encyclopedia name aliases — see the matching comment in
+  // src/utils/npk/cropProfiles.js for why these are needed.
+  fenugreek: 35, // same as fenugreekmethi
+  citrusgeneric: 45, // same as citrus
+  covercropgenericmix: 30, // same as covercrop
+
   default: 30,
 };
 
