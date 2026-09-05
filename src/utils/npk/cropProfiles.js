@@ -2550,3 +2550,15 @@ export const CROP_PROFILES = {
     }
   }
 };
+
+/*
+ * Crop-encyclopedia name aliases — normalizeCropName() strips spaces/parens,
+ * so a Crop doc's display cropName can normalize to something that doesn't
+ * match its profile key above (e.g. "fenugreek" -> "fenugreek" vs the
+ * profile's "fenugreekmethi"). Without these, calculateNPKFromfarmField()
+ * throws "Crop not supported" for any field using these exact display
+ * names, which crashes the whole advisory pipeline for that field/crop.
+ */
+CROP_PROFILES.fenugreek = CROP_PROFILES.fenugreekmethi; // Crop doc: "Fenugreek"
+CROP_PROFILES.citrusgeneric = CROP_PROFILES.citrus; // Crop doc: "Citrus (Generic)"
+CROP_PROFILES.covercropgenericmix = CROP_PROFILES.covercrop; // Crop doc: "Cover Crop (Generic Mix)"

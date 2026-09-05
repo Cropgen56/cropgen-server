@@ -213,5 +213,11 @@ export const CROP_BASE_TEMPERATURE = {
   flaxfiber: 5,
   yerbamate: 12,
 
+  // Crop-encyclopedia name aliases — see the matching comment in
+  // src/utils/npk/cropProfiles.js for why these are needed.
+  fenugreek: 5,
+  citrusgeneric: 12,
+  covercropgenericmix: 5,
+
   default: 10
 };

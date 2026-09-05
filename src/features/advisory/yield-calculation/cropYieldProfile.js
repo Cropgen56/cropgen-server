@@ -247,3 +247,9 @@ export const CROP_YIELD_PROFILE = {
   /* ===================== Fallback ===================== */
   default: { category: "vegetable", baseYieldPerHa: 5, unit: "tons" },
 };
+
+// Crop-encyclopedia name aliases — see the matching comment in
+// src/utils/npk/cropProfiles.js for why these are needed.
+CROP_YIELD_PROFILE.fenugreek = CROP_YIELD_PROFILE.fenugreekmethi;
+CROP_YIELD_PROFILE.citrusgeneric = CROP_YIELD_PROFILE.citrus;
+CROP_YIELD_PROFILE.covercropgenericmix = CROP_YIELD_PROFILE.covercrop;

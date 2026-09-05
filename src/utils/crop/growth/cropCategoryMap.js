@@ -222,5 +222,11 @@ export const CROP_CATEGORY_MAP = {
   flaxfiber: "cereal",
   yerbamate: "fruit",
 
+  // Crop-encyclopedia name aliases — see the matching comment in
+  // src/utils/npk/cropProfiles.js for why these are needed.
+  fenugreek: "vegetable",
+  citrusgeneric: "fruit",
+  covercropgenericmix: "pulse",
+
   default: "vegetable"
 };
