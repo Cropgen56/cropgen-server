@@ -210,12 +210,20 @@ export function hasSevereWeatherAlert(snapshot) {
 
 /**
  * Decide whether the daily cron should generate a new advisory for a subscribed field.
+ *
+ * `maxDaysBetweenAdvisories` is a staleness safety net: even when neither GDD
+ * accumulation nor a weather change has crossed its trigger, a subscribed
+ * farm should never go silent indefinitely (e.g. a slow-growing perennial
+ * crop with a high GDD threshold, or a stretch of unchanging weather) — so a
+ * new advisory is forced once the last one is at least this many days old.
+ * Same pattern/default as shouldGenerateBarrenLandAdvisory below.
  */
 export function shouldGenerateAdvisory({
   gddDelta,
   threshold,
   lastAdvisory,
   currentSnapshot,
+  maxDaysBetweenAdvisories = 7,
 }) {
   if (!lastAdvisory) {
     return { generate: true, reason: "first_advisory" };
@@ -223,6 +231,14 @@ export function shouldGenerateAdvisory({
 
   if (gddDelta >= threshold) {
     return { generate: true, reason: `gdd_delta_${gddDelta.toFixed(1)}` };
+  }
+
+  const lastCreated = lastAdvisory.createdAt ? new Date(lastAdvisory.createdAt) : null;
+  if (lastCreated) {
+    const daysSince = Math.floor((Date.now() - lastCreated.getTime()) / 86400000);
+    if (daysSince >= maxDaysBetweenAdvisories) {
+      return { generate: true, reason: `weekly_refresh_${daysSince}d` };
+    }
   }
 
   const lastSnapshot = lastAdvisory.weatherSnapshot;
