@@ -2,6 +2,7 @@ import Operation from "../../models/operation.model.js";
 import FarmField from "../../models/field.model.js";
 import FarmAdvisory from "../../features/advisory/models/farmAdvisory.model.js";
 import { ensureAdvisoryOperationsSynced } from "../../features/advisory/services/syncAdvisoryToOperations.service.js";
+import { logActivity } from "../../utils/storage/activityLog.service.js";
 
 // Create a new operation for a specific farm field
 export const addOperation = async (req, res) => {
@@ -70,6 +71,26 @@ export const addOperation = async (req, res) => {
 
     // Save the operation in the database
     const savedOperation = await newOperation.save();
+    // Log operation creation
+    try {
+      await logActivity({
+        userId: req.user?.id || req.user?._id || null,
+        userName:
+          req.user?.email ||
+          req.user?.name ||
+          req.user?.firstName ||
+          "Unknown",
+        action: "CREATE",
+        module: "Operations",
+        description: `Created ${operationType} operation for farm field ${farmFieldId}`,
+        status: "SUCCESS",
+      });
+    } catch (logError) {
+      console.error(
+        "Failed to record operation creation activity:",
+        logError.message
+      );
+    }
 
     // Respond with success
     res.status(201).json({
@@ -78,11 +99,39 @@ export const addOperation = async (req, res) => {
       operation: savedOperation,
     });
   } catch (error) {
-    console.error("Error adding operation:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
-  }
+  console.error("Error adding operation:", error);
+
+  // Log failed operation creation
+  try {
+    await logActivity({
+      userId: req.user?.id || req.user?._id || null,
+      userName:
+        req.user?.email ||
+        req.user?.name ||
+        req.user?.firstName ||
+        "Unknown",
+      action: "CREATE",
+      module: "Operations",
+      description: `Failed to create ${
+        req.body?.operationType || "operation"
+      } operation for farm field ${
+        req.params?.farmFieldId || "unknown"
+      }: ${error.message}`,
+      status: "FAILED",
+      });
+      } catch (logError) {
+        console.error(
+          "Failed to record operation creation failure activity:",
+          logError.message
+        );
+      }
+
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
 };
 
 // Get all operations for a specific farm field
@@ -220,6 +269,26 @@ export const updateOperation = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Operation not found" });
     }
+    // Log operation update
+    try {
+      await logActivity({
+        userId: req.user?.id || req.user?._id || null,
+        userName:
+          req.user?.email ||
+          req.user?.name ||
+          req.user?.firstName ||
+          "Unknown",
+        action: "UPDATE",
+        module: "Operations",
+        description: `Updated ${operationType} operation ${operationId}`,
+        status: "SUCCESS",
+      });
+    } catch (logError) {
+      console.error(
+        "Failed to record operation update activity:",
+        logError.message
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -246,6 +315,27 @@ export const deleteOperation = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Operation not found" });
+
+    }
+    // Log operation deletion
+    try {
+      await logActivity({
+        userId: req.user?.id || req.user?._id || null,
+        userName:
+          req.user?.email ||
+          req.user?.name ||
+          req.user?.firstName ||
+          "Unknown",
+        action: "DELETE",
+        module: "Operations",
+        description: `Deleted ${deletedOperation.operationType} operation ${operationId}`,
+        status: "SUCCESS",
+      });
+    } catch (logError) {
+      console.error(
+        "Failed to record operation deletion activity:",
+        logError.message
+      );
     }
 
     res.status(200).json({

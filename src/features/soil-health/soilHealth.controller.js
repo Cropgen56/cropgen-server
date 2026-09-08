@@ -4,6 +4,7 @@ import {
   FARMER_LANGUAGE_CODES,
   normalizeFarmerLanguage,
 } from "../../utils/language/farmerLanguages.js";
+import { logActivity } from "../../utils/storage/activityLog.service.js";
 
 function extractPolygonGeometry(input) {
   if (!input || typeof input !== "object") return null;
@@ -111,7 +112,30 @@ export async function createSoilHealthReport(req, res) {
       language: normalizedLanguage,
     });
 
-    return res.status(200).json({
+/* ================= ACTIVITY LOG ================= */ 
+    try {
+      await logActivity({
+        userId: req.user?.id || req.user?._id || null,
+        userName:
+          req.user?.email ||
+          req.user?.name ||
+          req.user?.firstName ||
+          "Unknown",
+        action: "GENERATE",
+        module: "Soil Report",
+        description: `Generated soil health report for crop ${currentCrop}`,
+        status: "SUCCESS",
+      });
+
+      console.log("✅ SOIL REPORT ACTIVITY LOG CREATED");
+    } catch (logError) {
+      console.error(
+        "❌ Failed to record soil report activity:",
+        logError.message
+      );
+    }
+
+    return res.status(200).json({    
       success: true,
       message: "Soil health report generated successfully.",
       data: {
@@ -120,11 +144,38 @@ export async function createSoilHealthReport(req, res) {
       },
     });
   } catch (error) {
-    console.error("Error in createSoilHealthReport:", error);
-    const status = Number(error?.statusCode) || 500;
-    return res.status(status).json({
-      success: false,
-      message: error?.message || "Failed to generate soil health report.",
+  console.error("Error in createSoilHealthReport:", error);
+
+  /* ================= FAILURE ACTIVITY LOG ================= */
+  try {
+    await logActivity({
+      userId: req.user?.id || req.user?._id || null,
+      userName:
+        req.user?.email ||
+        req.user?.name ||
+        req.user?.firstName ||
+        "Unknown",
+      action: "GENERATE",
+      module: "Soil Report",
+      description: `Failed to generate soil health report for crop ${
+        req.body?.currentCrop || "unknown"
+      }: ${error.message}`,
+      status: "FAILED",
     });
+
+    console.log("❌ SOIL REPORT FAILURE ACTIVITY LOG CREATED");
+  } catch (logError) {
+    console.error(
+      "❌ Failed to record soil report failure activity:",
+      logError.message
+    );
   }
+
+  const status = Number(error?.statusCode) || 500;
+
+  return res.status(status).json({
+    success: false,
+    message: error?.message || "Failed to generate soil health report.",
+  });
+}
 }

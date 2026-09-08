@@ -4,6 +4,7 @@ import {
   idSchema,
 } from "../../validation/subscription/schema.js";
 import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
+import { logActivity } from "../../utils/storage/activityLog.service.js";
 
 export const updateSubscriptionPlan = async (req, res) => {
   try {
@@ -51,12 +52,28 @@ export const updateSubscriptionPlan = async (req, res) => {
     req.body.brand = brand;
 
     const updated = await SubscriptionPlan.findByIdAndUpdate(
-      req.params.id,
-      { $set: req.body },
-      { new: true, runValidators: true },
-    );
+  req.params.id,
+  { $set: req.body },
+  { new: true, runValidators: true },
+);
 
-    res.json({ success: true, data: updated });
+try {
+  await logActivity({
+    userId: req.user?.id || req.user?._id || null,
+    userName: req.user?.email || "Unknown",
+    action: "UPDATE",
+    module: "Subscription",
+    description: `Updated subscription plan: ${updated.name || updated.slug}`,
+    status: "SUCCESS",
+  });
+} catch (logError) {
+  console.error(
+    "Failed to record subscription plan update activity:",
+    logError.message,
+  );
+}
+
+res.json({ success: true, data: updated });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }

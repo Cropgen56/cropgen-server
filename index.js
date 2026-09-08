@@ -33,6 +33,7 @@ import emailRoutes from "./src/routes/email.routes.js";
 import advisoryRoutes from "./src/features/advisory/routes/advisory.routes.js";
 import carbonRoutes from "./src/routes/carbon.routes.js";
 import soilHealthRoutes from "./src/features/soil-health/soilHealth.routes.js";
+import logRoutes from "./src/routes/log.routes.js";
 
 // Agent chat routes
 import chatRoutes from "./src/routes/chat.routes.js";
@@ -230,6 +231,7 @@ app.use("/v1/api/posts", postsRoutes);
 app.use("/v1/api/common", commonRoutes);
 app.use("/v1/api/analytics", analyticRoutes);
 app.use("/v1/api/whatsapp", whatsappRoutes);
+app.use("/v1/api/logs", logRoutes);
 
 // Smart advisory routes (v2 matches mobile/web client expectations)
 app.use("/v1/api/advisory", advisoryRoutes);

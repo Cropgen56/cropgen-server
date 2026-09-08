@@ -9,6 +9,7 @@ import {
   syntheticCropFromLegacyField,
 } from "../utils/shared/cropInstances.js";
 
+
 /**
  * Generate a farm advisory via the modular crop pipeline (modules 1–7), for
  * one crop instance at a time. Barren land fields (or a farm with no active
