@@ -1,5 +1,95 @@
 [
   {
+    "id": "1789124594637",
+    "userId": "6a8be2527cddc28a1bb4de6d",
+    "userName": "Unknown",
+    "action": "VIEW",
+    "module": "Analytics",
+    "description": "Viewed dashboard analytics",
+    "dateTime": "2026-09-11T11:03:14.637Z",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "1789124576393",
+    "userId": "6a8be2527cddc28a1bb4de6d",
+    "userName": "Unknown",
+    "action": "VIEW",
+    "module": "Analytics",
+    "description": "Viewed dashboard analytics",
+    "dateTime": "2026-09-11T11:02:56.393Z",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "1789124284942",
+    "userId": "6a8be2527cddc28a1bb4de6d",
+    "userName": "gunjalkarvaibhavi@gmail.com",
+    "action": "GOOGLE_LOGIN",
+    "module": "Authentication",
+    "description": "User logged in successfully using Google",
+    "dateTime": "2026-09-11T10:58:04.944Z",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "1789028837924",
+    "userId": "6a8be2527cddc28a1bb4de6d",
+    "userName": "gunjalkarvaibhavi@gmail.com",
+    "action": "GOOGLE_LOGIN",
+    "module": "Authentication",
+    "description": "User logged in successfully using Google",
+    "dateTime": "2026-09-10T08:27:17.926Z",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "1789024344184",
+    "userId": "6a8be2527cddc28a1bb4de6d",
+    "userName": "gunjalkarvaibhavi@gmail.com",
+    "action": "GOOGLE_LOGIN",
+    "module": "Authentication",
+    "description": "User logged in successfully using Google",
+    "dateTime": "2026-09-10T07:12:24.185Z",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "1789016849236",
+    "userId": null,
+    "userName": "Unknown",
+    "action": "GENERATE",
+    "module": "Soil Report",
+    "description": "Generated soil health report for crop amla",
+    "dateTime": "2026-09-10T05:07:29.236Z",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "1789016824988",
+    "userId": "6a8be2527cddc28a1bb4de6d",
+    "userName": "Unknown",
+    "action": "DELETE",
+    "module": "Operations",
+    "description": "Deleted transplanting operation 6a9e6cea6abbeb5f3e2039c7",
+    "dateTime": "2026-09-10T05:07:04.989Z",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "1789016120527",
+    "userId": "6a8be2527cddc28a1bb4de6d",
+    "userName": "Unknown",
+    "action": "DELETE",
+    "module": "Operations",
+    "description": "Deleted sowing operation 6a9e6be118f2ca03c955dd76",
+    "dateTime": "2026-09-10T04:55:20.528Z",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "1789016085350",
+    "userId": "6a8be2527cddc28a1bb4de6d",
+    "userName": "gunjalkarvaibhavi@gmail.com",
+    "action": "GOOGLE_LOGIN",
+    "module": "Authentication",
+    "description": "User logged in successfully using Google",
+    "dateTime": "2026-09-10T04:54:45.352Z",
+    "status": "SUCCESS"
+  },
+  {
     "id": "1788767543950",
     "userId": "6a8be2527cddc28a1bb4de6d",
     "userName": "Unknown",
