@@ -2,11 +2,25 @@ import { getActivityLogs } from "../../utils/storage/activityLog.service.js";
 
 export const getLogs = async (req, res) => {
   try {
-    const logs = await getActivityLogs();
+    const { page, limit, search, module, action, status, startDate, endDate } =
+      req.query;
+
+    const { logs, pagination, filterOptions } = await getActivityLogs({
+      page,
+      limit,
+      search,
+      module,
+      action,
+      status,
+      startDate,
+      endDate,
+    });
 
     return res.status(200).json({
       success: true,
       data: logs,
+      pagination,
+      filterOptions,
     });
   } catch (error) {
     console.error("Failed to fetch activity logs:", error);
