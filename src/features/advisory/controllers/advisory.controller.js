@@ -13,6 +13,7 @@ import {
 import { buildFarmAdvisorySummary } from "../services/farmAdvisorySummary.service.js";
 import { getOrgScopeId, getOrgScopedUserIds, sameOrg } from "../../../utils/auth/orgScope.js";
 import User from "../../../models/user.model.js";
+import { logActivity } from "../../../utils/storage/activityLog.service.js";
 
 function resolveResponseLanguage(req) {
   return req.query.language || req.user?.language || "en";
@@ -329,6 +330,25 @@ export const patchAdvisoryActivityProgress = async (req, res) => {
 
     const doc =
       typeof advisory.toObject === "function" ? advisory.toObject() : advisory;
+      try {
+  await logActivity({
+    userId: req.user?.id || req.user?._id,
+    userName:
+      req.user?.email ||
+      req.user?.name ||
+      req.user?.firstName ||
+      "Unknown",
+    action: "UPDATE",
+    module: "Advisories",
+    description: `Updated advisory ${advisoryId} activity ${activityType} progress`,
+    status: "SUCCESS",
+  });
+} catch (logError) {
+  console.error(
+    "Failed to record advisory activity:",
+    logError.message
+  );
+}
 
     return res.status(200).json({
       success: true,
@@ -378,12 +398,51 @@ export const generateFarmAdvisory = async (req, res) => {
     });
 
     if (result.queued) {
-      return res.status(202).json({
-        success: true,
-        queued: true,
-        jobId: result.jobId,
+  try {
+    await logActivity({
+      userId: req.user?.id || req.user?._id || null,
+      userName:
+        req.user?.email ||
+        req.user?.name ||
+        req.user?.firstName ||
+        "Unknown",
+      action: "GENERATE",
+      module: "Advisories",
+      description: `Advisory generation queued for farm field ${farmFieldId}`,
+      status: "SUCCESS",
+    });
+  } catch (logError) {
+    console.error(
+      "Failed to record queued advisory activity:",
+      logError.message
+    );
+  }
+
+  return res.status(202).json({
+    success: true,
+    queued: true,
+    jobId: result.jobId,
+  });
+}
+    try {
+      await logActivity({
+        userId: req.user?.id || req.user?._id,
+        userName:
+          req.user?.email ||
+          req.user?.name ||
+          req.user?.firstName ||
+          "Unknown",
+        action: "GENERATE",
+        module: "Advisories",
+        description: `Generated advisory for farm field ${farmFieldId}`,
+        status: "SUCCESS",
       });
-    }
+    } catch (logError) {
+  console.error(
+    "Failed to record advisory generation activity:",
+    logError.message
+  );
+}
 
     return res.json({
       success: true,
@@ -391,13 +450,37 @@ export const generateFarmAdvisory = async (req, res) => {
       activitiesSource: result.advisory?.activitiesSource,
       activitiesCount: (result.advisory?.activitiesToDo || []).length,
     });
-  } catch (err) {
+  }catch (err) {
     console.error("Advisory API failed", err);
+
+    // Log failed advisory generation
+    try {
+      await logActivity({
+        userId: req.user?.id || req.user?._id,
+        userName:
+          req.user?.email ||
+          req.user?.name ||
+          req.user?.firstName ||
+          "Unknown",
+        action: "GENERATE",
+        module: "Advisories",
+        description: `Failed to generate advisory for farm field ${
+          req.body?.farmFieldId || "unknown"
+        }: ${err.response?.data?.error || err.message}`,
+        status: "FAILED",
+      });
+    } catch (logError) {
+      console.error(
+        "Failed to record advisory generation failure activity:",
+        logError.message
+      );
+    }
+
     res.status(500).json({
       message: "Advisory generation failed",
       error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
-  }
+  } 
 };
 
 export const getFarmAdvisoriesByUser = async (req, res) => {

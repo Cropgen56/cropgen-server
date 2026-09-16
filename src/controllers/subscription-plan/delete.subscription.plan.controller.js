@@ -2,6 +2,7 @@ import SubscriptionPlan from "../../models/subscription-plan.model.js";
 import { idSchema } from "../../validation/subscription/schema.js";
 import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
 import { isOrgScopedAdmin } from "../../utils/auth/orgScope.js";
+import { logActivity } from "../../utils/storage/activityLog.service.js";
 
 export const deleteSubscriptionPlan = async (req, res) => {
   try {
@@ -26,7 +27,24 @@ export const deleteSubscriptionPlan = async (req, res) => {
     }
 
     await SubscriptionPlan.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: "Plan deleted successfully" });
+
+try {
+  await logActivity({
+    userId: req.user?.id || req.user?._id || null,
+    userName: req.user?.email || "Unknown",
+    action: "DELETE",
+    module: "Subscription",
+    description: `Deleted subscription plan: ${plan.name || plan.slug}`,
+    status: "SUCCESS",
+  });
+} catch (logError) {
+  console.error(
+    "Failed to record subscription plan deletion activity:",
+    logError.message,
+  );
+}
+
+res.json({ success: true, message: "Plan deleted successfully" });
   } catch (e) {
     res.status(500).json({ success: false, message: "Server error" });
   }

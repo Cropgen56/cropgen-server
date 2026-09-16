@@ -11,6 +11,7 @@ import {
   endOfYear,
 } from "date-fns";
 import { getOrgScopeId, getOrgScopedUserIds } from "../../utils/auth/orgScope.js";
+import { logActivity } from "../../utils/storage/activityLog.service.js";
 
 export const getDashboardAnalytics = async (req, res) => {
   try {
@@ -209,6 +210,29 @@ export const getDashboardAnalytics = async (req, res) => {
 
     /* ---------------- Final Response ---------------- */
 
+    // Log analytics access
+    try {
+      await logActivity({
+        userId: req.user?.id || req.user?._id || null,
+        userName:
+          req.user?.email ||
+          req.user?.name ||
+          req.user?.firstName ||
+          "Unknown",
+        action: "VIEW",
+        module: "Analytics",
+        description: `Viewed dashboard analytics${
+          hasDateFilter ? ` for ${period || "custom date range"}` : ""
+        }`,
+        status: "SUCCESS",
+      });
+    } catch (logError) {
+      console.error(
+        "Failed to record analytics activity:",
+        logError.message
+      );
+    }
+
     res.status(200).json({
       period: hasDateFilter ? period : "all",
       users: {
@@ -229,7 +253,32 @@ export const getDashboardAnalytics = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Dashboard analytics error:", error);
-    res.status(500).json({ message: error.message });
+  console.error("Dashboard analytics error:", error);
+
+  // Log failed analytics request
+  try {
+    await logActivity({
+      userId: req.user?.id || req.user?._id || null,
+      userName:
+        req.user?.email ||
+        req.user?.name ||
+        req.user?.firstName ||
+        "Unknown",
+      action: "VIEW",
+      module: "Analytics",
+      description: `Failed to load dashboard analytics: ${error.message}`,
+      status: "FAILED",
+    });
+  } catch (logError) {
+    console.error(
+      "Failed to record analytics failure activity:",
+      logError.message
+    );
   }
+
+  res.status(500).json({
+    success: false,
+    message: error.message,
+  });
+}
 };

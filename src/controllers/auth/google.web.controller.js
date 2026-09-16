@@ -18,6 +18,7 @@ import {
 } from "../../utils/email/template.js";
 import mongoose from "mongoose";
 import { resolveBiodropsGoogleAudiences } from "./biodropsGoogleAudiences.js";
+import { logActivity } from "../../utils/storage/activityLog.service.js";
 
 function resolveGoogleClientIdByBrand(preset) {
   if (preset === "biodrops") {
@@ -211,8 +212,29 @@ const runGoogleWebLogin = async (
     if (wasFullyRegistered) user.lastLoginAt = new Date();
     await user.save();
 
-    // Minimal payload for access token
-    const tokenPayload = {
+   try {
+     await logActivity({
+       userId: user._id,
+       userName:
+         user.email ||
+         `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+         "Unknown",
+       action: "GOOGLE_LOGIN",
+       module: "Authentication",
+       description: wasFullyRegistered
+         ? "User logged in successfully using Google"
+         : "User registered successfully using Google",
+       status: "SUCCESS",
+     });
+   } catch (logError) {
+     console.error(
+       "Failed to record Google login activity:",
+       logError.message,
+      );
+   }
+
+// Minimal payload for access token
+const tokenPayload = {
       id: user._id,
       role: user.role,
       organization: user.organization,
@@ -261,10 +283,30 @@ const runGoogleWebLogin = async (
       profileDetailsRequired,
     });
   } catch (error) {
-    console.error("loginWithGoogleWeb:", error.message, error.stack);
-    return res.status(error.status || 500).json({
-      success: false,
-      message: error.message || "Internal server error.",
+  console.error("loginWithGoogleWeb:", error.message, error.stack);
+
+  // Record failed Google login
+  try {
+    await logActivity({
+      userId: null,
+      userName: req.body?.email || "Unknown",
+      action: "LOGIN",
+      module: "Authentication",
+      description: `Google login failed: ${
+        error.message || "Unknown error"
+      }`,
+      status: "FAILED",
     });
+  } catch (logError) {
+    console.error(
+      "Failed to record Google login failure activity:",
+      logError.message,
+    );
   }
+
+  return res.status(error.status || 500).json({
+    success: false,
+    message: error.message || "Internal server error.",
+  });
+}
 };

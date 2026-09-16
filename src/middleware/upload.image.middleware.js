@@ -18,14 +18,14 @@ const tempStorage = multer.diskStorage({
 });
 
 // File filter for image validation
+const filetypes = /jpeg|jpg|png|webp|gif/;
 const fileFilter = (req, file, cb) => {
-  const filetypes = /jpeg|jpg|png/;
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = filetypes.test(file.mimetype);
   if (extname && mimetype) {
     return cb(null, true);
   }
-  cb(new Error("Only JPEG and PNG images are allowed"));
+  cb(new Error("Only JPEG, PNG, WEBP, and GIF images are allowed"));
 };
 
 const upload = multer({
@@ -52,7 +52,7 @@ export const uploadCropImages = (req, res, next) => {
       console.error("Upload error:", err);
       return res.status(400).json({
         success: false,
-        message: "Error uploading images",
+        message: err.message || "Error uploading images",
       });
     }
 
@@ -149,8 +149,20 @@ export const uploadCropImages = (req, res, next) => {
 // ==================== BLOG IMAGE UPLOAD ====================
 export const uploadBlogImages = (req, res, next) => {
   upload.single("blogImage")(req, res, async (err) => {
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        success: false,
+        message: "File too large. Maximum size is 5 MB.",
+      });
+    }
     if (err) {
       return res.status(400).json({ success: false, message: err.message });
+    }
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No image file was provided.",
+      });
     }
 
     try {

@@ -14,6 +14,7 @@ import {
   htmlWelcome,
   resolveAuthEmailPreset,
 } from "../../utils/email/template.js";
+import { logActivity } from "../../utils/storage/activityLog.service.js";
 
 export const completeProfile = async (req, res) => {
   try {
@@ -150,6 +151,25 @@ export const completeProfile = async (req, res) => {
 
     await user.save();
 
+    try {
+      await logActivity({
+        userId: user._id,
+        userName:
+      user.email ||
+          `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+          "Unknown",
+        action: "COMPLETE_PROFILE",
+        module: "Authentication",
+        description: "User completed profile registration successfully",
+        status: "SUCCESS",
+      });
+    } catch (logError) {
+      console.error(
+        "Failed to record profile completion activity:",
+        logError.message
+      );
+    }
+
     // Minimal payload for tokens
     const payload = {
       id: user._id,
@@ -201,8 +221,27 @@ export const completeProfile = async (req, res) => {
       onboardingRequired: false,
     });
   } catch (e) {
-    console.error("completeProfile:", e);
-    if (e?.name === "ValidationError") {
+  console.error("completeProfile:", e);
+
+  try {
+    await logActivity({
+      userId: req.auth?.id || null,
+      userName: req.body?.email || "Unknown",
+      action: "COMPLETE_PROFILE",
+      module: "Authentication",
+      description: `Profile completion failed: ${
+        e.message || "Unknown error"
+      }`,
+      status: "FAILED",
+    });
+  } catch (logError) {
+    console.error(
+      "Failed to record profile completion failure:",
+      logError.message
+    );
+  }
+
+  if (e?.name === "ValidationError") {
       const first = e.errors && Object.values(e.errors)[0];
       return res.status(400).json({
         success: false,

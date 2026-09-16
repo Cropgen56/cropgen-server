@@ -2,6 +2,7 @@ import SubscriptionPlan from "../../models/subscription-plan.model.js";
 import { subscriptionPlanSchema } from "../../validation/subscription/schema.js";
 import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
 import { isOrgScopedAdmin } from "../../utils/auth/orgScope.js";
+import { logActivity } from "../../utils/storage/activityLog.service.js";
 
 const VALID_BRANDS = ["cropgen", "biodrops", "aat"];
 
@@ -39,7 +40,24 @@ export const createSubscriptionPlan = async (req, res) => {
     }
 
     const plan = await SubscriptionPlan.create(req.body);
-    res.status(201).json({ success: true, data: plan });
+
+try {
+  await logActivity({
+    userId: req.user?.id || req.user?._id || null,
+    userName: req.user?.email || "Unknown",
+    action: "CREATE",
+    module: "Subscription",
+    description: `Created subscription plan: ${plan.name || plan.slug}`,
+    status: "SUCCESS",
+  });
+} catch (logError) {
+  console.error(
+    "Failed to record subscription creation activity:",
+    logError.message
+  );
+}
+
+res.status(201).json({ success: true, data: plan });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });
   }

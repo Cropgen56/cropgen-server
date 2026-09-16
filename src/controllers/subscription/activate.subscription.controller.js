@@ -5,6 +5,7 @@ import { createSubscriptionActivationNotification } from "../../services/notific
 import { resolveSubscriptionPlanBrandForTarget } from "../../utils/auth/authUtils.js";
 import { assertAatFieldWithinPlan } from "../../utils/subscription/aatPlan.js";
 import { assertCanManageTargetUser } from "../../utils/auth/orgScope.js";
+import { logActivity } from "../../utils/storage/activityLog.service.js";
 
 export const activateSubscriptionManually = async (req, res) => {
   try {
@@ -110,7 +111,27 @@ export const activateSubscriptionManually = async (req, res) => {
 
     await createSubscriptionActivationNotification(subscription._id);
 
-    return res.status(201).json({
+try {
+  await logActivity({
+    userId: req.user?.id || req.user?._id || null,
+    userName:
+      req.user?.email ||
+      req.user?.name ||
+      req.user?.firstName ||
+      "Unknown",
+    action: "ACTIVATE",
+    module: "Subscription",
+    description: `Manually activated ${billingCycle} subscription for farm ${farm.fieldName} using plan ${plan.name || plan.slug}`,
+    status: "SUCCESS",
+  });
+} catch (logError) {
+  console.error(
+    "Failed to record subscription activation activity:",
+    logError.message,
+  );
+}
+
+return res.status(201).json({
       success: true,
       message: "Subscription activated manually",
       subscriptionId: subscription._id,

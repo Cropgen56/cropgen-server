@@ -155,6 +155,7 @@ export const updateCrop = async (req, res) => {
       harvesting,
       postHarvesting,
       removeCropImage,
+      removedImages,
     } = req.body;
 
     const parseIfString = (data, fieldName) => {
@@ -212,22 +213,33 @@ export const updateCrop = async (req, res) => {
 
     // Handle crop image
     let imagesToDelete = [];
-    if (removeCropImage === "true") {
-      if (!req.files?.cropImage?.[0]?.url) {
-        return res.status(400).json({
-          success: false,
-          message: "A new crop image is required if removing the existing one",
-        });
-      }
+    const parsedRemovedImages = removedImages
+      ? parseIfString(removedImages, "removedImages")
+      : null;
+    // The UI's "x" on the crop image lets an admin remove it without picking
+    // a replacement; that intent only shows up in removedImages.cropImage,
+    // not in a dedicated removeCropImage flag.
+    const markedForRemovalOnly =
+      !!oldCropImage &&
+      (parsedRemovedImages?.cropImage || []).includes(oldCropImage);
+
+    if (removeCropImage === "true" && !req.files?.cropImage?.[0]?.url) {
+      return res.status(400).json({
+        success: false,
+        message: "A new crop image is required if removing the existing one",
+      });
+    }
+
+    if (req.files?.cropImage?.[0]?.url) {
       if (oldCropImage) {
         imagesToDelete.push(oldCropImage);
       }
       crop.cropImage = req.files.cropImage[0].url;
-    } else if (req.files?.cropImage?.[0]?.url) {
+    } else if (removeCropImage === "true" || markedForRemovalOnly) {
       if (oldCropImage) {
         imagesToDelete.push(oldCropImage);
       }
-      crop.cropImage = req.files.cropImage[0].url;
+      crop.cropImage = undefined;
     }
 
     // Handle pestProtection

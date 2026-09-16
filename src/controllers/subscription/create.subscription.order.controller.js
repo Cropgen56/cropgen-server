@@ -23,6 +23,7 @@ import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
 import { assertAatFieldWithinPlan, aatChargeArea } from "../../utils/subscription/aatPlan.js";
 import { isBiodropsTierPlan, biodropsTierChargeArea } from "../../utils/subscription/biodropsTierPlan.js";
 import { createBiodropsCardHybridOrder } from "../../clients/biodrops/controllers/subscriptions/card-hybrid-order.controller.js";
+import { logActivity } from "../../utils/storage/activityLog.service.js";
 
 const razorpay = getRazorpay();
 
@@ -295,6 +296,21 @@ export const createSubscriptionOrder = async (req, res) => {
               billingMode: "legacy_order",
             },
           );
+          try {
+            await logActivity({
+              userId,
+              userName: req.user?.email || "Unknown",
+              action: "CREATE",
+              module: "Subscription",
+              description: `Trial subscription created successfully for farm ${farmId}`,
+              status: "SUCCESS",
+            });
+          } catch (logError) {
+            console.error(
+              "Failed to record subscription activity:",
+                        logError.message
+            );
+          }
 
           return res.status(201).json({
             success: true,
@@ -493,6 +509,22 @@ export const createSubscriptionOrder = async (req, res) => {
     subscription.billingPattern = billingPattern;
     await subscription.save();
 
+    try {
+      await logActivity({
+        userId,
+        userName: req.user?.email || "Unknown",
+        action: "CREATE",
+        module: "Subscription",
+        description: `Subscription created successfully for farm ${farmId} with ${billingCycle} plan`,
+        status: "SUCCESS",
+      });
+    } catch (logError) {
+      console.error(
+        "Failed to record subscription activity:",
+            logError.message
+      );
+    }
+
     return res.status(201).json({
       success: true,
       type: "subscription",
@@ -505,8 +537,28 @@ export const createSubscriptionOrder = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Create subscription order failed:", error);
-    const { message, status } = formatRazorpayApiError(error);
-    return res.status(status).json({ message });
+  console.error("Create subscription order failed:", error);
+
+  try {
+    await logActivity({
+      userId: req.user?.id || req.user?._id || null,
+      userName: req.user?.email || "Unknown",
+      action: "CREATE",
+      module: "Subscription",
+      description: `Subscription creation failed: ${
+        error.message || "Unknown error"
+      }`,
+      status: "FAILED",
+    });
+  } catch (logError) {
+    console.error(
+      "Failed to record subscription failure activity:",
+      logError.message
+    );
   }
+
+  const { message, status } = formatRazorpayApiError(error);
+
+  return res.status(status).json({ message });
+}
 };
