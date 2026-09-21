@@ -30,6 +30,8 @@ const farmFieldSchema = new mongoose.Schema(
     },
     /** True when the plot has no standing crop; sowingDate stores expected sowing date. */
     isBarrenLand: { type: Boolean, default: false },
+    /** Cached ObservEarth AOI id for this farm's weather geometry — avoids re-listing/re-creating AOIs on every advisory run. */
+    weatherAoiId: { type: String, default: null },
   },
   { timestamps: true }
 );

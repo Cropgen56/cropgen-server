@@ -1,4 +1,5 @@
 import axios from "axios";
+import FarmField from "../../models/field.model.js";
 import {
   ADVISORY_SAMPLE_HECTARES,
   buildCentroidSamplePolygon,
@@ -28,14 +29,30 @@ function compactAoiName(farmId) {
   return `${farmId}-wx`;
 }
 
+/**
+ * ObservEarth paginates (50/page by default). Earlier code only read page 1,
+ * so once the account passed ~50 AOIs, lookups for older farms silently
+ * failed and a fresh duplicate AOI got created on every advisory run.
+ * This is now only called as a one-time fallback per farm (see
+ * resolveAOIForFarm's weatherAoiId cache), so paying for full pagination
+ * here is cheap and keeps the match correct regardless of account size.
+ */
 async function fetchAllAOIs() {
-  const res = await withAoiRetry(() =>
-    aoiHttp.get(`${OBSERVE_EARTH_BASE_URL}?detail=false`, {
-      headers: HEADERS,
-    }),
-  );
+  const results = [];
+  let url = `${OBSERVE_EARTH_BASE_URL}?detail=false&page_size=200`;
 
-  return Array.isArray(res.data) ? res.data : res.data.results || [];
+  while (url) {
+    const res = await withAoiRetry(() => aoiHttp.get(url, { headers: HEADERS }));
+    const data = res.data;
+    if (Array.isArray(data)) {
+      results.push(...data);
+      break;
+    }
+    results.push(...(data.results || []));
+    url = data.next || null;
+  }
+
+  return results;
 }
 
 async function createAOI(name, geometry) {
@@ -93,6 +110,11 @@ export async function resolveAOIForFarm(farm) {
     throw new Error("Farm is required to resolve AOI");
   }
 
+  // Fast path: already resolved and cached on the farm doc — no ObservEarth call at all.
+  if (farm.weatherAoiId) {
+    return { aoiId: farm.weatherAoiId, created: false };
+  }
+
   const aoiName = farm._id.toString();
   const weatherName = compactAoiName(aoiName);
 
@@ -107,28 +129,41 @@ export async function resolveAOIForFarm(farm) {
     );
   }
 
-  if (aois.length) {
-    const existing = aois.find(
-      (a) => a.name === aoiName || a.name === weatherName,
+  const existing = aois.find(
+    (a) => a.name === aoiName || a.name === weatherName,
+  );
+
+  let aoiId;
+  let created;
+  if (existing) {
+    aoiId = existing.id;
+    created = false;
+  } else {
+    const geometry = buildCentroidSamplePolygon(
+      farm.field,
+      ADVISORY_SAMPLE_HECTARES,
     );
-    if (existing) {
-      return {
-        aoiId: existing.id,
-        created: false,
-      };
-    }
+    aoiId = await createAOI(aoiName, geometry);
+    created = true;
   }
 
-  const geometry = buildCentroidSamplePolygon(
-    farm.field,
-    ADVISORY_SAMPLE_HECTARES,
-  );
-  const aoiId = await createAOI(aoiName, geometry);
+  // Cache atomically, only if nothing else won this race in the meantime —
+  // avoids two concurrent callers (cron + manual trigger) both creating an AOI.
+  const claimed = await FarmField.findOneAndUpdate(
+    { _id: farm._id, weatherAoiId: { $in: [null, undefined] } },
+    { $set: { weatherAoiId: aoiId } },
+    { new: true },
+  ).select("weatherAoiId");
 
-  return {
-    aoiId,
-    created: true,
-  };
+  if (claimed) {
+    farm.weatherAoiId = aoiId;
+    return { aoiId, created };
+  }
+
+  // Someone else resolved this farm's AOI first — defer to their id instead of orphaning ours.
+  const winner = await FarmField.findById(farm._id).select("weatherAoiId");
+  farm.weatherAoiId = winner?.weatherAoiId || aoiId;
+  return { aoiId: farm.weatherAoiId, created: false };
 }
 
 export default resolveAOIForFarm;
