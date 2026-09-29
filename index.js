@@ -27,6 +27,7 @@ import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
 import biodropsShopRoutes from "./src/clients/biodrops/routes/shop.routes.js";
 import emailRoutes from "./src/routes/email.routes.js";
+import { apiLogger } from "./src/middleware/apiLogger.middleware.js";
 // Smart advisory routes
 import advisoryRoutes from "./src/features/advisory/routes/advisory.routes.js";
 import carbonRoutes from "./src/routes/carbon.routes.js";
@@ -219,6 +220,9 @@ app.use((req, res, next) => {
 });
 app.use(cookieParser());
 
+// API monitoring
+app.use("/v1/api", apiLogger);
+app.use("/v2/api", apiLogger);
 // Core API routes
 app.use("/v1/api/auth", authRoutes);
 app.use("/v1/api/field", fieldRoutes);
