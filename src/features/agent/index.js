@@ -1,4 +1,4 @@
-/** AI agent feature — LangChain/OpenAI, sockets, WhatsApp auto-reply */
+/** AI agent feature — OpenAI Agents SDK, sockets, WhatsApp auto-reply */
 
 export {
   createPublicAgent,

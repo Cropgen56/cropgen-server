@@ -1,16 +1,17 @@
-import { ChatOpenAI } from "@langchain/openai";
 import {
-  ChatPromptTemplate,
-  MessagesPlaceholder,
-} from "@langchain/core/prompts";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { ChatMessageHistory } from "langchain/stores/message/in_memory";
+  Agent,
+  OpenAIProvider,
+  Runner,
+  assistant,
+  user,
+} from "@openai/agents";
 import {
   PUBLIC_SYSTEM_PROMPT,
   buildPublicSystemPrompt,
   buildAppSystemPrompt,
   getAgentOrgProfile,
 } from "./systemPrompts.js";
+import { cropKnowledgeTool } from "../tools/cropKnowledgeTool.js";
 
 const MAX_STORED_MESSAGES = 24;
 const MAX_CONTEXT_MESSAGES = 16;
@@ -27,23 +28,6 @@ export function isGenericAgentFailure(text) {
     t === AI_NOT_CONFIGURED_REPLY ||
     /^AI error occurred/i.test(t)
   );
-}
-
-function extractText(message) {
-  const c = message?.content;
-  if (typeof c === "string") return c;
-  if (Array.isArray(c)) {
-    return c
-      .map((part) => {
-        if (typeof part === "string") return part;
-        if (part && typeof part === "object" && "text" in part && part.text != null) {
-          return String(part.text);
-        }
-        return "";
-      })
-      .join("");
-  }
-  return "";
 }
 
 const DEFAULT_INCOMPLETE_REPLY =
@@ -105,8 +89,8 @@ function normalizeListLineBreaks(s) {
 }
 
 function trimStoredHistory(chatHistory) {
-  if (chatHistory.messages.length > MAX_STORED_MESSAGES) {
-    chatHistory.messages = chatHistory.messages.slice(-MAX_STORED_MESSAGES);
+  if (chatHistory.length > MAX_STORED_MESSAGES) {
+    chatHistory.splice(0, chatHistory.length - MAX_STORED_MESSAGES);
   }
 }
 
@@ -124,72 +108,89 @@ function readModelConfig() {
   };
 }
 
-function createOpenAIProvider() {
+const AGENT_TIMEOUT_MS = 45000;
+/** Model call + up to a couple of tool round-trips. */
+const AGENT_MAX_TURNS = 4;
+
+const TOOL_GUIDANCE = `
+
+CROP ENCYCLOPEDIA TOOL:
+• For any question about a specific crop's pests, diseases, symptoms, control/spray options, varieties, sowing, seed rate, fertilizer, irrigation, weeds or harvest, call get_crop_knowledge first and base your answer on its data.
+• Prefer the tool's product names and doses over your own memory. Respect the farm's Farming type (organic vs chemical) when choosing which control options to give.
+• If the tool says the crop is not found, answer from general agronomy without mentioning the tool.
+• Never mention the tool, JSON or "database" to the farmer.`;
+
+let runner = null;
+
+/** One shared Runner backed by the OpenAI Agents SDK provider. */
+function getRunner() {
   const openaiKey = String(process.env.OPENAI_API_KEY ?? "").trim();
   if (!openaiKey) return null;
-
-  const { temperature, maxTokens } = readModelConfig();
-  const model =
-    process.env.OPENAI_AGENT_MODEL ||
-    process.env.OPENAI_MODEL ||
-    "gpt-4o-mini";
-
-  return {
-    name: "openai",
-    chatModel: new ChatOpenAI({
-      model,
-      temperature,
-      maxTokens,
-      topP: 0.9,
-      maxRetries: 3,
-      timeout: 45000,
-      streaming: false,
-      apiKey: openaiKey,
-    }),
-  };
+  if (!runner) {
+    runner = new Runner({
+      modelProvider: new OpenAIProvider({ apiKey: openaiKey }),
+      workflowName: "CropGen farm assistant",
+    });
+  }
+  return runner;
 }
 
-function buildChain(systemPrompt) {
-  const provider = createOpenAIProvider();
-  if (!provider) return null;
+function resolveModelName() {
+  return (
+    process.env.OPENAI_AGENT_MODEL ||
+    process.env.OPENAI_MODEL ||
+    "gpt-4o-mini"
+  );
+}
 
-  const prompt = ChatPromptTemplate.fromMessages([
-    ["system", systemPrompt],
-    new MessagesPlaceholder("history"),
-    ["human", "{input}"],
-  ]);
+function buildAgent(name, instructions) {
+  const { temperature, maxTokens } = readModelConfig();
+  return new Agent({
+    name,
+    instructions: `${instructions}${TOOL_GUIDANCE}`,
+    model: resolveModelName(),
+    tools: [cropKnowledgeTool],
+    modelSettings: { temperature, maxTokens, topP: 0.9 },
+  });
+}
 
-  return {
-    chain: prompt.pipe(provider.chatModel),
-    chatModel: provider.chatModel,
-    systemPrompt,
-  };
+function toInputItems(history, text) {
+  return [
+    ...history.map((m) =>
+      m.role === "assistant" ? assistant(m.content) : user(m.content),
+    ),
+    user(text),
+  ];
+}
+
+async function runAgent(agentRunner, agent, input) {
+  const result = await agentRunner.run(agent, input, {
+    maxTurns: AGENT_MAX_TURNS,
+    signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
+  });
+  const out = result.finalOutput;
+  return typeof out === "string" ? out.trim() : "";
 }
 
 async function generateAgentReply({
-  chain,
-  chatModel,
-  systemPrompt,
+  agentRunner,
+  agent,
   incompleteReply,
   text,
   history,
 }) {
-  let aiMessage = await chain.invoke({ input: text, history });
-  let raw = extractText(aiMessage).trim();
+  let raw = await runAgent(agentRunner, agent, toInputItems(history, text));
   let response = formatPlainFarmerReply(raw);
 
   if (needsRecoveryReply(response) || isAccessDisclaimer(response)) {
-    const recovery = await chatModel.invoke([
-      new SystemMessage(
-        `${systemPrompt}\n\nRECOVERY: ${
-          isAccessDisclaimer(response)
-            ? "Your last answer claimed you lack weather or data access. That is forbidden. Use the farm weather snapshot, location, crop, NPK, yield, and advisory in the system prompt. Answer with concrete field actions. Never say you don't have access."
-            : "Your last answer was incomplete or cut off. Write a full reply in English: complete sentences ending with periods, at least 3 sentences. Do not stop mid-phrase."
-        }`,
-      ),
-      new HumanMessage(text),
-    ]);
-    raw = extractText(recovery).trim();
+    const recoveryAgent = agent.clone({
+      instructions: `${agent.instructions}\n\nRECOVERY: ${
+        isAccessDisclaimer(response)
+          ? "Your last answer claimed you lack weather or data access. That is forbidden. Use the farm weather snapshot, location, crop, NPK, yield, and advisory in the system prompt. Answer with concrete field actions. Never say you don't have access."
+          : "Your last answer was incomplete or cut off. Write a full reply in English: complete sentences ending with periods, at least 3 sentences. Do not stop mid-phrase."
+      }`,
+    });
+    raw = await runAgent(agentRunner, recoveryAgent, [user(text)]);
     response = formatPlainFarmerReply(raw);
   }
 
@@ -205,9 +206,9 @@ async function generateAgentReply({
 function createAgent(systemPrompt, agentOptions = {}) {
   const incompleteReply =
     agentOptions.incompleteReply || DEFAULT_INCOMPLETE_REPLY;
-  const built = buildChain(systemPrompt);
+  const agentRunner = getRunner();
 
-  if (!built) {
+  if (!agentRunner) {
     return {
       async preloadHistory() {},
       async call() {
@@ -216,19 +217,23 @@ function createAgent(systemPrompt, agentOptions = {}) {
     };
   }
 
-  const { chain, chatModel, systemPrompt: builtPrompt } = built;
-  const chatHistory = new ChatMessageHistory();
+  const agent = buildAgent(
+    agentOptions.agentName || "CropGen AI",
+    systemPrompt,
+  );
+
+  /** @type {{ role: "user" | "assistant", content: string }[]} */
+  const chatHistory = [];
 
   return {
     async preloadHistory(pairs = []) {
       for (const p of pairs) {
         const content = String(p?.content ?? "").trim();
         if (!content) continue;
-        if (p.role === "assistant") {
-          await chatHistory.addAIMessage(content);
-        } else {
-          await chatHistory.addUserMessage(content);
-        }
+        chatHistory.push({
+          role: p.role === "assistant" ? "assistant" : "user",
+          content,
+        });
       }
       trimStoredHistory(chatHistory);
     },
@@ -237,21 +242,19 @@ function createAgent(systemPrompt, agentOptions = {}) {
       const text = typeof input === "string" ? input.trim() : String(input ?? "");
       if (!text) return { response: "Sorry, I didn't catch that." };
 
-      const prior = await chatHistory.getMessages();
-      const history = prior.slice(-MAX_CONTEXT_MESSAGES);
+      const history = chatHistory.slice(-MAX_CONTEXT_MESSAGES);
 
       try {
         const response = await generateAgentReply({
-          chain,
-          chatModel,
-          systemPrompt: builtPrompt,
+          agentRunner,
+          agent,
           incompleteReply,
           text,
           history,
         });
 
-        await chatHistory.addUserMessage(text);
-        await chatHistory.addAIMessage(response);
+        chatHistory.push({ role: "user", content: text });
+        chatHistory.push({ role: "assistant", content: response });
         trimStoredHistory(chatHistory);
 
         return { response };
@@ -263,7 +266,7 @@ function createAgent(systemPrompt, agentOptions = {}) {
           err?.status ||
           "";
         console.error(
-          "AI invoke error (openai):",
+          "AI invoke error (openai-agents):",
           err?.message || err,
           cause ? `[${cause}]` : "",
         );
@@ -281,7 +284,9 @@ export function createPublicAgent() {
 }
 
 export function createPublicAgentByOrg(organizationCode = "CROPGEN") {
-  return createAgent(buildPublicSystemPrompt(organizationCode));
+  return createAgent(buildPublicSystemPrompt(organizationCode), {
+    agentName: getAgentOrgProfile(organizationCode).assistantName,
+  });
 }
 
 /**
@@ -294,7 +299,10 @@ export function createAppAgent(userName, farms, agentOptions = {}) {
     ...agentOptions,
     agentProfile: profile,
   });
-  return createAgent(prompt, { incompleteReply: profile.incompleteReplyText });
+  return createAgent(prompt, {
+    agentName: profile.assistantName,
+    incompleteReply: profile.incompleteReplyText,
+  });
 }
 
 export function createAgentForUser(organizationCode = "CROPGEN") {

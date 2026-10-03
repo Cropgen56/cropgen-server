@@ -1,6 +1,6 @@
 # Agent feature
 
-AI farming assistant: LangChain + OpenAI, real-time Socket.IO chat, and WhatsApp auto-replies.
+AI farming assistant: OpenAI Agents SDK (`@openai/agents`), real-time Socket.IO chat, and WhatsApp auto-replies.
 
 ## Layout
 
@@ -8,8 +8,10 @@ AI farming assistant: LangChain + OpenAI, real-time Socket.IO chat, and WhatsApp
 features/agent/
 ├── index.js                 # Public exports
 ├── core/
-│   ├── agent.js             # createPublicAgent, createAppAgent, LLM chain
+│   ├── agent.js             # createPublicAgent, createAppAgent, Agents SDK Agent + Runner
 │   └── systemPrompts.js     # CropGen vs Biodrops/Satagro personas
+├── tools/
+│   └── cropKnowledgeTool.js # get_crop_knowledge: pests/diseases/cultivation from `crops` collection
 ├── utils/
 │   └── farmContext.js       # Crop timeline + advisory text for prompts
 ├── services/
