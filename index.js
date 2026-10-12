@@ -291,11 +291,20 @@ const startServer = async () => {
   try {
     await connectToDatabase();
 
-    // After DB is ready so cron jobs do not run against a buffering connection
-    startNotificationWorker();
-    startSubscriptionExpiryJob();
-    startWelcomeFarmReminderWorker();
-    runAdvisoryJob();
+    // After DB is ready so cron jobs do not run against a buffering connection.
+    // DISABLE_CRON_JOBS=true skips them — use it for a local server pointed at a
+    // shared/production database, so it doesn't send notifications, reminders
+    // or advisories that the deployed server already sends.
+    const cronJobsDisabled =
+      String(process.env.DISABLE_CRON_JOBS || "").toLowerCase() === "true";
+    if (cronJobsDisabled) {
+      console.log("[Cron] DISABLE_CRON_JOBS=true — scheduled jobs not started");
+    } else {
+      startNotificationWorker();
+      startSubscriptionExpiryJob();
+      startWelcomeFarmReminderWorker();
+      runAdvisoryJob();
+    }
     startAdvisoryQueueWorker();
 
     const httpServer = http.createServer(app);
