@@ -41,7 +41,10 @@ import chatRoutes from "./src/routes/chat.routes.js";
 import "./src/config/firebaseConfig.js";
 
 // Webhook (raw body must come before express.json)
-import { handleRazorpayWebhook } from "./src/controllers/subscription/razorpay.webhook.controller.js";
+import {
+  handleRazorpayWebhook,
+  handleBiodropsRazorpayWebhook,
+} from "./src/controllers/subscription/razorpay.webhook.controller.js";
 
 // Workers
 import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
@@ -202,10 +205,16 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
+// Razorpay webhooks — one per Razorpay account, each with its own secret.
 app.post(
   "/v1/api/user-subscriptions/webhook",
   express.raw({ type: "application/json" }),
   handleRazorpayWebhook,
+);
+app.post(
+  "/v1/api/user-subscriptions/webhook/biodrops",
+  express.raw({ type: "application/json" }),
+  handleBiodropsRazorpayWebhook,
 );
 
 const jsonMiddleware = express.json({ limit: "10mb" });

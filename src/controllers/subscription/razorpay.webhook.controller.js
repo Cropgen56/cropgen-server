@@ -308,11 +308,15 @@ async function handleSuccessfulCharge(userSubscription, payload, subscriptionEnt
   await userSubscription.save();
 }
 
-export const handleRazorpayWebhook = async (req, res) => {
+/**
+ * One webhook endpoint per Razorpay account: each account signs its events
+ * with its own webhook secret (`secretEnvVar`). Event processing is shared.
+ */
+const createRazorpayWebhookHandler = (secretEnvVar) => async (req, res) => {
   try {
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const secret = process.env[secretEnvVar];
     if (!secret) {
-      console.error("RAZORPAY_WEBHOOK_SECRET missing");
+      console.error(`${secretEnvVar} missing`);
       return res.status(500).send("Server misconfigured");
     }
 
@@ -356,3 +360,13 @@ export const handleRazorpayWebhook = async (req, res) => {
     }
   }
 };
+
+/** CropGen (default) Razorpay account → POST /v1/api/user-subscriptions/webhook */
+export const handleRazorpayWebhook = createRazorpayWebhookHandler(
+  "RAZORPAY_WEBHOOK_SECRET",
+);
+
+/** BioDrops / Satagro Razorpay account → POST /v1/api/user-subscriptions/webhook/biodrops */
+export const handleBiodropsRazorpayWebhook = createRazorpayWebhookHandler(
+  "RAZORPAY_BIODROPS_WEBHOOK_SECRET",
+);
