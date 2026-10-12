@@ -222,6 +222,11 @@ export const getField = async (req, res) => {
 
     const subByFieldId = new Map();
 
+    // An active subscription always wins over a pending one: opening checkout
+    // creates a newer "pending" row, and an abandoned checkout must not lock a
+    // field that is already paid for. Within the same status, newest wins.
+    const statusRank = (s) => (s.status === "active" ? 1 : 0);
+
     subscriptions.forEach((sub) => {
       const id = String(sub.fieldId);
       const existing = subByFieldId.get(id);
@@ -231,8 +236,9 @@ export const getField = async (req, res) => {
       } else {
         const oldDate = existing.startDate || existing.createdAt || new Date(0);
         const newDate = sub.startDate || sub.createdAt || new Date(0);
+        const rankDiff = statusRank(sub) - statusRank(existing);
 
-        if (newDate > oldDate) {
+        if (rankDiff > 0 || (rankDiff === 0 && newDate > oldDate)) {
           subByFieldId.set(id, sub);
         }
       }
