@@ -1,5 +1,6 @@
 import Razorpay from "razorpay";
 import User from "../models/user.model.js";
+import SubscriptionPlan from "../models/subscription-plan.model.js";
 import {
   billingPatternFromBillingCycle,
   resolveRazorpayChargeMinor,
@@ -8,11 +9,72 @@ import {
 export const USD_INR_RATE = () =>
   Number(process.env.RAZORPAY_USD_INR_RATE || "91.46") || 91.46;
 
-export const getRazorpay = () =>
-  new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-  });
+/**
+ * Razorpay account per brand. BioDrops has its own Razorpay account
+ * (RAZORPAY_BIODROPS_KEY_ID / _KEY_SECRET); every other brand — and BioDrops
+ * when those vars are unset — uses the default RAZORPAY_KEY_ID / _KEY_SECRET.
+ */
+export function getRazorpayCredentials(brand) {
+  if (
+    brand === "biodrops" &&
+    process.env.RAZORPAY_BIODROPS_KEY_ID &&
+    process.env.RAZORPAY_BIODROPS_KEY_SECRET
+  ) {
+    return {
+      keyId: process.env.RAZORPAY_BIODROPS_KEY_ID,
+      keySecret: process.env.RAZORPAY_BIODROPS_KEY_SECRET,
+    };
+  }
+  return {
+    keyId: process.env.RAZORPAY_KEY_ID,
+    keySecret: process.env.RAZORPAY_KEY_SECRET,
+  };
+}
+
+export const getRazorpay = (brand) => {
+  const { keyId, keySecret } = getRazorpayCredentials(brand);
+  return new Razorpay({ key_id: keyId, key_secret: keySecret });
+};
+
+/**
+ * Clients to try for an existing payment/subscription: the brand's own
+ * account first, then the default account (records created before the brand
+ * moved to its own Razorpay account still live there).
+ */
+export function razorpayClientsFor(brand) {
+  const own = getRazorpayCredentials(brand);
+  const fallback = getRazorpayCredentials();
+  const clients = [getRazorpay(brand)];
+  if (own.keyId !== fallback.keyId) clients.push(getRazorpay());
+  return clients;
+}
+
+/** Secrets that may have signed a checkout payment for this brand (own account first). */
+export function razorpaySignatureSecrets(brand) {
+  return [
+    ...new Set(
+      [getRazorpayCredentials(brand).keySecret, getRazorpayCredentials().keySecret].filter(
+        Boolean,
+      ),
+    ),
+  ];
+}
+
+/** Name shown in the Razorpay dashboard (plans, customers) for a brand. */
+export function razorpayBrandLabel(brand) {
+  return brand === "biodrops" ? "BioDrops" : "CropGen";
+}
+
+/** Brand of a UserSubscription, from its plan ("cropgen" when unknown). */
+export async function brandForSubscription(subscription) {
+  if (!subscription?.planId) return "cropgen";
+  const plan = await SubscriptionPlan.findById(
+    subscription.planId?._id || subscription.planId,
+  )
+    .select("brand")
+    .lean();
+  return plan?.brand || "cropgen";
+}
 
 /**
  * Convert USD minor units (cents) to INR minor (paise) for charging.
@@ -95,7 +157,7 @@ async function invokeRazorpay(fn) {
  * Ensures a Razorpay customer exists. Drops stale razorpayCustomerId if it
  * belongs to another Razorpay account/mode (live vs test).
  */
-export async function ensureRazorpayCustomer(razorpay, userId) {
+export async function ensureRazorpayCustomer(razorpay, userId, brand) {
   const user = await User.findById(userId).lean();
   if (!user) throw new Error("User not found");
 
@@ -120,7 +182,7 @@ export async function ensureRazorpayCustomer(razorpay, userId) {
 
   const name =
     [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
-    "CropGen user";
+    `${razorpayBrandLabel(brand)} user`;
 
   // Razorpay expects string "0": reuse existing customer by email/contact.
   // Number 0 is often ignored → default "1" → BAD_REQUEST "already exists".
@@ -182,12 +244,12 @@ export async function createPostTrialRazorpaySubscription({
     totalCount = SEASON_SINGLE_TOTAL_COUNT;
   }
 
-  const { customerId } = await ensureRazorpayCustomer(razorpay, userId);
+  const { customerId } = await ensureRazorpayCustomer(razorpay, userId, plan.brand);
 
   const rzPlan = await createRazorpayPlan(razorpay, {
     period,
     interval: 1,
-    itemName: `CropGen ${plan.slug} ${String(userSubscriptionId).slice(-8)}`,
+    itemName: `${razorpayBrandLabel(plan.brand)} ${plan.slug} ${String(userSubscriptionId).slice(-8)}`,
     amountMinor: charge.chargedMinor,
     description: `${area} acres ${commitBillingCycle} post-trial`,
   });

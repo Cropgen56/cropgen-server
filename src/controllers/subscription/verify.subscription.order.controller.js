@@ -4,10 +4,11 @@ import FarmField from "../../models/field.model.js";
 import SubscriptionPlan from "../../models/subscription-plan.model.js";
 import SubscriptionBillingEvent from "../../models/subscription-billing-event.model.js";
 import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
-import { getRazorpay } from "../../services/razorpay.subscription.service.js";
+import {
+  brandForSubscription,
+  razorpaySignatureSecrets,
+} from "../../services/razorpay.subscription.service.js";
 import { activateBiodropsCardHybridAfterPayment } from "../../clients/biodrops/controllers/subscriptions/card-hybrid-order.controller.js";
-
-const razorpay = getRazorpay();
 
 async function recordVerifyBillingEvent(
   subscription,
@@ -87,20 +88,21 @@ export const verifySubscriptionOrder = async (req, res) => {
       subscription.status === "pending" &&
       subscription.billingMode === "legacy_order";
 
-    let generatedSignature;
-    if (razorpay_subscription_id) {
-      generatedSignature = crypto
-        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-        .update(`${razorpay_payment_id}|${razorpay_subscription_id}`)
-        .digest("hex");
-    } else {
-      generatedSignature = crypto
-        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-        .digest("hex");
-    }
+    // Signed by the Razorpay account the checkout ran on: the plan brand's own
+    // account (BioDrops) or, for checkouts started before that, the default one.
+    const signedPayload = razorpay_subscription_id
+      ? `${razorpay_payment_id}|${razorpay_subscription_id}`
+      : `${razorpay_order_id}|${razorpay_payment_id}`;
+    const secrets = razorpaySignatureSecrets(
+      await brandForSubscription(subscription),
+    );
+    const signatureValid = secrets.some(
+      (secret) =>
+        crypto.createHmac("sha256", secret).update(signedPayload).digest("hex") ===
+        razorpay_signature,
+    );
 
-    if (generatedSignature !== razorpay_signature) {
+    if (!signatureValid) {
       return res.status(400).json({
         success: false,
         message: "Invalid payment signature",

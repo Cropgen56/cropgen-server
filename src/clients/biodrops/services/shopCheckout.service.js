@@ -126,6 +126,7 @@ export async function createShopOrder({
   }
 
   const razorpayOrder = await createRazorpayProductOrder({
+    brand: "biodrops",
     amountMinor: cart.totalMinor,
     currency: cart.currency,
     receipt: orderNumber,
@@ -266,6 +267,7 @@ export async function retryShopOrderPayment({ userId, orderId }) {
   }
 
   const razorpayOrder = await createRazorpayProductOrder({
+    brand: "biodrops",
     amountMinor: order.totalMinor,
     currency: order.currency,
     receipt: order.orderNumber,
@@ -308,6 +310,7 @@ export async function verifyAndFulfillShopOrder({
   }
 
   const valid = verifyRazorpayPaymentSignature({
+    brand: "biodrops",
     razorpayOrderId: razorpayOrderId || order.razorpayOrderId,
     razorpayPaymentId,
     razorpaySignature,

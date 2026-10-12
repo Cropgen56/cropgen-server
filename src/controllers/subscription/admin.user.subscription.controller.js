@@ -2,17 +2,26 @@ import mongoose from "mongoose";
 import UserSubscription from "../../models/user-subscription.model.js";
 import SubscriptionBillingEvent from "../../models/subscription-billing-event.model.js";
 import {
-  getRazorpay,
+  razorpayClientsFor,
   cancelRazorpaySubscriptionBestEffort,
 } from "../../services/razorpay.subscription.service.js";
 import { assertCanManageTargetUser } from "../../utils/auth/orgScope.js";
 
-const razorpay = getRazorpay();
-
 async function summarizeRazorpayPayment(paymentId) {
   if (!paymentId || typeof paymentId !== "string") return null;
   try {
-    const p = await razorpay.payments.fetch(paymentId);
+    // A payment lives in exactly one Razorpay account (BioDrops has its own).
+    let p = null;
+    let lastError = null;
+    for (const razorpay of razorpayClientsFor("biodrops")) {
+      try {
+        p = await razorpay.payments.fetch(paymentId);
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (!p) throw lastError;
     const amount = Number(p.amount);
     const refunded = Number(p.amount_refunded || 0);
     return {
@@ -164,10 +173,12 @@ export const cancelSubscriptionAdmin = async (req, res) => {
       });
     }
 
-    await cancelRazorpaySubscriptionBestEffort(
-      razorpay,
-      subscription.razorpaySubscriptionId,
-    );
+    for (const razorpay of razorpayClientsFor("biodrops")) {
+      await cancelRazorpaySubscriptionBestEffort(
+        razorpay,
+        subscription.razorpaySubscriptionId,
+      );
+    }
 
     subscription.status = "cancelled";
     await subscription.save();

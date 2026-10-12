@@ -4,6 +4,9 @@ import UserSubscription from "../../models/user-subscription.model.js";
 import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
 import {
   getRazorpay,
+  getRazorpayCredentials,
+  razorpayClientsFor,
+  razorpayBrandLabel,
   ensureRazorpayCustomer,
   createRazorpayPlan,
   createRazorpaySubscription,
@@ -25,8 +28,6 @@ import { isBiodropsTierPlan, biodropsTierChargeArea } from "../../utils/subscrip
 import { createBiodropsCardHybridOrder } from "../../clients/biodrops/controllers/subscriptions/card-hybrid-order.controller.js";
 import { logActivity } from "../../utils/storage/activityLog.service.js";
 
-const razorpay = getRazorpay();
-
 /** Web: fixed 7-day trial per field (mobile still uses plan.trialDays when set). */
 const WEB_TRIAL_DAYS = 7;
 
@@ -43,10 +44,14 @@ async function cancelLiveTrialsForField(userId, fieldId) {
   }).lean();
 
   for (const row of live) {
-    await cancelRazorpaySubscriptionBestEffort(
-      razorpay,
-      row.razorpaySubscriptionId,
-    );
+    // The trial's Razorpay subscription may live in either account
+    // (BioDrops has its own); cancelling in the wrong one is a no-op.
+    for (const razorpay of razorpayClientsFor("biodrops")) {
+      await cancelRazorpaySubscriptionBestEffort(
+        razorpay,
+        row.razorpaySubscriptionId,
+      );
+    }
     await UserSubscription.updateOne(
       { _id: row._id },
       { $set: { status: "cancelled" } },
@@ -122,6 +127,8 @@ export const createSubscriptionOrder = async (req, res) => {
     } = req.body;
 
     const planBrand = resolveSubscriptionPlanBrand(req);
+    // BioDrops checkouts go to the BioDrops Razorpay account; others unchanged.
+    const razorpay = getRazorpay(planBrand);
 
     if (planBrand === "biodrops" && cardCode) {
       return createBiodropsCardHybridOrder(req, res);
@@ -366,7 +373,7 @@ export const createSubscriptionOrder = async (req, res) => {
           },
         );
 
-        await ensureRazorpayCustomer(razorpay, userId);
+        await ensureRazorpayCustomer(razorpay, userId, planBrand);
 
         const { rzPlan, rzSub, billingPattern } =
           await createPostTrialRazorpaySubscription({
@@ -393,7 +400,7 @@ export const createSubscriptionOrder = async (req, res) => {
           daysLeft: trialDayCount,
           razorpay: {
             subscription_id: rzSub.id,
-            key: process.env.RAZORPAY_KEY_ID,
+            key: getRazorpayCredentials(planBrand).keyId,
           },
         });
       } catch (error) {
@@ -467,7 +474,7 @@ export const createSubscriptionOrder = async (req, res) => {
       endDate,
     });
 
-    const { customerId } = await ensureRazorpayCustomer(razorpay, userId);
+    const { customerId } = await ensureRazorpayCustomer(razorpay, userId, planBrand);
 
     let period = "monthly";
     let totalCount = MONTHLY_COMMIT_TOTAL_COUNT;
@@ -486,7 +493,7 @@ export const createSubscriptionOrder = async (req, res) => {
     const rzPlan = await createRazorpayPlan(razorpay, {
       period,
       interval: 1,
-      itemName: `CropGen ${plan.slug} ${String(subscription._id).slice(-8)}`,
+      itemName: `${razorpayBrandLabel(planBrand)} ${plan.slug} ${String(subscription._id).slice(-8)}`,
       amountMinor: chargedAmountMinor,
       description: `${chargeArea} ${isFlatPackagePlan ? "package" : "acres"} ${billingCycle}`,
     });
@@ -533,7 +540,7 @@ export const createSubscriptionOrder = async (req, res) => {
       endDate,
       razorpay: {
         subscription_id: rzSub.id,
-        key: process.env.RAZORPAY_KEY_ID,
+        key: getRazorpayCredentials(planBrand).keyId,
       },
     });
   } catch (error) {

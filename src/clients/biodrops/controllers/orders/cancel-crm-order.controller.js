@@ -51,6 +51,7 @@ export const cancelCrmOrder = async (req, res) => {
       }
 
       const refund = await refundRazorpayPayment({
+        brand: "biodrops",
         razorpayPaymentId: order.razorpayPaymentId,
         amountMinor: order.totalMinor,
         notes: {

@@ -8,7 +8,7 @@ import { BRAND_ID } from "../constants.js";
 import { createSubscriptionActivationNotification } from "../../../services/notification.service.js";
 import {
   cancelRazorpaySubscriptionBestEffort,
-  getRazorpay,
+  razorpayClientsFor,
 } from "../../../services/razorpay.subscription.service.js";
 
 const VALID_BILLING_CYCLES = ["monthly", "yearly", "season"];
@@ -140,11 +140,12 @@ export async function cancelEnterpriseFarmSubscription(subscriptionId) {
     throw err;
   }
 
-  const razorpay = getRazorpay();
-  await cancelRazorpaySubscriptionBestEffort(
-    razorpay,
-    subscription.razorpaySubscriptionId,
-  );
+  for (const razorpay of razorpayClientsFor("biodrops")) {
+    await cancelRazorpaySubscriptionBestEffort(
+      razorpay,
+      subscription.razorpaySubscriptionId,
+    );
+  }
 
   subscription.status = "cancelled";
   await subscription.save();

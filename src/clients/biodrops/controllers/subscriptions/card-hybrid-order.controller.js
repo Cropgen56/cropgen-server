@@ -2,6 +2,7 @@ import UserSubscription from "../../../../models/user-subscription.model.js";
 import SubscriptionPlan from "../../../../models/subscription-plan.model.js";
 import {
   getRazorpay,
+  getRazorpayCredentials,
   ensureRazorpayCustomer,
   createRazorpayPlan,
   createRazorpaySubscription,
@@ -19,7 +20,7 @@ import {
 } from "../../services/cardCheckout.service.js";
 import { logCardEvent } from "../../services/cardEvent.service.js";
 
-const razorpay = getRazorpay();
+const razorpay = getRazorpay("biodrops");
 
 export async function createBiodropsCardHybridOrder(req, res) {
   try {
@@ -128,7 +129,7 @@ export async function createBiodropsCardHybridOrder(req, res) {
       subscriptionPhase: "card_payment_pending",
     });
 
-    const { customerId } = await ensureRazorpayCustomer(razorpay, userId);
+    const { customerId } = await ensureRazorpayCustomer(razorpay, userId, "biodrops");
 
     let period = "monthly";
     let totalCount = MONTHLY_COMMIT_TOTAL_COUNT;
@@ -177,7 +178,7 @@ export async function createBiodropsCardHybridOrder(req, res) {
       fieldAcres: split.fieldAcres,
       razorpay: {
         subscription_id: rzSub.id,
-        key: process.env.RAZORPAY_KEY_ID,
+        key: getRazorpayCredentials("biodrops").keyId,
       },
     });
   } catch (error) {
