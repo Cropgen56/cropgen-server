@@ -115,6 +115,8 @@ const FarmAdvisorySchema = new Schema(
     opticalIndicesSummary: { type: Schema.Types.Mixed, default: null },
     /** Weather at generation time — used by cron to detect significant changes. */
     weatherSnapshot: { type: Schema.Types.Mixed, default: null },
+    /** Farmer language the advisory text was generated in (e.g. "mr"). */
+    language: { type: String, default: null },
     /** How activities were produced: llm | rules | hybrid */
     activitiesSource: {
       type: String,

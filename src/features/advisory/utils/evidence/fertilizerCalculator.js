@@ -154,9 +154,24 @@ function buildSplit(window, cropNPK, fractions, acre, farmingType, isDrip) {
     reproductive: "Flowering & grain fill (BBCH 60+)",
   };
 
+  // i18n keys for the farmer-facing text below (English stays for the LLM evidence).
+  const stageKey = {
+    early: "fert_stage_early",
+    vegetative: "fert_stage_vegetative",
+    reproductive: "fert_stage_reproductive",
+  };
+  const timingKey = {
+    early: "fert_timing_early",
+    vegetative: "fert_timing_vegetative",
+    reproductive: "fert_timing_reproductive",
+  };
+
   return {
     bbchWindow: `${window.bbchMin}-${window.bbchMax}`,
     stageLabel: stageLabel[window.label] || window.label,
+    stageKey: stageKey[window.label] || null,
+    timingKey: timingKey[window.label] || null,
+    applicationKey: isDrip ? "fert_method_drip" : "fert_method_broadcast_irrigate",
     N_kgPerHa: N,
     P_kgPerHa: P,
     K_kgPerHa: K,

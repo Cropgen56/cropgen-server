@@ -6,13 +6,19 @@ import { getMonitoringDecision } from "./monitoringDecision.js";
 
 export function runDecisionEngine(evidence, isHarvestStage = false) {
   const spray = isHarvestStage
-    ? { shouldSpray: false, reason: "Harvest stage - no spray.", hint: null }
+    ? {
+        shouldSpray: false,
+        reason: "Harvest stage - no spray.",
+        reasonKey: "harvest_no_spray",
+        hint: null,
+      }
     : getSprayDecision(evidence);
 
   const fertigation = isHarvestStage
     ? {
         shouldFertigate: false,
         reason: "Harvest stage - no fertigation.",
+        reasonKey: "harvest_no_fert",
         products: [],
         hint: null,
       }

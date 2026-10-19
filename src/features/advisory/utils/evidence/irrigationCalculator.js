@@ -102,21 +102,35 @@ export function calculateIrrigationRequirement({
     (rainfallNext24h ?? 0) < 10;
   const criticality = computeIrrigationUrgency(soilMoisturePercent, et0, rainfallNext24h);
 
+  // `recommendation` (English) feeds the LLM evidence; `reasonKey`/`reasonVars`
+  // render the same text in the farmer's language.
   let recommendation;
+  let reasonKey;
+  let reasonVars = {};
   if (!hasObservedSoilMoisture) {
     recommendation =
       "Soil moisture sensor/readings unavailable. Measure field moisture before scheduling irrigation duration.";
+    reasonKey = "irr_reason_no_moisture_data";
   } else if (!shouldIrrigate) {
-    recommendation =
-      (rainfallNext24h ?? 0) >= 10
-        ? "Rain expected (>10 mm). Skip irrigation today."
-        : "Soil moisture adequate. No irrigation needed today.";
+    const rainExpected = (rainfallNext24h ?? 0) >= 10;
+    recommendation = rainExpected
+      ? "Rain expected (>10 mm). Skip irrigation today."
+      : "Soil moisture adequate. No irrigation needed today.";
+    reasonKey = rainExpected ? "irr_reason_rain_skip" : "irr_reason_moisture_ok";
   } else {
-    const durationLabel =
-      itype === "drip" || itype === "sprinkler"
-        ? `${durationMinutes} minutes`
-        : `${durationHours} hours`;
+    const inMinutes = itype === "drip" || itype === "sprinkler";
+    const durationLabel = inMinutes
+      ? `${durationMinutes} minutes`
+      : `${durationHours} hours`;
     recommendation = `Apply ${grossIrr_mm} mm every ${frequencyDays} days for ${durationLabel} (${totalDischarge_lmin} L/min, ~${totalWater_m3} m³ total).`;
+    reasonKey = inMinutes ? "irr_reason_apply_minutes" : "irr_reason_apply_hours";
+    reasonVars = {
+      mm: grossIrr_mm,
+      days: frequencyDays,
+      duration: inMinutes ? durationMinutes : durationHours,
+      lmin: totalDischarge_lmin,
+      m3: totalWater_m3,
+    };
   }
 
   return {
@@ -139,6 +153,8 @@ export function calculateIrrigationRequirement({
     amountHours: durationHours,
     amountMinutes: durationMinutes,
     reason: recommendation,
+    reasonKey,
+    reasonVars,
     dataConfidence: hasObservedSoilMoisture ? "high" : "low",
     soilMoistureLevel:
       soilMoisturePercent < 35 ? "low" : soilMoisturePercent > 70 ? "high" : "adequate",

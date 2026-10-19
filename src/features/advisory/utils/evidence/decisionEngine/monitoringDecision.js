@@ -15,6 +15,7 @@ export function getMonitoringDecision(evidence) {
         zone: zoneDesc,
         message: `Stress detected in ${zoneDesc}. Inspect leaves in that area for yellowing, wilting, or pest damage.`,
         checks: "leaves, pest damage, irrigation, nutrient deficiency",
+        checksKey: "monitor_checks_stress_zone",
       },
     };
   }
@@ -26,6 +27,7 @@ export function getMonitoringDecision(evidence) {
         zone: "field",
         message: `${diseasePressure === "high" ? "High" : "Moderate"} pest/disease pressure expected. Scout lower canopy and new growth.`,
         checks: "lower leaves, pests, fungal spots, irrigation",
+        checksKey: "monitor_checks_pressure",
       },
     };
   }
@@ -35,6 +37,7 @@ export function getMonitoringDecision(evidence) {
       zone: "field",
       message: "Check lower leaves, stem base, and new growth for early stress.",
       checks: "lower leaves, stem base, new growth, soil moisture",
+      checksKey: "detail_monitor_checks",
     },
   };
 }

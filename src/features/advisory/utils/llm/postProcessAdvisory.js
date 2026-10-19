@@ -2,6 +2,9 @@ import {
   normalizeAdvisoryLanguage,
   needsLocalization,
   t,
+  tKeyed,
+  localizeDecisionHint,
+  localizeDecisionReason,
 } from "../i18n/advisoryLocale.js";
 
 const REQUIRED_TYPES = [
@@ -115,12 +118,19 @@ function applyHintMessage(
     return activity;
   }
 
+  // Forced decisions (no spray / no fertigation / no irrigation) are safety
+  // rules: apply them over the LLM text whenever the hint is in the farmer's language.
+  const hintLocalized = lang === "en" || !needsLocalization(hintMessage, lang);
+  if (force && hintLocalized) {
+    return { ...activity, message: truncate(hintMessage) };
+  }
+
   // Keep good localized LLM text; never overwrite with English hints
   if (lang !== "en" && msg.length > 12 && !needsLocalization(msg, lang)) {
     return activity;
   }
 
-  if (lang !== "en" && needsLocalization(hintMessage, lang)) {
+  if (!hintLocalized) {
     return activity;
   }
 
@@ -133,6 +143,11 @@ function applyHintMessage(
 function localizedSprayMessage(hints, lang) {
   const spray = hints?.spray;
   if (!spray) return t("no_spray", lang);
+  if (spray.shouldSpray && spray.hint?.messageKey) {
+    return localizeDecisionHint(spray.hint, lang).message;
+  }
+  const keyed = localizeDecisionReason(spray, lang);
+  if (keyed) return keyed;
   if (spray.shouldSpray === false) {
     const reason = String(spray.reason || "");
     if (reason.includes("Organic")) return t("decision_organic_no_spray", lang);
@@ -157,6 +172,8 @@ function localizedFertigationMessage(hints, lang) {
   const fert = hints?.fertigation;
   if (!fert) return t("no_fertigation", lang);
   if (fert.shouldFertigate === false) {
+    const keyed = localizeDecisionReason(fert, lang);
+    if (keyed) return keyed;
     const reason = String(fert.reason || "");
     if (reason.includes("NPK") || reason.includes("baseline")) {
       return t("decision_npk_missing", lang);
@@ -168,13 +185,15 @@ function localizedFertigationMessage(hints, lang) {
     if (reason.includes("Harvest")) return t("no_fertigation", lang);
     return t("no_fertigation", lang);
   }
-  const h = fert.hint || {};
+  const h = localizeDecisionHint(fert.hint, lang);
   if (h.fertilizer && h.quantity) {
     return t("apply_fertigation", lang, {
       fertilizer: h.fertilizer,
       quantity: h.quantity,
     });
   }
+  const keyed = localizeDecisionReason(fert, lang);
+  if (keyed) return keyed;
   const reason = String(fert.reason || "");
   if (reason.includes("Organic")) return t("decision_organic_fert", lang);
   if (reason.includes("Inorganic")) return t("decision_inorganic_fert", lang);
@@ -183,14 +202,17 @@ function localizedFertigationMessage(hints, lang) {
   if (stageMatch) {
     return t("decision_apply_stage_nutrients", lang, { stage: stageMatch[1] });
   }
-  return reason || t("decision_apply_stage_nutrients", lang, { stage: "" });
+  // Never fall through to the raw (English) engine reason for other languages.
+  if (reason && !needsLocalization(reason, lang)) return reason;
+  return t("decision_apply_stage_nutrients", lang, { stage: "" });
 }
 
 function localizedIrrigationMessage(hints, evidence, lang) {
   const irr = hints?.irrigation;
   const req = evidence?.irrigationRequirement || {};
   if (!irr?.shouldIrrigate && !req.needsIrrigation) {
-    const hintMsg = irr?.hint?.message || req.reason;
+    const hintMsg =
+      irr?.hint?.message || tKeyed(req.reasonKey, lang, req.reasonVars, req.reason);
     if (hintMsg && !needsLocalization(hintMsg, lang)) {
       return hintMsg;
     }

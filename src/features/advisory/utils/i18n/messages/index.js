@@ -8,7 +8,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const MESSAGES_BY_LANG = {};
 
 for (const file of readdirSync(__dirname)) {
-  if (!file.endsWith(".json")) continue;
+  // Skip dotfiles such as macOS "._*.json" AppleDouble metadata (not JSON).
+  if (!file.endsWith(".json") || file.startsWith(".")) continue;
   const code = file.replace(/\.json$/, "");
   MESSAGES_BY_LANG[code] = JSON.parse(readFileSync(join(__dirname, file), "utf8"));
 }

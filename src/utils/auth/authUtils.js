@@ -316,7 +316,7 @@ export const ACTIVE_USER_FILTER = { deletedAt: null };
 export async function findActiveAuthUser(userId) {
   if (!userId) return null;
   const user = await User.findById(userId)
-    .select("_id deletedAt role organization")
+    .select("_id deletedAt role organization language")
     .populate({ path: "organization", select: "organizationCode organizationName" })
     .lean();
   if (!user || user.deletedAt) return null;

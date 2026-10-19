@@ -29,6 +29,7 @@ const isAuthenticated = async (req, res, next) => {
       id: user.id || user._id,
       role: active.role || user.role,
       organization: active.organization || user.organization,
+      language: active.language || user.language,
     };
     next();
   } catch {
@@ -51,6 +52,7 @@ const optionalAuthenticate = async (req, res, next) => {
       id: user.id || user._id,
       role: active.role || user.role,
       organization: active.organization || user.organization,
+      language: active.language || user.language,
     };
   } catch {
     /* ignore invalid token on public catalog */

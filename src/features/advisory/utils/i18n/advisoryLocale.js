@@ -28,13 +28,75 @@ export function t(key, lang, vars = {}) {
   return text;
 }
 
+/**
+ * Translate `key` with `vars`, or return `fallback` when no key is given.
+ * A var named `fooKey` is itself translated and passed as `foo`
+ * (e.g. `{ stageKey: "fert_stage_early" }` → `{stage}`).
+ */
+export function tKeyed(key, lang, vars = {}, fallback = "") {
+  if (!key) return fallback;
+  const resolved = {};
+  for (const [name, value] of Object.entries(vars || {})) {
+    if (name.endsWith("Key")) {
+      resolved[name.slice(0, -3)] = value ? t(value, lang) : "";
+    } else {
+      resolved[name] = value;
+    }
+  }
+  return t(key, lang, resolved);
+}
+
+/**
+ * Farmer-facing text of a decision-engine hint in `lang`. The engine keeps its
+ * English strings (they feed the LLM evidence) and adds `*Key` fields next to
+ * them; this resolves those keys, falling back to the English text.
+ */
+export function localizeDecisionHint(hint, lang) {
+  if (!hint) return {};
+  const quantity = Array.isArray(hint.quantityParts)
+    ? hint.quantityParts
+        .map((part) => t("qty_product_line", lang, part))
+        .join("; ")
+    : tKeyed(hint.quantityKey, lang, hint.quantityVars, hint.quantity);
+  return {
+    method: tKeyed(hint.methodKey, lang, hint.methodVars, hint.method),
+    time: tKeyed(hint.timeKey, lang, hint.timeVars, hint.time),
+    timing: tKeyed(hint.timingKey, lang, hint.timingVars, hint.timing),
+    message: tKeyed(hint.messageKey, lang, hint.messageVars, hint.message),
+    checks: tKeyed(hint.checksKey, lang, {}, hint.checks),
+    quantity,
+    fertilizer: tKeyed(hint.fertilizerKey, lang, hint.fertilizerVars, hint.fertilizer),
+    notes: Array.isArray(hint.notesKeys)
+      ? hint.notesKeys.map((key) => t(key, lang))
+      : hint.notes,
+    farmerSteps: Array.isArray(hint.farmerStepsKeys)
+      ? hint.farmerStepsKeys.map((key) => t(key, lang))
+      : hint.farmerSteps,
+    products: Array.isArray(hint.products)
+      ? hint.products.map((p) => ({
+          ...p,
+          ...(p?.nameKey ? { name: t(p.nameKey, lang) } : {}),
+          ...(p?.doseKey ? { dose: t(p.doseKey, lang) } : {}),
+          ...(p?.purposeKey ? { purpose: t(p.purposeKey, lang) } : {}),
+        }))
+      : hint.products,
+  };
+}
+
+/** Farmer-facing reason of a decision (`reasonKey`/`reasonVars`), or "" when it has none. */
+export function localizeDecisionReason(decision, lang) {
+  return tKeyed(decision?.reasonKey, lang, decision?.reasonVars, "");
+}
+
 /** True when text has almost no Indic script (likely English in a localized advisory). */
 export function isMostlyLatin(text) {
   if (!text || typeof text !== "string") return false;
   const trimmed = text.trim();
   if (trimmed.length < 12) return false;
-  const indic = (trimmed.match(INDIC_SCRIPT) || []).length;
-  const arabic = (trimmed.match(ARABIC_SCRIPT) || []).length;
+  // Count every native character (the shared regexes have no `g` flag, so
+  // `match` with them would count at most one and flag native text as Latin).
+  const indic = (trimmed.match(new RegExp(INDIC_SCRIPT.source, "g")) || []).length;
+  const arabic = (trimmed.match(new RegExp(ARABIC_SCRIPT.source, "g")) || []).length;
   const native = indic + arabic;
   return native / trimmed.length < 0.08;
 }

@@ -1,3 +1,5 @@
+import { t, normalizeAdvisoryLanguage } from "../i18n/advisoryLocale.js";
+
 const ACRE_TO_HA = 0.404686;
 
 export function formatAreaForNotification(acre, platform = "whatsapp") {
@@ -28,15 +30,26 @@ const DEFAULT_MESSAGES = {
   CARBON_TRACKING: "No carbon update.",
 };
 
-export function getDefaultActivityMessage(type) {
-  return DEFAULT_MESSAGES[type] || "No advisory update.";
+const DEFAULT_MESSAGE_KEYS = {
+  SPRAY: "notif_default_spray",
+  FERTIGATION: "notif_default_fertigation",
+  IRRIGATION: "notif_default_irrigation",
+  WEATHER: "notif_default_weather",
+  CROP_RISK: "notif_default_crop_risk",
+  MONITORING: "notif_default_monitoring",
+  CARBON_TRACKING: "notif_default_carbon",
+};
+
+export function getDefaultActivityMessage(type, lang = "en") {
+  const key = DEFAULT_MESSAGE_KEYS[type];
+  return key ? t(key, normalizeAdvisoryLanguage(lang)) : DEFAULT_MESSAGES[type] || "No advisory update.";
 }
 
-const ACTIVITY_TYPE_LABELS = {
-  SPRAY: "Spray",
-  FERTIGATION: "Fertigation",
-  IRRIGATION: "Irrigation",
-  WEATHER: "Weather",
+const ACTIVITY_TYPE_LABEL_KEYS = {
+  SPRAY: "title_spray",
+  FERTIGATION: "title_fertigation",
+  IRRIGATION: "title_irrigation",
+  WEATHER: "title_weather_crop",
 };
 
 const WHATSAPP_TEMPLATE_PARAM_MAX_CHARS = 100;
@@ -63,8 +76,9 @@ function formatActivityNotificationMessage(activity) {
   return truncateForTemplate(message);
 }
 
-export function formatActivityTypeLabel(type) {
-  return ACTIVITY_TYPE_LABELS[type] || cleanText(type);
+export function formatActivityTypeLabel(type, lang = "en") {
+  const key = ACTIVITY_TYPE_LABEL_KEYS[type];
+  return key ? t(key, normalizeAdvisoryLanguage(lang)) : cleanText(type);
 }
 
 function formatDetailProducts(products) {
@@ -80,40 +94,45 @@ function formatDetailProducts(products) {
     .join("; ");
 }
 
-export function formatActivityDetails(activity) {
+export function formatActivityDetails(activity, lang = "en") {
+  const code = normalizeAdvisoryLanguage(lang);
+  const label = (key, value) => `${t(key, code)}: ${cleanText(value)}`;
   const parts = [];
   const message = cleanText(activity?.message);
   if (message) parts.push(message);
 
   const details = activity?.details || {};
   const productText = formatDetailProducts(details.products);
-  if (productText) parts.push(`Products: ${productText}`);
-  if (details.chemical) parts.push(`Chemical: ${cleanText(details.chemical)}`);
+  if (productText) parts.push(label("notif_label_products", productText));
+  if (details.chemical) parts.push(label("notif_label_chemical", details.chemical));
   if (details.fertilizer) {
-    parts.push(`Fertilizer: ${cleanText(details.fertilizer)}`);
+    parts.push(label("notif_label_fertilizer", details.fertilizer));
   }
-  if (details.quantity) parts.push(`Quantity: ${cleanText(details.quantity)}`);
+  if (details.quantity) parts.push(label("notif_label_quantity", details.quantity));
   if (details.method || details.applicationMethod) {
     parts.push(
-      `Method: ${cleanText(details.method || details.applicationMethod)}`,
+      label("notif_label_method", details.method || details.applicationMethod),
     );
   }
-  if (details.duration) parts.push(`Duration: ${cleanText(details.duration)}`);
+  if (details.duration) parts.push(label("notif_label_duration", details.duration));
   if (details.waterQuantity) {
-    parts.push(`Water: ${cleanText(details.waterQuantity)}`);
+    parts.push(label("notif_label_water", details.waterQuantity));
   }
-  if (details.weather) parts.push(`Weather: ${cleanText(details.weather)}`);
-  if (details.risk) parts.push(`Risk: ${cleanText(details.risk)}`);
+  if (details.weather) parts.push(label("notif_label_weather", details.weather));
+  if (details.risk) parts.push(label("notif_label_risk", details.risk));
   if (details.notes) parts.push(cleanText(details.notes));
 
-  const rendered = truncateForTemplate(parts.join(". "));
-  return rendered || "No additional details.";
+  // Parts may already end in a full stop (any script); avoid "..".
+  const rendered = truncateForTemplate(
+    parts.map((part) => part.replace(/[.।॥۔᱾]+$/u, "")).join(". "),
+  );
+  return rendered || t("notif_no_details", code);
 }
 
-export function formatRecommendedTime(activity) {
+export function formatRecommendedTime(activity, lang = "en") {
   const details = activity?.details || {};
   const rendered = truncateForTemplate(details.timing || details.time || "");
-  return rendered || "As per current advisory window.";
+  return rendered || t("notif_default_time", normalizeAdvisoryLanguage(lang));
 }
 
 export function isActionableActivity(activity) {
@@ -140,18 +159,19 @@ export function isActionableActivity(activity) {
  * Build WhatsApp template parameters for a single activity (advisory template).
  */
 export function buildActivityAdvisoryParameters(user, farmField, activity) {
-  const activityTypeLabel = truncateForTemplate(formatActivityTypeLabel(activity?.type));
+  const lang = normalizeAdvisoryLanguage(user?.language);
+  const activityTypeLabel = truncateForTemplate(formatActivityTypeLabel(activity?.type, lang));
   const activityTitle = truncateForTemplate(activity?.title || "");
-  const activityDetails = formatActivityDetails(activity);
-  const recommendedTime = formatRecommendedTime(activity);
+  const activityDetails = formatActivityDetails(activity, lang);
+  const recommendedTime = formatRecommendedTime(activity, lang);
 
   return [
     truncateForTemplate(user?.firstName || "Farmer"),
     truncateForTemplate(farmField?.cropName || "Crop"),
     activityTypeLabel || "Advisory",
     activityTitle || `${activityTypeLabel || "Advisory"} Update`,
-    activityDetails || "No additional details.",
-    recommendedTime || "As per current advisory window.",
+    activityDetails || t("notif_no_details", lang),
+    recommendedTime || t("notif_default_time", lang),
     truncateForTemplate(farmField?.fieldName || "Field"),
   ];
 }
@@ -185,7 +205,11 @@ export function buildAdvisoryNotificationParameters(
     CARBON_TRACKING: "carbonUpdate",
   };
 
-  const mapped = { ...DEFAULT_MESSAGES };
+  const lang = normalizeAdvisoryLanguage(user?.language);
+  const defaults = Object.fromEntries(
+    Object.keys(DEFAULT_MESSAGES).map((type) => [type, getDefaultActivityMessage(type, lang)]),
+  );
+  const mapped = {};
   for (const activity of advisory?.activitiesToDo || []) {
     const key = typeToKey[activity.type];
     if (key) {
@@ -200,12 +224,12 @@ export function buildAdvisoryNotificationParameters(
     farmField.cropName || "Crop",
     farmField.fieldName || "Field",
     formatAreaForNotification(farmField.acre, platform),
-    mapped.spray ?? DEFAULT_MESSAGES.SPRAY,
-    mapped.fertigation ?? DEFAULT_MESSAGES.FERTIGATION,
-    mapped.irrigation ?? DEFAULT_MESSAGES.IRRIGATION,
-    mapped.weather ?? DEFAULT_MESSAGES.WEATHER,
-    mapped.cropRisk ?? DEFAULT_MESSAGES.CROP_RISK,
-    mapped.monitoring ?? DEFAULT_MESSAGES.MONITORING,
-    mapped.carbonUpdate ?? DEFAULT_MESSAGES.CARBON_TRACKING,
+    mapped.spray ?? defaults.SPRAY,
+    mapped.fertigation ?? defaults.FERTIGATION,
+    mapped.irrigation ?? defaults.IRRIGATION,
+    mapped.weather ?? defaults.WEATHER,
+    mapped.cropRisk ?? defaults.CROP_RISK,
+    mapped.monitoring ?? defaults.MONITORING,
+    mapped.carbonUpdate ?? defaults.CARBON_TRACKING,
   ];
 }

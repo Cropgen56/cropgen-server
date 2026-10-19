@@ -142,9 +142,9 @@ function buildBasalFertigationHint(farmField, phase, language = "en") {
       shouldFertigate: false,
       reason: t("barren_fert_plan", lang, { crop }),
       hint: {
-        fertilizer: "Plan basal (DAP/Urea/MOP or FYM)",
-        quantity: `As per ${crop} recommendation for ${acre} acre`,
-        time: "1–3 days before sowing or at sowing",
+        fertilizer: t("barren_hint_fert_plan", lang),
+        quantity: t("barren_hint_qty_plan", lang, { crop, acre }),
+        time: t("barren_hint_time_plan", lang),
       },
     };
   }
@@ -153,14 +153,14 @@ function buildBasalFertigationHint(farmField, phase, language = "en") {
     shouldFertigate: true,
     reason: t("barren_fert_active", lang, { crop }),
     hint: {
-      fertilizer: "Basal dose (soil application)",
-      quantity: `Full basal for ${acre} acre at sowing; split if soil is heavy`,
-      time: "At sowing or 1 day before with light irrigation",
-      method: "Broadcast and incorporate in seedbed or band below seed",
+      fertilizer: t("barren_hint_fert_basal", lang),
+      quantity: t("barren_hint_qty_basal", lang, { acre }),
+      time: t("barren_hint_time_basal", lang),
+      method: t("barren_hint_method_basal", lang),
     },
     products: [
-      { name: "Well-decomposed FYM", dose: "5–10 t/acre (if integrated/organic)" },
-      { name: "DAP / SSP", dose: "As per soil test and crop schedule" },
+      { name: t("barren_product_fym", lang), dose: t("barren_dose_fym", lang) },
+      { name: "DAP / SSP", dose: t("barren_dose_soil_test", lang) },
     ],
   };
 }
@@ -190,9 +190,11 @@ function buildSprayHint(phase, weatherSummary, language = "en") {
     reason: t("barren_spray_consider", lang),
     hint: {
       message: t("barren_spray_hint", lang),
-      products: [{ name: "As per local extension / weed spectrum", dose: "label rate" }],
-      method: "Ground spray on weed foliage or mechanical",
-      timing: "Morning, wind < 10 km/h, 5–7 days before sowing if chemical used",
+      products: [
+        { name: t("barren_spray_product", lang), dose: t("barren_spray_dose", lang) },
+      ],
+      method: t("barren_spray_method", lang),
+      timing: t("barren_spray_timing", lang),
     },
   };
 }
@@ -225,8 +227,8 @@ function buildIrrigationHint(soilMoisturePercent, phase, rainfall7d, language = 
     reason: t("barren_irr_dry_sow", lang),
     hint: {
       message: t("barren_irr_light", lang),
-      method: "Pre-sowing / seedbed wetting",
-      quantity: "Light — avoid runoff",
+      method: t("barren_irr_method", lang),
+      quantity: t("barren_irr_quantity", lang),
     },
   };
 }

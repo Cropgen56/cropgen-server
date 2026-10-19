@@ -1,5 +1,12 @@
 import { postProcessAdvisory } from "../llm/postProcessAdvisory.js";
-import { t, normalizeAdvisoryLanguage } from "../i18n/advisoryLocale.js";
+import {
+  t,
+  normalizeAdvisoryLanguage,
+  localizeDecisionHint,
+  localizeDecisionReason,
+  localizeHealthCategory,
+  tKeyed,
+} from "../i18n/advisoryLocale.js";
 
 const ORDER = [
   "SPRAY",
@@ -59,6 +66,11 @@ function weatherActivity(evidence) {
 
 function localizedSprayReason(spray, lang) {
   if (!spray) return t("no_spray", lang);
+  if (spray.shouldSpray && spray.hint?.messageKey) {
+    return localizeDecisionHint(spray.hint, lang).message;
+  }
+  const keyed = localizeDecisionReason(spray, lang);
+  if (keyed) return keyed;
   if (spray.shouldSpray) {
     return spray.hint?.message && !/^[A-Za-z]/.test(spray.hint.message.slice(0, 8))
       ? spray.hint.message
@@ -78,13 +90,15 @@ function localizedSprayReason(spray, lang) {
 function localizedFertReason(fert, lang) {
   if (!fert) return t("no_fertigation", lang);
   if (fert.shouldFertigate) {
-    const h = fert.hint || {};
+    const h = localizeDecisionHint(fert.hint, lang);
     if (h.fertilizer && h.quantity) {
       return t("apply_fertigation", lang, {
         fertilizer: h.fertilizer,
         quantity: h.quantity,
       });
     }
+    const keyed = localizeDecisionReason(fert, lang);
+    if (keyed) return keyed;
     const reason = String(fert.reason || "");
     const stageMatch = reason.match(/Apply (.+?) nutrients/i);
     if (stageMatch) {
@@ -93,6 +107,8 @@ function localizedFertReason(fert, lang) {
     if (reason.includes("Organic")) return t("decision_organic_fert", lang);
     return t("decision_apply_stage_nutrients", lang, { stage: "" });
   }
+  const keyed = localizeDecisionReason(fert, lang);
+  if (keyed) return keyed;
   const reason = String(fert.reason || "");
   if (reason.includes("NPK") || reason.includes("baseline")) {
     return t("decision_npk_missing", lang);
@@ -115,14 +131,15 @@ function sprayActivity(evidence) {
       details: { recommendedAction: t("detail_recommended_none", lang) },
     };
   }
-  const hint = spray.hint || {};
+  const hint = localizeDecisionHint(spray.hint, lang);
   const products = (hint.products || [])
     .map((p) => `${p.name}${p.dose ? ` (${p.dose})` : ""}`)
     .join("; ");
   const message =
     products
       ? t("crop_spray_products", lang, {
-          reason: t("decision_stress_spray", lang),
+          // The template adds its own full stop after {reason}.
+          reason: t("decision_stress_spray", lang).replace(/[.।॥۔᱾]+$/u, ""),
           products,
         })
       : t("decision_spray_choose", lang);
@@ -152,7 +169,7 @@ function fertigationActivity(evidence) {
     };
   }
   const message = localizedFertReason(fert, lang);
-  const hint = fert.hint || {};
+  const hint = localizeDecisionHint(fert.hint, lang);
 
   return {
     type: "FERTIGATION",
@@ -162,8 +179,9 @@ function fertigationActivity(evidence) {
       products: fert.products,
       applicationMethod: hint.method,
       timing: hint.time,
-      reason: fert.reason,
-      nutrientDeficit: hint.nutrientDeficit,
+      farmerSteps: hint.farmerSteps,
+      reason: localizeDecisionReason(fert, lang) || fert.reason,
+      nutrientDeficit: fert.hint?.nutrientDeficit,
     },
   };
 }
@@ -198,7 +216,7 @@ function irrigationActivity(evidence) {
         ? t("detail_duration_hours", lang, { hours })
         : t("detail_duration_minutes", lang, { minutes: minutes || 0 }),
       waterQuantity: hint.quantity,
-      reason: req.reason,
+      reason: tKeyed(req.reasonKey, lang, req.reasonVars, req.reason),
       frequency: req.frequency,
     },
   };
@@ -229,7 +247,9 @@ function cropRiskActivity(evidence) {
   if (health.category === "Poor" || health.category === "Critical") {
     riskLevel = "high";
     causes.push(
-      t("crop_risk_health", lang, { category: health.category }),
+      t("crop_risk_health", lang, {
+        category: localizeHealthCategory(health.category, lang),
+      }),
     );
   }
 
@@ -265,7 +285,8 @@ function monitoringActivity(evidence) {
   const lang = langOf(evidence);
   const mon = evidence.decisionHints?.monitoring;
   const hint = mon?.hint || {};
-  const checks = hint.checks || t("detail_monitor_checks", lang);
+  const checks =
+    localizeDecisionHint(hint, lang).checks || t("detail_monitor_checks", lang);
   return {
     type: "MONITORING",
     title: t("title_monitoring_crop", lang),

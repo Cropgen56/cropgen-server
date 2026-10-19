@@ -22,6 +22,11 @@ function formatProductsFromSchedule(products, acre) {
   return {
     fertilizer: products.map((p) => p.name).join(" + "),
     quantity: lines.join("; "),
+    quantityParts: products.map((p) => ({
+      name: p.name,
+      perAcre: p.quantityKgPerAcre ?? kgPerHaToKgPerAcre(p.quantityKgPerHa),
+      total: p.totalKgFarm ?? totalKgForFarmFromKgPerHa(p.quantityKgPerHa, acre),
+    })),
     products,
   };
 }
@@ -47,6 +52,7 @@ export function getFertigationDecision(evidence) {
       shouldFertigate: false,
       reason:
         "NPK baseline missing. Check soil/fertilizer records before fertigation.",
+      reasonKey: "decision_npk_missing",
       products: [],
       hint: {
         fertilizer: "",
@@ -54,7 +60,9 @@ export function getFertigationDecision(evidence) {
         method: isDrip
           ? "Drip fertigation after validation"
           : "Broadcast with irrigation after validation",
+        methodKey: "fert_method_after_validation",
         time: "After nutrient verification",
+        timeKey: "fert_time_after_verification",
         nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
       },
     };
@@ -64,12 +72,16 @@ export function getFertigationDecision(evidence) {
     return {
       shouldFertigate: false,
       reason: "No fertigation window for current BBCH stage.",
+      reasonKey: "decision_no_fert_window",
       products: [],
       hint: {
         fertilizer: "",
         quantity: "",
         method: isDrip ? "Drip fertigation" : "Broadcast with irrigation",
+        methodKey: isDrip ? "fert_method_drip" : "fert_method_broadcast_irrigate",
         time: `Current BBCH stage ${bbchStage}. Follow next scheduled stage.`,
+        timeKey: "fert_time_next_stage",
+        timeVars: { bbch: bbchStage },
         nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
       },
     };
@@ -79,6 +91,7 @@ export function getFertigationDecision(evidence) {
     return {
       shouldFertigate: false,
       reason: "Nutrients balanced. No fertigation needed today.",
+      reasonKey: "decision_nutrients_balanced",
       products: [],
       hint: null,
     };
@@ -93,19 +106,31 @@ export function getFertigationDecision(evidence) {
     return {
       shouldFertigate: true,
       reason: `Apply ${currentApplication.stageLabel} nutrients per crop schedule.`,
+      reasonKey: "decision_apply_stage_nutrients",
+      reasonVars: { stageKey: currentApplication.stageKey },
       products: scheduleProducts.products,
       hint: {
         fertilizer: scheduleProducts.fertilizer,
         quantity: scheduleProducts.quantity,
+        quantityParts: scheduleProducts.quantityParts,
         method:
           currentApplication.application ||
           (isDrip ? "Drip fertigation" : "Broadcast + irrigate"),
+        methodKey:
+          currentApplication.applicationKey ||
+          (isDrip ? "fert_method_drip" : "fert_method_broadcast_irrigate"),
         time: `${currentApplication.timing} (BBCH ${currentApplication.bbchWindow})`,
+        timeKey: "fert_time_timing_bbch",
+        timeVars: {
+          timingKey: currentApplication.timingKey,
+          window: currentApplication.bbchWindow,
+        },
         nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
         farmerSteps: [
           "Split dose if total exceeds 50 kg/acre",
           "Irrigate within 2 hours after application",
         ],
+        farmerStepsKeys: ["fert_step_split_50", "fert_step_irrigate_2h"],
       },
     };
   }
@@ -115,15 +140,27 @@ export function getFertigationDecision(evidence) {
     return {
       shouldFertigate: true,
       reason: "Organic farm: use only organic inputs.",
+      reasonKey: "decision_organic_fert",
       products: [{ name: "Vermicompost", quantityKgPerHa: vcKgPerHa }],
       hint: {
         organicOnly: true,
         fertilizer: "Vermicompost",
         quantity: `~${kgPerHaToKgPerAcre(vcKgPerHa)} kg/acre (≈${totalKgForFarmFromKgPerHa(vcKgPerHa, acre)} kg total)`,
+        quantityKey: "qty_per_acre_total",
+        quantityVars: {
+          perAcre: kgPerHaToKgPerAcre(vcKgPerHa),
+          total: totalKgForFarmFromKgPerHa(vcKgPerHa, acre),
+        },
         method: isDrip
           ? "Soil drench or drip application"
           : "Top-dress with irrigation",
+        methodKey: isDrip ? "fert_method_drench_or_drip" : "fert_method_topdress_irrigate",
         time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning (6-10 AM)`,
+        timeKey: "fert_time_stage_morning",
+        timeVars: {
+          stageKey: currentApplication.stageKey,
+          window: currentApplication.bbchWindow,
+        },
         nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
       },
     };
@@ -137,14 +174,30 @@ export function getFertigationDecision(evidence) {
       typeOfFarming === "Inorganic"
         ? "Inorganic farm: chemical fertilizers per deficit."
         : "Integrated: combine organic and chemical inputs per schedule.",
+    reasonKey:
+      typeOfFarming === "Inorganic"
+        ? "decision_inorganic_fert"
+        : "decision_integrated_fert",
     products: [{ name: "NPK 19:19:19", quantityKgPerHa: npkDoseKgPerHa }],
     hint: {
       fertilizer: "NPK 19:19:19",
       quantity: `~${kgPerHaToKgPerAcre(npkDoseKgPerHa)} kg/acre (≈${totalKgForFarmFromKgPerHa(npkDoseKgPerHa, acre)} kg total)`,
+      quantityKey: "qty_per_acre_total",
+      quantityVars: {
+        perAcre: kgPerHaToKgPerAcre(npkDoseKgPerHa),
+        total: totalKgForFarmFromKgPerHa(npkDoseKgPerHa, acre),
+      },
       method: isDrip ? "Apply through drip system" : "Broadcast with irrigation",
+      methodKey: isDrip ? "fert_method_drip" : "fert_method_broadcast_irrigate",
       time: `${currentApplication.stageLabel} (BBCH ${currentApplication.bbchWindow}); morning (6-10 AM)`,
+      timeKey: "fert_time_stage_morning",
+      timeVars: {
+        stageKey: currentApplication.stageKey,
+        window: currentApplication.bbchWindow,
+      },
       nutrientDeficit: { n: nDeficit, p: pDeficit, k: kDeficit },
       farmerSteps: ["Apply in split doses", "Irrigate immediately after application"],
+      farmerStepsKeys: ["fert_step_split", "fert_step_irrigate_now"],
     },
   };
 }

@@ -234,6 +234,7 @@ export async function runAdvisorySuggestionModule(ctx) {
     yield: safeYield,
     activitiesToDo: activitiesWithProgress,
     activitiesSource,
+    language: ctx.language,
     cropHealth: localizedCropHealth,
     plantGrowthActivity: clientPlantGrowth,
     npkManagement: clientNpkManagement,
@@ -281,8 +282,8 @@ export async function runAdvisorySuggestionModule(ctx) {
       for (const type of ADVISORY_ACTIVITY_TYPES) {
         const activity = advisory.activitiesToDo.find((a) => a.type === type) || {
           type,
-          title: `${formatActivityTypeLabel(type)} Advisory`,
-          message: getDefaultActivityMessage(type),
+          title: formatActivityTypeLabel(type, user.language),
+          message: getDefaultActivityMessage(type, user.language),
           details: {},
         };
         notificationTasks.push(
