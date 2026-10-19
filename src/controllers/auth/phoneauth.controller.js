@@ -108,14 +108,20 @@ function isCropgenClientRequest(req) {
   ).toLowerCase();
   const app = resolveClientAppKey(req);
   if (brand === "biodrops" || app === "biodrops_web") return false;
-  return brand === "cropgen" || app === "cropgen_web";
+  // Native CropGen app sends X-Client-App cropgen_android / cropgen_ios.
+  const rawApp = String(req.headers?.["x-client-app"] || "").toLowerCase();
+  return (
+    brand === "cropgen" ||
+    app === "cropgen_web" ||
+    rawApp === "cropgen_android" ||
+    rawApp === "cropgen_ios"
+  );
 }
 
-function isBiodropsOrganizationUser(user) {
-  return (
-    String(user?.organization?.organizationCode || "").toUpperCase() ===
-    "BIODROPS"
-  );
+/** Account belongs to another platform (BIODROPS, AAT, CROPYDEALS, …), not CropGen. */
+function isOtherPlatformUser(user) {
+  const code = String(user?.organization?.organizationCode || "").toUpperCase();
+  return Boolean(code) && code !== "CROPGEN";
 }
 
 const CROPGEN_SIGNUP_FIRST_MESSAGE =
@@ -130,13 +136,13 @@ const CROPGEN_CROSS_PLATFORM_MESSAGE =
   "This phone number is already registered on a different CropGen platform. Please use another number, or contact support.";
 
 function cropgenPhoneLoginDenied(user) {
-  return !user || isBiodropsOrganizationUser(user);
+  return !user || isOtherPlatformUser(user);
 }
 
 /** Denial message matching the specific reason: no account at all vs. an
  * existing account that belongs to another platform/brand. */
 function cropgenPhoneLoginDeniedMessage(user) {
-  return user && isBiodropsOrganizationUser(user)
+  return user && isOtherPlatformUser(user)
     ? CROPGEN_CROSS_PLATFORM_MESSAGE
     : CROPGEN_SIGNUP_FIRST_MESSAGE;
 }
@@ -193,8 +199,12 @@ export const sendWhatsappOtp = async (req, res) => {
       });
     }
 
-    // CropGen login: only existing CropGen users. Biodrops accounts cannot sign in here.
-    if (isLogin && isCropgenClientRequest(req) && cropgenPhoneLoginDenied(user)) {
+    // CropGen login: only existing CropGen users. Other-platform accounts cannot sign in here.
+    // Mobile omits signupIntent (create-if-missing), so it only blocks other-platform accounts.
+    if (
+      isCropgenClientRequest(req) &&
+      (isLogin ? cropgenPhoneLoginDenied(user) : !isSignup && isOtherPlatformUser(user))
+    ) {
       return res.status(404).json({
         success: false,
         message: cropgenPhoneLoginDeniedMessage(user),
@@ -214,10 +224,10 @@ export const sendWhatsappOtp = async (req, res) => {
     // Signup: reject duplicates, then create with profile + org.
     if (isSignup) {
       if (user) {
-        const alreadyBiodrops = isBiodropsOrganizationUser(user);
+        const otherPlatform = isOtherPlatformUser(user);
         return res.status(409).json({
           success: false,
-          message: alreadyBiodrops
+          message: otherPlatform
             ? "This phone is already registered. Please use a different number to sign up."
             : "User already exists. Please log in.",
         });
@@ -518,7 +528,7 @@ export const resendWhatsappOtp = async (req, res) => {
     if (
       !user ||
       user.deletedAt ||
-      (isCropgenClientRequest(req) && isBiodropsOrganizationUser(user))
+      (isCropgenClientRequest(req) && isOtherPlatformUser(user))
     ) {
       return res.status(404).json({
         success: false,
