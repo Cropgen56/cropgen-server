@@ -16,15 +16,26 @@ import { formatDateISO } from "../utils/shared/helpers.js";
 import { MODULE_IDS } from "../pipeline/constants.js";
 import { moduleResult } from "../pipeline/moduleResult.js";
 
+// A field sown today (or in the last few days) has no satellite scenes between
+// sowing and now, so the availability/timeseries APIs return nothing. Always
+// look back at least this many days before the end date.
+const MIN_SATELLITE_LOOKBACK_DAYS = 15;
+
+// Always end at today so older fields get current imagery; keep the window to
+// at most `maxDays` by moving the start forward instead of cutting the end.
 function limitSatelliteRange(startISO, endISO, maxDays = 90) {
-  const start = new Date(startISO);
   const end = new Date(endISO);
-  const limitedEnd = new Date(start);
-  limitedEnd.setDate(limitedEnd.getDate() + maxDays);
-  return {
-    start: startISO,
-    end: limitedEnd < end ? formatDateISO(limitedEnd) : endISO,
-  };
+  const latestStart = new Date(end);
+  latestStart.setDate(latestStart.getDate() - MIN_SATELLITE_LOOKBACK_DAYS);
+  const earliestStart = new Date(end);
+  earliestStart.setDate(earliestStart.getDate() - maxDays);
+
+  const sowingStart = new Date(startISO);
+  let start = Number.isNaN(sowingStart.getTime()) ? latestStart : sowingStart;
+  if (start > latestStart) start = latestStart;
+  if (start < earliestStart) start = earliestStart;
+
+  return { start: formatDateISO(start), end: endISO };
 }
 
 function limitRangeEndDaysBack(endISO, daysBack = 45) {
