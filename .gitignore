@@ -54,3 +54,7 @@ pm2*.log
 
 # Miscellaneous
 *.bak
+
+# macOS metadata files
+._*
+.DS_Store
