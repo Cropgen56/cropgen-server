@@ -9,11 +9,14 @@ import {
   getFarmersWithAdvisories,
   patchAdvisoryActivityProgress,
 } from "../controllers/advisory.controller.js";
-import { isAuthenticated } from "../../../middleware/auth.middleware.js";
+import {
+  checkApiKey,
+  isAuthenticated,
+} from "../../../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/internal/generate-advisory", generateFarmAdvisory);
+router.post("/internal/generate-advisory", checkApiKey, generateFarmAdvisory);
 router.patch(
   "/:advisoryId/activities/:activityType/progress",
   isAuthenticated,
