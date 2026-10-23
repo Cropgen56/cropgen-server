@@ -19,6 +19,7 @@ export async function runBarrenAdvisoryPipeline({
   language,
   platform = "whatsapp",
   lightweight = false,
+  notify = true,
 }) {
   const fieldIdStr = String(farmField._id);
   const logStep = createStepLogger(`[Advisory:barren] ${fieldIdStr}:`);
@@ -30,6 +31,7 @@ export async function runBarrenAdvisoryPipeline({
     language,
     platform,
     lightweight,
+    notify,
     logStep,
   });
 

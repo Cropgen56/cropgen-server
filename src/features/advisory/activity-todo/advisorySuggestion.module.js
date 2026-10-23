@@ -276,7 +276,7 @@ export async function runAdvisorySuggestionModule(ctx) {
   }
 
   let notified = false;
-  if (user && isCropgenOrganizationCode(organizationCode)) {
+  if (ctx.notify && user && isCropgenOrganizationCode(organizationCode)) {
     if (user.phone) {
       const notificationTasks = [];
       for (const type of ADVISORY_ACTIVITY_TYPES) {

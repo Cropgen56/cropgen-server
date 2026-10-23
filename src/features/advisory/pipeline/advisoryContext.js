@@ -13,6 +13,7 @@ import {
  * @property {string} platform
  * @property {boolean} lightweight
  * @property {boolean} preferShortHistoricalWindow
+ * @property {boolean} notify send farmer notifications for the saved advisory
  * @property {import('mongoose').Types.ObjectId | string} farmField
  * @property {Record<string, unknown>} farmFieldDoc
  * @property {import('mongoose').Types.ObjectId | string | null} cropInstanceId
@@ -41,6 +42,7 @@ export function createAdvisoryContext({
   platform,
   lightweight = false,
   preferShortHistoricalWindow = false,
+  notify = true,
   logStep = () => {},
 }) {
   const now = new Date();
@@ -73,6 +75,7 @@ export function createAdvisoryContext({
     platform: platform || "whatsapp",
     lightweight: Boolean(lightweight),
     preferShortHistoricalWindow: Boolean(preferShortHistoricalWindow),
+    notify: notify !== false,
     farmField: farmField._id,
     farmFieldDoc,
     nowISO,

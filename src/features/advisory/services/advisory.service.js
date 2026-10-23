@@ -30,7 +30,11 @@ export async function generateAdvisoryForField(
   options = {},
   cropInstanceId = null,
 ) {
-  const { preferShortHistoricalWindow = false, lightweight = false } = options;
+  const {
+    preferShortHistoricalWindow = false,
+    lightweight = false,
+    notify = true,
+  } = options;
 
   const farmField = await FarmField.findById(farmFieldId).lean();
   if (!farmField) {
@@ -46,7 +50,7 @@ export async function generateAdvisoryForField(
       geometryId,
       language,
       platform,
-      { lightweight },
+      { lightweight, notify },
     );
   }
 
@@ -58,6 +62,7 @@ export async function generateAdvisoryForField(
     platform,
     lightweight,
     preferShortHistoricalWindow,
+    notify,
   });
 
   return advisory;

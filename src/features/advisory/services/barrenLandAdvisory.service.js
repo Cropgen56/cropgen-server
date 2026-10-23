@@ -11,7 +11,7 @@ export async function generateBarrenLandAdvisoryForField(
   platform = "whatsapp",
   options = {},
 ) {
-  const { lightweight = false } = options;
+  const { lightweight = false, notify = true } = options;
 
   const farmField = await FarmField.findById(farmFieldId).lean();
   if (!farmField) {
@@ -24,6 +24,7 @@ export async function generateBarrenLandAdvisoryForField(
     language,
     platform,
     lightweight,
+    notify,
   });
 
   return advisory;

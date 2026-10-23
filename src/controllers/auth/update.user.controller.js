@@ -2,6 +2,7 @@ import User from "../../models/user.model.js";
 import Organization from "../../models/organization.model.js";
 import appSocketService from "../../features/agent/services/appSocket.service.js";
 import { clearWhatsAppAgentCache } from "../../features/agent/services/whatsappAgent.service.js";
+import { regenerateAdvisoriesForLanguageChange } from "../../features/advisory/services/regenerateAdvisoriesForLanguage.service.js";
 
 /** Profile fields admins may update (excludes OTP, tokens, activity timestamps). */
 const ALLOWED_USER_UPDATE_FIELDS = new Set([
@@ -139,6 +140,18 @@ export const updateUserById = async (req, res) => {
     if (Object.prototype.hasOwnProperty.call(updateData, "language")) {
       appSocketService.cleanupUser(String(id));
       clearWhatsAppAgentCache(String(id));
+
+      /* ---------- Re-generate saved advisories in the new language (background) ----------
+         Compared per advisory, not against the user's previous language: the app's
+         display language and user.language can drift apart, and older advisories
+         may have no language recorded. Advisories already in this language are skipped. */
+      void regenerateAdvisoriesForLanguageChange(user._id, user.language).catch(
+        (err) =>
+          console.error(
+            `[Advisory] language regen crashed for user ${id}:`,
+            err?.message || err,
+          ),
+      );
     }
 
     return res.status(200).json({

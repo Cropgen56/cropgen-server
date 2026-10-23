@@ -28,6 +28,7 @@ const DEFER_OPTICAL_PASS =
  * @param {string} [params.platform]
  * @param {boolean} [params.lightweight]
  * @param {boolean} [params.preferShortHistoricalWindow]
+ * @param {boolean} [params.notify]
  */
 export async function runCropAdvisoryPipeline({
   farmField,
@@ -37,6 +38,7 @@ export async function runCropAdvisoryPipeline({
   platform = "whatsapp",
   lightweight = false,
   preferShortHistoricalWindow = false,
+  notify = true,
 }) {
   const fieldIdStr = String(farmField._id);
   const logSuffix = cropInstance?.cropName ? `/${cropInstance.cropName}` : "";
@@ -51,6 +53,7 @@ export async function runCropAdvisoryPipeline({
     platform,
     lightweight,
     preferShortHistoricalWindow,
+    notify,
     logStep,
   });
 
