@@ -1,8 +1,18 @@
+import mongoose from "mongoose";
 import User from "../../../../models/user.model.js";
 import FarmField from "../../../../models/field.model.js";
 import FieldCrop from "../../../../models/field-crop.model.js";
 import { resolveCrmUserBaseQuery } from "../../utils/crmUserQuery.js";
 import { formatCrmFarmer } from "../../utils/formatFarmer.js";
+import { isClientViewer } from "../../utils/clientOrg.js";
+
+/** Admin-only ?clientId= filter ("none" = farmers not under any client). */
+function buildClientFilter(req, clientId) {
+  if (!clientId || isClientViewer(req.adminActor)) return null;
+  if (clientId === "none") return { clientOrganization: null };
+  if (!mongoose.Types.ObjectId.isValid(clientId)) return null;
+  return { clientOrganization: new mongoose.Types.ObjectId(clientId) };
+}
 
 function buildFarmerSearchFilter(search) {
   if (!search?.trim()) return null;
@@ -37,7 +47,7 @@ export async function buildFarmerRoleQuery(baseQuery, org) {
 export const listBiodropsFarmers = async (req, res) => {
   try {
     const { baseQuery, org } = await resolveCrmUserBaseQuery(req);
-    const { page = 1, limit = 20, search } = req.query;
+    const { page = 1, limit = 20, search, clientId } = req.query;
 
     const parsedLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
     const parsedPage = Math.max(1, parseInt(page, 10) || 1);
@@ -45,15 +55,19 @@ export const listBiodropsFarmers = async (req, res) => {
 
     let query = await buildFarmerRoleQuery(baseQuery, org);
 
-    const searchFilter = buildFarmerSearchFilter(search);
-    if (searchFilter) {
-      query = { $and: [query, searchFilter] };
+    const filters = [
+      buildFarmerSearchFilter(search),
+      buildClientFilter(req, clientId),
+    ].filter(Boolean);
+    if (filters.length) {
+      query = { $and: [query, ...filters] };
     }
 
     const [farmers, total] = await Promise.all([
       User.find(query)
         .sort({ createdAt: -1 })
         .select("-password -otp -__v")
+        .populate("clientOrganization", "organizationName organizationCode")
         .skip(skip)
         .limit(parsedLimit)
         .lean(),

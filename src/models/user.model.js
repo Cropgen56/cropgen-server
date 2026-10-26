@@ -167,6 +167,18 @@ const userSchema = new Schema(
       index: true,
     },
 
+    /**
+     * BioDrops client org (child of BIODROPS). On a farmer: the client they
+     * registered under. On a staff user with no admin assignment: that user
+     * is the client's read-only CRM login. `organization` stays BIODROPS.
+     */
+    clientOrganization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      default: null,
+      index: true,
+    },
+
     /** Set when an admin deletes the account. Deleted users cannot log in. */
     deletedAt: {
       type: Date,

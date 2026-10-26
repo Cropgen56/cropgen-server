@@ -118,6 +118,20 @@ export function formatCrmFarmer(user, { fields = [] } = {}) {
     lastAdvisory: formatLastActive(
       user.lastActiveAt || user.lastLoginAt || user.updatedAt,
     ),
+    client: formatFarmerClient(user.clientOrganization),
     createdAt: user.createdAt,
   };
+}
+
+/** BioDrops client org the farmer belongs to (populated or bare id), or null. */
+function formatFarmerClient(clientOrganization) {
+  if (!clientOrganization) return null;
+  if (typeof clientOrganization === "object" && clientOrganization.organizationName) {
+    return {
+      id: String(clientOrganization._id),
+      name: clientOrganization.organizationName,
+      code: clientOrganization.organizationCode,
+    };
+  }
+  return { id: String(clientOrganization), name: null, code: null };
 }

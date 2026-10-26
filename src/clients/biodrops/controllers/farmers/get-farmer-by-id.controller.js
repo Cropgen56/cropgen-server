@@ -16,6 +16,7 @@ export const getBiodropsFarmerById = async (req, res) => {
       _id: id,
     })
       .select("-password -otp -__v")
+      .populate("clientOrganization", "organizationName organizationCode")
       .lean();
 
     if (!user) {

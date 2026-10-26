@@ -7,6 +7,7 @@ import {
 } from "./adminScope.js";
 import { CROPGEN_PLATFORM_ROLES } from "../constants/adminLevels.js";
 import { resolveOrganizationByCode } from "../../../utils/auth/authUtils.js";
+import { isClientViewer } from "./clientOrg.js";
 import {
   formatCrmUser,
   deriveCrmUserStatus,
@@ -18,6 +19,18 @@ export async function resolveCrmUserBaseQuery(req) {
   const { role } = actor;
   const adminAssignments =
     actor.adminAssignments || req.user?.adminAssignments || [];
+  // Client viewer: only farmers registered under their client org.
+  if (isClientViewer(actor)) {
+    const { org } = await resolveOrganizationByCode(ORGANIZATION_CODE);
+    return {
+      baseQuery: {
+        clientOrganization: actor.clientOrganization,
+        role: "farmer",
+      },
+      org,
+    };
+  }
+
   const isCropgenOps = CROPGEN_PLATFORM_ROLES.has(role);
   const isGeoStaff =
     role === "staff" &&

@@ -25,7 +25,7 @@ export const requestOtp = async (req, res) => {
       biodropsOrg = org;
     }
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email, deletedAt: null });
 
     // Biodrops login restriction: send OTP only to BIODROPS organization users
     if (isBiodropsBrand && signupIntent !== true) {

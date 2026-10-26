@@ -4,6 +4,8 @@ import {
 } from "../constants/adminLevels.js";
 import { getHighestAdminLevel } from "../utils/adminScope.js";
 import { loadBiodropsAssignmentsForUser } from "../utils/authPayload.js";
+import { isClientViewer } from "../utils/clientOrg.js";
+import User from "../../../models/user.model.js";
 
 function enrichActor(user = {}) {
   const adminAssignments = user.adminAssignments || [];
@@ -11,6 +13,7 @@ function enrichActor(user = {}) {
     id: user.id || user._id,
     role: user.role,
     organization: user.organization,
+    clientOrganization: user.clientOrganization || null,
     adminAssignments,
     highestAdminLevel: getHighestAdminLevel(adminAssignments),
     isCropgenPlatformAdmin: CROPGEN_PLATFORM_ROLES.has(user.role),
@@ -25,8 +28,29 @@ export async function attachBiodropsAdminActor(req, res, next) {
 
   try {
     const userId = req.user.id || req.user._id;
-    const adminAssignments = await loadBiodropsAssignmentsForUser(userId);
-    const actorUser = { ...req.user, adminAssignments };
+    const [adminAssignments, dbUser] = await Promise.all([
+      loadBiodropsAssignmentsForUser(userId),
+      User.findOne({ _id: userId, deletedAt: null })
+        .select("role clientOrganization")
+        .populate("clientOrganization", "status")
+        .lean(),
+    ]);
+    if (!dbUser) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    const clientOrg = dbUser.clientOrganization || null;
+    const actorUser = {
+      ...req.user,
+      role: dbUser.role,
+      clientOrganization: clientOrg?._id || null,
+      adminAssignments,
+    };
+    if (isClientViewer(actorUser) && clientOrg?.status === "inactive") {
+      return res.status(403).json({
+        success: false,
+        message: "This client organization has been deactivated.",
+      });
+    }
     req.biodropsAdminActor = enrichActor(actorUser);
     req.adminActor = req.biodropsAdminActor;
     next();
@@ -40,13 +64,26 @@ export async function attachBiodropsAdminActor(req, res, next) {
 }
 
 export function requireBiodropsAdminAccess(options = {}) {
-  const { minLevel = null, roles = ["admin", "developer", "staff"] } = options;
+  const {
+    minLevel = null,
+    roles = ["admin", "developer", "staff"],
+    // Client viewers (read-only client logins) are denied unless a route opts in.
+    allowClientViewer = false,
+  } = options;
   const minRank = minLevel ? ADMIN_LEVEL_RANK[minLevel] || 0 : 0;
 
   return (req, res, next) => {
     const actor = req.biodropsAdminActor || enrichActor(req.user || {});
     req.biodropsAdminActor = actor;
     req.adminActor = actor;
+
+    if (isClientViewer(actor)) {
+      if (allowClientViewer) return next();
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Client accounts have read-only access.",
+      });
+    }
 
     if (actor.isCropgenPlatformAdmin && roles.includes(actor.role)) {
       return next();

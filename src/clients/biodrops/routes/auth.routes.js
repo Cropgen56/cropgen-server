@@ -17,6 +17,7 @@ import {
   redeemAccessCard,
   getAccessCardEntitlement,
 } from "../controllers/access-cards/redeem.controller.js";
+import { checkClientCode } from "../controllers/clients/clients.controller.js";
 
 const router = express.Router();
 
@@ -29,6 +30,8 @@ router.post(
   requireAuth,
   completeProfile,
 );
+// Optional client organization code entered during farmer signup.
+router.get("/biodrops/client-code/:code", forceBiodropsBrand, checkClientCode);
 router.post("/biodrops/login/otp", forceBiodropsBrand, requestOtp);
 router.post("/biodrops/login/verify", forceBiodropsBrand, verifyOtp);
 router.post(

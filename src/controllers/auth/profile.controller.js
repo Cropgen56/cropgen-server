@@ -6,12 +6,16 @@ export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(id)
       .select(
-        "_id email phone role firstName lastName avatar terms lastLoginAt createdAt organization lastActiveAt language country state city village pincode deletedAt",
+        "_id email phone role firstName lastName avatar terms lastLoginAt createdAt organization lastActiveAt language country state city village pincode deletedAt clientOrganization",
       )
       .populate({
         path: "organization",
         select:
           "_id organizationName organizationCode email phoneNumber address",
+      })
+      .populate({
+        path: "clientOrganization",
+        select: "_id organizationName organizationCode status",
       })
       .lean();
 

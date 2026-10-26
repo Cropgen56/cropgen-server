@@ -55,6 +55,17 @@ import {
 } from "../middleware/subscriptionPlan.middleware.js";
 import { listCrmFarmerAdvisories } from "../controllers/advisories/index.js";
 import {
+  getCrmFarmerFields,
+  getCrmFieldAdvisories,
+} from "../controllers/farmers/farmer-fields.controller.js";
+import {
+  listCrmClients,
+  getCrmClientById,
+  createCrmClient,
+  updateCrmClient,
+  assignFarmerToClient,
+} from "../controllers/clients/clients.controller.js";
+import {
   listCrmProducts,
   getCrmProductById,
   createCrmProduct,
@@ -85,6 +96,29 @@ const crmGuards = [
   attachBiodropsAdminActor,
   requireBiodropsAdminAccess({
     minLevel: "ground",
+    roles: ["admin", "developer", "staff"],
+  }),
+];
+
+/** Read-only routes that client viewers may also use (scoped to their farmers). */
+const crmReadGuards = [
+  isAuthenticated,
+  updateUserActivity,
+  attachBiodropsAdminActor,
+  requireBiodropsAdminAccess({
+    minLevel: "ground",
+    roles: ["admin", "developer", "staff"],
+    allowClientViewer: true,
+  }),
+];
+
+/** Client management: CropGen platform admins and BioDrops super admins. */
+const crmSuperGuards = [
+  isAuthenticated,
+  updateUserActivity,
+  attachBiodropsAdminActor,
+  requireBiodropsAdminAccess({
+    minLevel: "super",
     roles: ["admin", "developer", "staff"],
   }),
 ];
@@ -123,9 +157,17 @@ router.post(
 
 router.get("/users", ...crmGuards, listBiodropsUsers);
 
-router.get("/farmers/stats", ...crmGuards, getBiodropsFarmerStats);
-router.get("/farmers/:id", ...crmGuards, getBiodropsFarmerById);
-router.get("/farmers", ...crmGuards, listBiodropsFarmers);
+router.get("/farmers/stats", ...crmReadGuards, getBiodropsFarmerStats);
+router.get("/farmers/:id/fields", ...crmReadGuards, getCrmFarmerFields);
+router.patch("/farmers/:id/client", ...crmSuperGuards, assignFarmerToClient);
+router.get("/farmers/:id", ...crmReadGuards, getBiodropsFarmerById);
+router.get("/farmers", ...crmReadGuards, listBiodropsFarmers);
+router.get("/fields/:fieldId/advisories", ...crmReadGuards, getCrmFieldAdvisories);
+
+router.get("/clients", ...crmSuperGuards, listCrmClients);
+router.post("/clients", ...crmSuperGuards, createCrmClient);
+router.get("/clients/:id", ...crmSuperGuards, getCrmClientById);
+router.patch("/clients/:id", ...crmSuperGuards, updateCrmClient);
 
 router.post("/access-cards/generate", ...crmGuards, generateAccessCards);
 router.get("/access-cards", ...crmGuards, listAccessCards);
@@ -163,7 +205,7 @@ router.post(
 
 router.get(
   "/farmers/:id/advisories",
-  ...crmGuards,
+  ...crmReadGuards,
   listCrmFarmerAdvisories,
 );
 

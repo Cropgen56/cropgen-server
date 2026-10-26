@@ -15,6 +15,10 @@ import {
   resolveAuthEmailPreset,
 } from "../../utils/email/template.js";
 import { logActivity } from "../../utils/storage/activityLog.service.js";
+import { findActiveClientByCode } from "../../clients/biodrops/utils/clientOrg.js";
+
+/** Roles that must never be self-assigned at signup. */
+const PRIVILEGED_ROLES = new Set(["admin", "developer", "staff"]);
 
 export const completeProfile = async (req, res) => {
   try {
@@ -30,6 +34,7 @@ export const completeProfile = async (req, res) => {
       language,
       role = "farmer",
       organizationCode,
+      clientCode,
       terms,
       country = "",
       state = "",
@@ -94,6 +99,19 @@ export const completeProfile = async (req, res) => {
       }
     }
 
+    // Optional BioDrops client code: the farmer stays in BIODROPS and is
+    // tagged with the client org so the client can monitor them in the CRM.
+    let clientOrg = null;
+    if (preset === "biodrops" && String(clientCode || "").trim()) {
+      clientOrg = await findActiveClientByCode(clientCode);
+      if (!clientOrg) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid organization code.",
+        });
+      }
+    }
+
     const user = await User.findById(userId);
     if (!user)
       return res
@@ -135,7 +153,11 @@ export const completeProfile = async (req, res) => {
     if (language) {
       user.language = String(language).toLowerCase();
     }
-    user.role = role || "farmer";
+    // Role comes from the request body, so privileged roles are refused here.
+    // BioDrops signups are always farmers.
+    user.role =
+      preset === "biodrops" || PRIVILEGED_ROLES.has(role) ? "farmer" : role || "farmer";
+    if (clientOrg) user.clientOrganization = clientOrg._id;
     user.country = country ? String(country).trim().toUpperCase() : user.country;
     user.state = state ? String(state).trim().toUpperCase() : user.state;
     user.city = city ? String(city).trim() : user.city;
