@@ -6,6 +6,7 @@ import { resolveOrganizationByCode } from "../../../../utils/auth/authUtils.js";
 import { normalizeLoginEmail } from "../../../../utils/auth/orgScope.js";
 import { assertCrmFarmerAccess } from "../../services/crmSubscription.service.js";
 import { sendCrmLoginInstructionsEmail } from "../../services/crmInvitationEmail.service.js";
+import { normalizeCrmPhone } from "../../utils/crmUserManage.js";
 import {
   findActiveClientByCode,
   findClientById,
@@ -16,6 +17,8 @@ import {
 } from "../../utils/clientOrg.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Same format the User model enforces on `phone`. */
+const PHONE_PATTERN = /^\+\d{8,15}$/;
 
 function fail(res, status, message) {
   return res.status(status).json({ success: false, message });
@@ -43,6 +46,20 @@ async function emailInUse(email, exceptUserId = null) {
   };
   if (exceptUserId) query._id = { $ne: exceptUserId };
   return !!(await User.exists(query));
+}
+
+/** Phone is unique across all users, soft-deleted ones included (DB index). */
+async function phoneInUse(phone) {
+  return !!(await User.exists({ phone }));
+}
+
+/** "" for no phone, the +E.164 form, or null when it can't be a valid number. */
+function parseClientPhone(value) {
+  // Drop spaces/dashes/brackets so "+91 87097-06576" normalizes too.
+  const raw = String(value || "").replace(/[\s\-().]/g, "");
+  if (!raw) return "";
+  const phone = normalizeCrmPhone(raw);
+  return phone && PHONE_PATTERN.test(phone) ? phone : null;
 }
 
 /** Client viewer logins (staff + clientOrganization, no assignment) per client. */
@@ -130,7 +147,7 @@ export async function createCrmClient(req, res) {
   try {
     const organizationName = String(req.body.organizationName || "").trim();
     const email = normalizeLoginEmail(req.body.email);
-    const phoneNumber = String(req.body.phoneNumber || "").trim();
+    const phoneNumber = parseClientPhone(req.body.phoneNumber);
     const contactName = String(req.body.contactName || "").trim();
     const requestedCode = normalizeClientCode(req.body.organizationCode);
     const sendWelcomeEmail = req.body.sendWelcomeEmail !== false;
@@ -138,6 +155,13 @@ export async function createCrmClient(req, res) {
     if (!organizationName) return fail(res, 400, "Organization name is required.");
     if (organizationName.length > 120) return fail(res, 400, "Organization name is too long.");
     if (!EMAIL_PATTERN.test(email)) return fail(res, 400, "A valid login email is required.");
+    if (phoneNumber === null) {
+      return fail(
+        res,
+        400,
+        "Enter a valid phone number: 10 digits, or with country code (e.g. +919876543210).",
+      );
+    }
     if (requestedCode && !isValidClientCodeFormat(requestedCode)) {
       return fail(
         res,
@@ -147,6 +171,9 @@ export async function createCrmClient(req, res) {
     }
     if (await emailInUse(email)) {
       return fail(res, 409, "This email already belongs to an account. Use a different login email.");
+    }
+    if (phoneNumber && (await phoneInUse(phoneNumber))) {
+      return fail(res, 409, "This phone number already belongs to an account. Use a different number.");
     }
 
     const organizationCode = requestedCode || (await generateUniqueClientCode());
@@ -197,7 +224,7 @@ export async function createCrmClient(req, res) {
       await Organization.deleteOne({ _id: createdOrg._id }).catch(() => {});
     }
     if (error?.code === 11000) {
-      return fail(res, 409, "That code or email is already in use.");
+      return fail(res, 409, "That code, email or phone number is already in use.");
     }
     return sendError(res, error, "createCrmClient", "Failed to create client.");
   }
@@ -220,7 +247,11 @@ export async function updateCrmClient(req, res) {
       if (!name) return fail(res, 400, "Organization name is required.");
       org.organizationName = name.slice(0, 120);
     }
-    if (phoneNumber !== undefined) org.phoneNumber = String(phoneNumber).trim();
+    if (phoneNumber !== undefined) {
+      const phone = parseClientPhone(phoneNumber);
+      if (phone === null) return fail(res, 400, "Enter a valid phone number.");
+      org.phoneNumber = phone;
+    }
     if (address !== undefined) org.address = pickAddress(address);
     if (status !== undefined) {
       if (!["active", "inactive"].includes(status)) {

@@ -74,10 +74,13 @@ beforeAll(async () => {
   ({ default: FarmField } = await import("../../../models/field.model.js"));
   ({ default: BiodropsAdminAssignment } = await import("../models/admin-assignment.model.js"));
   const { default: biodropsRoutes } = await import("../routes/index.js");
+  const { isAuthenticated } = await import("../../../middleware/auth.middleware.js");
+  const { getProfile } = await import("../../../controllers/auth/profile.controller.js");
 
   app = express();
   app.use(express.json());
   app.use("/v1/api/auth", biodropsRoutes);
+  app.get("/v1/api/auth/profile", isAuthenticated, getProfile);
 
   biodrops = await Organization.create({
     organizationName: "BioDrops",
@@ -155,6 +158,42 @@ describe("client management", () => {
         sendWelcomeEmail: false,
       });
     expect(res.status).toBe(409);
+  });
+
+  test("a 10-digit phone is stored in +91 format on the client and its login", async () => {
+    const res = await request(app)
+      .post("/v1/api/auth/crm/clients")
+      .set(asUser(ids.platformAdmin))
+      .send({
+        organizationName: "Phone Test FPO",
+        email: "phone-client@example.test",
+        phoneNumber: "87097 06576",
+        sendWelcomeEmail: false,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.client.phoneNumber).toBe("+918709706576");
+    const login = await User.findOne({ email: "phone-client@example.test" });
+    expect(login.phone).toBe("+918709706576");
+  });
+
+  test("an invalid or already used phone is rejected without creating a client", async () => {
+    const before = await Organization.countDocuments();
+    const send = (phoneNumber, email) =>
+      request(app)
+        .post("/v1/api/auth/crm/clients")
+        .set(asUser(ids.platformAdmin))
+        .send({ organizationName: "Bad Phone FPO", email, phoneNumber, sendWelcomeEmail: false });
+
+    const invalid = await send("12345", "bad-phone@example.test");
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.message).toMatch(/valid phone number/);
+
+    const taken = await send("8709706576", "taken-phone@example.test");
+    expect(taken.status).toBe(409);
+    expect(taken.body.message).toMatch(/phone number already belongs/);
+
+    expect(await Organization.countDocuments()).toBe(before);
   });
 
   test("district staff (not super) cannot manage clients", async () => {
@@ -290,6 +329,34 @@ describe("client viewer scope", () => {
     for (const res of await Promise.all(denied)) {
       expect(res.status).toBe(403);
     }
+  });
+
+  test("farmers registered under a client have no CRM access", async () => {
+    const farmer = asUser(ids.farmerViaCode);
+    const own = String(ids.farmerViaCode._id);
+    const denied = [
+      request(app).get("/v1/api/auth/crm/farmers").set(farmer),
+      request(app).get("/v1/api/auth/crm/farmers/stats").set(farmer),
+      request(app).get(`/v1/api/auth/crm/farmers/${own}`).set(farmer),
+      request(app).get("/v1/api/auth/crm/clients").set(farmer),
+    ];
+    for (const res of await Promise.all(denied)) {
+      expect(res.status).toBe(403);
+    }
+  });
+
+  test("profile carries the client org and its code for the CRM settings page", async () => {
+    const res = await request(app)
+      .get("/v1/api/auth/profile")
+      .set(asUser(ids.clientViewer));
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.clientOrganization).toMatchObject({
+      organizationName: "Green Valley FPO",
+      organizationCode: ids.client.organizationCode,
+      email: "client@example.test",
+      status: "active",
+    });
   });
 
   test("regional staff scope is unchanged", async () => {

@@ -15,7 +15,7 @@ export const getProfile = async (req, res) => {
       })
       .populate({
         path: "clientOrganization",
-        select: "_id organizationName organizationCode status",
+        select: "_id organizationName organizationCode status email phoneNumber address",
       })
       .lean();
 
