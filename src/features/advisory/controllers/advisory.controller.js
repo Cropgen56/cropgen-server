@@ -13,6 +13,7 @@ import {
 import { buildFarmAdvisorySummary } from "../services/farmAdvisorySummary.service.js";
 import { getOrgScopeId, getOrgScopedUserIds, sameOrg } from "../../../utils/auth/orgScope.js";
 import User from "../../../models/user.model.js";
+import FieldCrop from "../../../models/field-crop.model.js";
 import { logActivity } from "../../../utils/storage/activityLog.service.js";
 
 function resolveResponseLanguage(req) {
@@ -90,7 +91,26 @@ export const getFarmAdvisories = async (req, res) => {
         { $sort: { createdAt: -1 } },
         { $group: { _id: "$cropInstanceId", doc: { $first: "$$ROOT" } } },
       ]);
-      const latestIds = grouped.map((g) => g.doc._id);
+
+      // Only the farm's currently active crops — advisories of harvested,
+      // retired or deleted crops would otherwise show as extra "Crop" chips.
+      // A farm with no active crop (barren / legacy) gets its single latest.
+      const activeCropIds = new Set(
+        (
+          await FieldCrop.find({ farmField: aggregateMatch.farmFieldId, isActive: true })
+            .select("_id")
+            .lean()
+        ).map((c) => String(c._id)),
+      );
+      let current = grouped.filter(
+        (g) => g._id && activeCropIds.has(String(g._id)),
+      );
+      if (!current.length && grouped.length) {
+        current = [
+          grouped.reduce((a, b) => (b.doc.createdAt > a.doc.createdAt ? b : a)),
+        ];
+      }
+      const latestIds = current.map((g) => g.doc._id);
 
       const advisories = await FarmAdvisory.find({ _id: { $in: latestIds } })
         .populate("farmFieldId", "fieldName cropName variety sowingDate")
