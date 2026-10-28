@@ -118,10 +118,14 @@ function isCropgenClientRequest(req) {
   );
 }
 
-/** Account belongs to another platform (BIODROPS, AAT, CROPYDEALS, …), not CropGen. */
+/** Orgs with their own app — their users cannot sign in to CropGen. Other orgs
+ * (AAT, CROPYDEALS, …) are served by the CropGen apps, same as Google web login. */
+const SEPARATE_PLATFORM_ORG_CODES = ["BIODROPS"];
+
+/** Account belongs to another platform (BioDrops), not CropGen. */
 function isOtherPlatformUser(user) {
   const code = String(user?.organization?.organizationCode || "").toUpperCase();
-  return Boolean(code) && code !== "CROPGEN";
+  return SEPARATE_PLATFORM_ORG_CODES.includes(code);
 }
 
 const CROPGEN_SIGNUP_FIRST_MESSAGE =

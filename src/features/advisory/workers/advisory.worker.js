@@ -463,7 +463,7 @@ export const runAdvisoryJob = async () => {
       }
 
       console.log(
-        `[Advisory] cron processing ${fieldIds.length} subscribed farm(s) (all orgs; AAT Starter excluded)`,
+        `[Advisory] cron processing ${fieldIds.length} subscribed farm(s) (all orgs; AAT plans without smart advisory excluded)`,
       );
 
       const farms = await FarmField.find({

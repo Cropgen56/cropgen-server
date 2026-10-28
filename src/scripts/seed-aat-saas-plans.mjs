@@ -46,17 +46,16 @@ const STARTER_FEATURES = {
   waterIndices: false,
   evapotranspirationMonitoring: false,
   agronomicInsights: true,
-  weeklyAdvisoryReports: false,
+  weeklyAdvisoryReports: true,
   cropGrowthMonitoring: false,
   farmOperationsManagement: false,
   diseaseDetectionAlerts: false,
-  smartAdvisorySystem: false,
+  smartAdvisorySystem: true,
   soilReportGeneration: false,
 };
 
 const GROWTH_FEATURES = {
   ...STARTER_FEATURES,
-  smartAdvisorySystem: true,
   diseaseDetectionAlerts: true,
   cropGrowthMonitoring: true,
 };
@@ -80,7 +79,7 @@ const TIERS = [
     slugBase: "aat-starter",
     name: "Starter",
     description:
-      "Up to 10 hectares. Satellite monitoring, crop health zones, 7-day weather, and basic NPK advisory.",
+      "Up to 10 hectares. Satellite monitoring, crop health zones, 7-day weather, AI Advisory System and weekly advisory reports.",
     maxHectares: 10,
     monthlyDollars: 19,
     isInternal: false,
@@ -92,7 +91,7 @@ const TIERS = [
     slugBase: "aat-growth",
     name: "Growth",
     description:
-      "Up to 50 hectares. AI Advisory System, pest & disease alerts, BBCH growth stage, irrigation and yield.",
+      "Up to 50 hectares. Everything in Starter, plus pest & disease alerts, BBCH growth stage, irrigation and yield.",
     maxHectares: 50,
     monthlyDollars: 59,
     isInternal: false,

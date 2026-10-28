@@ -5,7 +5,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "jest --detectOpenHandles --forceExit",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --forceExit",
     "start": "node index.js",
     "worker": "node src/worker/emailWorker.js",
     "seed:web-plans": "node scripts/seed-web-plans.mjs",

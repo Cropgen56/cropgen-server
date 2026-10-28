@@ -1,10 +1,14 @@
+import { isBiodropsOrganizationCode } from "../../../utils/organization/biodropsOrganization.js";
+
 export const ADVISORY_NOTIFICATION_ORG_CODE = "CROPGEN";
 
-export function isCropgenOrganizationCode(code) {
-  const normalized = String(code || ADVISORY_NOTIFICATION_ORG_CODE)
-    .toUpperCase()
-    .trim();
-  return normalized === ADVISORY_NOTIFICATION_ORG_CODE;
+/**
+ * WhatsApp/email advisory delivery goes to every CropGen-app org (CROPGEN,
+ * AAT, …). BioDrops is excluded: its template notifications are disabled,
+ * same as the reminder and welcome workers.
+ */
+export function receivesAdvisoryNotifications(code) {
+  return !isBiodropsOrganizationCode(String(code || "").trim());
 }
 
 /**

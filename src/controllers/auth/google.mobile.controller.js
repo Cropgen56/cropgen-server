@@ -103,15 +103,32 @@ const runGoogleMobileLogin = async (
 
     const targetOrgCode =
       forcedOrgCode || (effectiveBrand === "biodrops" ? "BIODROPS" : "CROPGEN");
+    // CropGen app: a new account may join another CropGen-app org (AAT, …)
+    // via the optional organization code. Existing accounts keep their org.
+    const requestedOrgCode = String(req.body?.organizationCode || "")
+      .trim()
+      .toUpperCase();
+    const newUserOrgCode =
+      targetOrgCode === "CROPGEN" &&
+      !user &&
+      requestedOrgCode &&
+      requestedOrgCode !== "BIODROPS"
+        ? requestedOrgCode
+        : targetOrgCode;
     const { org: organization, orgCode } =
-      await resolveOrganizationByCode(targetOrgCode);
+      await resolveOrganizationByCode(newUserOrgCode);
 
     // Strict organization isolation: CropGen users cannot sign in on Biodrops (and vice versa).
+    // Other orgs (AAT, CROPYDEALS, …) use the CropGen app, matching Google web login.
     if (user) {
       const existingOrgCode = String(
         user.organization?.organizationCode || "",
       ).toUpperCase();
-      if (existingOrgCode && existingOrgCode !== targetOrgCode) {
+      const blocked =
+        targetOrgCode === "BIODROPS"
+          ? existingOrgCode && existingOrgCode !== "BIODROPS"
+          : existingOrgCode === "BIODROPS";
+      if (blocked) {
         return res.status(403).json({
           success: false,
           message: `Access denied. Only ${targetOrgCode} organization users can sign in here.`,
@@ -209,7 +226,7 @@ const runGoogleMobileLogin = async (
             id: user._id,
             email: user.email,
             role: user.role,
-            organizationCode: orgCode,
+            organizationCode: user.organization?.organizationCode || orgCode,
           }
         : { id: user._id, email: user.email },
       onboardingRequired,

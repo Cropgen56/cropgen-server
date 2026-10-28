@@ -26,7 +26,7 @@ export function aatChargeArea(planBrand, defaultArea) {
 
 /**
  * CropGen and Biodrops: any active subscription can generate advisory.
- * AAT Starter has monitoring only; Growth+ enables AI Advisory (smartAdvisorySystem).
+ * AAT plans need smartAdvisorySystem, which every AAT tier now enables.
  */
 export function planAllowsScheduledAdvisory(plan) {
   if (!plan || plan.brand !== "aat") return true;
