@@ -4,6 +4,7 @@ import { updateUserActivity } from "../../../middleware/update.user.activity.mid
 import {
   attachBiodropsAdminActor,
   requireBiodropsAdminAccess,
+  requireBiodropsClientViewer,
 } from "../middleware/admin.middleware.js";
 import { listBiodropsUsers } from "../controllers/users/list.users.controller.js";
 import {
@@ -82,6 +83,23 @@ import {
   getCrmOrderInvoice,
 } from "../controllers/orders/index.js";
 import { listCrmShopPayments } from "../controllers/ecommerce/list-crm-payments.controller.js";
+import {
+  listClientCreditPlans,
+  getClientCreditPlan,
+  createClientCreditPlan,
+  updateClientCreditPlan,
+  deleteClientCreditPlan,
+  getClientCreditsOverview,
+  getClientCreditsDetail,
+} from "../controllers/client-credits/admin.controller.js";
+import {
+  getMyClientCredits,
+  listMyClientCreditPlans,
+  listMyClientCreditUsage,
+  createMyClientCreditPurchase,
+  verifyMyClientCreditPurchase,
+  cancelMyClientCreditPurchase,
+} from "../controllers/client-credits/client.controller.js";
 
 const router = express.Router();
 
@@ -121,6 +139,14 @@ const crmSuperGuards = [
     minLevel: "super",
     roles: ["admin", "developer", "staff"],
   }),
+];
+
+/** A client's own credit balance and purchases (client viewer logins only). */
+const crmClientGuards = [
+  isAuthenticated,
+  updateUserActivity,
+  attachBiodropsAdminActor,
+  requireBiodropsClientViewer,
 ];
 
 router.get("/user-management/stats", ...crmGuards, getUserManagementStats);
@@ -168,6 +194,37 @@ router.get("/clients", ...crmSuperGuards, listCrmClients);
 router.post("/clients", ...crmSuperGuards, createCrmClient);
 router.get("/clients/:id", ...crmSuperGuards, getCrmClientById);
 router.patch("/clients/:id", ...crmSuperGuards, updateCrmClient);
+
+router.get("/client-credit-plans", ...crmSuperGuards, listClientCreditPlans);
+router.post("/client-credit-plans", ...crmSuperGuards, createClientCreditPlan);
+router.get("/client-credit-plans/:id", ...crmSuperGuards, getClientCreditPlan);
+router.patch("/client-credit-plans/:id", ...crmSuperGuards, updateClientCreditPlan);
+router.delete("/client-credit-plans/:id", ...crmSuperGuards, deleteClientCreditPlan);
+router.get("/client-credits/overview", ...crmSuperGuards, getClientCreditsOverview);
+router.get(
+  "/client-credits/clients/:clientId",
+  ...crmSuperGuards,
+  getClientCreditsDetail,
+);
+
+router.get("/client-credits/me", ...crmClientGuards, getMyClientCredits);
+router.get("/client-credits/me/plans", ...crmClientGuards, listMyClientCreditPlans);
+router.get("/client-credits/me/usage", ...crmClientGuards, listMyClientCreditUsage);
+router.post(
+  "/client-credits/me/purchases",
+  ...crmClientGuards,
+  createMyClientCreditPurchase,
+);
+router.post(
+  "/client-credits/me/purchases/:id/verify",
+  ...crmClientGuards,
+  verifyMyClientCreditPurchase,
+);
+router.post(
+  "/client-credits/me/purchases/:id/cancel",
+  ...crmClientGuards,
+  cancelMyClientCreditPurchase,
+);
 
 router.post("/access-cards/generate", ...crmGuards, generateAccessCards);
 router.get("/access-cards", ...crmGuards, listAccessCards);

@@ -26,6 +26,7 @@ import whatsappRoutes from "./src/routes/whatsapp.routes.js";
 import subscriptionPlanRoutes from "./src/routes/subscriptionplan.routes.js";
 import subscriptionRoutes from "./src/routes/subscription.routes.js";
 import biodropsShopRoutes from "./src/clients/biodrops/routes/shop.routes.js";
+import biodropsClientCreditRoutes from "./src/clients/biodrops/routes/client-credits.routes.js";
 import emailRoutes from "./src/routes/email.routes.js";
 import { apiLogger } from "./src/middleware/apiLogger.middleware.js";
 // Smart advisory routes
@@ -243,6 +244,7 @@ app.use("/v1/api/email", emailRoutes);
 app.use("/v1/api/subscription", subscriptionRoutes);
 app.use("/v1/api/subscription-plans", subscriptionPlanRoutes);
 app.use("/v1/api/biodrops/shop", biodropsShopRoutes);
+app.use("/v1/api/biodrops/client-credits", biodropsClientCreditRoutes);
 app.use("/v1/api/posts", postsRoutes);
 app.use("/v1/api/common", commonRoutes);
 app.use("/v1/api/analytics", analyticRoutes);

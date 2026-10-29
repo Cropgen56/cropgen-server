@@ -14,6 +14,10 @@ import {
   sameOrg,
   canAccessAdminPanel,
 } from "../../utils/auth/orgScope.js";
+import {
+  applyClientCreditsToNewField,
+  applyClientCreditsToAreaIncrease,
+} from "../../clients/biodrops/services/clientCredits.service.js";
 function fieldAcreCount(field) {
   return Number(field?.acre) || 0;
 }
@@ -112,6 +116,19 @@ export const addField = async (req, res) => {
       console.error("Error creating primary FieldCrop for new field:", cropError);
     }
 
+    /* ---------- BioDrops client farmers: unlock the farm from the client's
+       hectare credits so the farmer skips checkout. A failure leaves the
+       farm locked (normal paywall) and must not fail farm creation. ---------- */
+    let clientCredits = { applied: false };
+    try {
+      clientCredits = await applyClientCreditsToNewField({
+        field: savedFarmField,
+        owner: user,
+      });
+    } catch (creditError) {
+      console.error("Error applying client credits to new field:", creditError);
+    }
+
     /* ---------- Trigger first advisory (background; logs success/failure) ---------- */
     void triggerInitialAdvisoryForNewField(savedFarmField._id, {
       language: user.language || "en",
@@ -124,6 +141,7 @@ export const addField = async (req, res) => {
       message:
         "Farm field created successfully. Advisory will be generated shortly.",
       farmField: savedFarmField,
+      clientCredits,
     });
   } catch (error) {
     console.error("Error adding farm field:", error);
@@ -558,6 +576,16 @@ export const updateField = async (req, res) => {
       await syncPrimaryFieldCrop(fieldExists, updateData);
     } catch (cropError) {
       console.error("Error syncing primary FieldCrop on field update:", cropError);
+    }
+
+    /* ---------- Farm grew: top up a client-credit subscription so the
+       farm stays unlocked. Best-effort, like the crop sync above. ---------- */
+    if (Number(updatedField?.acre) > Number(fieldExists.acre)) {
+      try {
+        await applyClientCreditsToAreaIncrease({ field: updatedField });
+      } catch (creditError) {
+        console.error("Error applying client credits to field area increase:", creditError);
+      }
     }
 
     // Respond with the updated field

@@ -15,6 +15,10 @@ import {
 } from "../../clients/biodrops/services/shopCheckout.service.js";
 import BiodropsOrder from "../../clients/biodrops/models/biodrops-order.model.js";
 import { logShopPaymentEvent } from "../../clients/biodrops/services/shopPaymentEvent.service.js";
+import {
+  findClientCreditPurchaseByRazorpayOrderId,
+  markClientCreditPurchasePaid,
+} from "../../clients/biodrops/services/clientCredits.service.js";
 
 async function processRazorpayEvent(event, eventId) {
   const eventType = event.event || "unknown";
@@ -132,6 +136,16 @@ async function processRazorpayEvent(event, eventId) {
           order: shopOrder,
           razorpayPaymentId: paymentEntity?.id,
           source: "webhook",
+        });
+        return;
+      }
+
+      const creditPurchase =
+        await findClientCreditPurchaseByRazorpayOrderId(razorpayOrderId);
+      if (creditPurchase) {
+        await markClientCreditPurchasePaid({
+          purchase: creditPurchase,
+          razorpayPaymentId: paymentEntity?.id,
         });
         return;
       }

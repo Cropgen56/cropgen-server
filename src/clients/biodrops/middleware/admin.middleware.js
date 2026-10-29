@@ -63,6 +63,18 @@ export async function attachBiodropsAdminActor(req, res, next) {
   }
 }
 
+/** Client-viewer-only routes (a client's own credits and purchases). */
+export function requireBiodropsClientViewer(req, res, next) {
+  const actor = req.biodropsAdminActor;
+  if (!isClientViewer(actor)) {
+    return res.status(403).json({
+      success: false,
+      message: "Only client organization accounts can use this.",
+    });
+  }
+  next();
+}
+
 export function requireBiodropsAdminAccess(options = {}) {
   const {
     minLevel = null,
