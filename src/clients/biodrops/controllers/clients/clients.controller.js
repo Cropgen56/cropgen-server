@@ -62,6 +62,21 @@ function parseClientPhone(value) {
   return phone && PHONE_PATTERN.test(phone) ? phone : null;
 }
 
+/** The client's own login: the staff user whose email matches the org, else the oldest. */
+async function findPrimaryClientLogin(org) {
+  const logins = await User.find({
+    clientOrganization: org._id,
+    role: "staff",
+    deletedAt: null,
+  }).sort({ createdAt: 1 });
+  return logins.find((u) => u.email && u.email === org.email) || logins[0] || null;
+}
+
+function splitContactName(name) {
+  const [firstName, ...rest] = name.split(/\s+/);
+  return { firstName: firstName.slice(0, 50), lastName: rest.join(" ").slice(0, 50) };
+}
+
 /** Client viewer logins (staff + clientOrganization, no assignment) per client. */
 async function loadClientLogins(clientIds) {
   const users = await User.find({
@@ -193,11 +208,9 @@ export async function createCrmClient(req, res) {
       status: "active",
     });
 
-    const [firstName, ...rest] = (contactName || organizationName).split(/\s+/);
     const loginUser = await User.create({
       email,
-      firstName: firstName.slice(0, 50),
-      lastName: rest.join(" ").slice(0, 50),
+      ...splitContactName(contactName || organizationName),
       phone: phoneNumber || undefined,
       role: "staff",
       organization: biodrops._id,
@@ -232,15 +245,37 @@ export async function createCrmClient(req, res) {
 
 /**
  * PATCH /crm/clients/:id
- * Name, contact details and status. The code is immutable: farmers have
- * already registered with it.
+ * Name, contact details, login email/contact name and status. The code is
+ * immutable: farmers have already registered with it.
  */
 export async function updateCrmClient(req, res) {
   try {
     const org = await findClientById(req.params.id);
     if (!org) return fail(res, 404, "Client not found.");
 
-    const { organizationName, phoneNumber, address, status } = req.body;
+    const { organizationName, phoneNumber, address, status, email, contactName } = req.body;
+
+    // Email and contact name live on the client's login user.
+    const login =
+      email !== undefined || contactName !== undefined
+        ? await findPrimaryClientLogin(org)
+        : null;
+
+    if (email !== undefined) {
+      const nextEmail = normalizeLoginEmail(email);
+      if (!EMAIL_PATTERN.test(nextEmail)) return fail(res, 400, "A valid login email is required.");
+      if (nextEmail !== (login?.email || org.email)) {
+        if (await emailInUse(nextEmail, login?._id)) {
+          return fail(res, 409, "This email already belongs to an account. Use a different login email.");
+        }
+        if (login) login.email = nextEmail;
+        org.email = nextEmail;
+      }
+    }
+    if (contactName !== undefined && login) {
+      const name = String(contactName).trim() || String(organizationName ?? org.organizationName).trim();
+      Object.assign(login, splitContactName(name));
+    }
 
     if (organizationName !== undefined) {
       const name = String(organizationName).trim();
@@ -260,10 +295,15 @@ export async function updateCrmClient(req, res) {
       org.status = status;
     }
 
+    // Login first: a duplicate-email race fails here before the org changes.
+    if (login?.isModified()) await login.save();
     await org.save();
     const [client] = await formatClients([org.toObject()]);
     return res.json({ success: true, client });
   } catch (error) {
+    if (error?.code === 11000) {
+      return fail(res, 409, "That email or phone number is already in use.");
+    }
     return sendError(res, error, "updateCrmClient", "Failed to update client.");
   }
 }

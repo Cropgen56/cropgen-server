@@ -196,6 +196,42 @@ describe("client management", () => {
     expect(await Organization.countDocuments()).toBe(before);
   });
 
+  test("admin edits the login email and contact name on the client and its login", async () => {
+    const edit = (body) =>
+      request(app)
+        .patch(`/v1/api/auth/crm/clients/${ids.client._id}`)
+        .set(asUser(ids.platformAdmin))
+        .send(body);
+
+    const res = await edit({ email: " New.Login@Example.test ", contactName: "Asha Rao Patil" });
+    expect(res.status).toBe(200);
+    expect(res.body.client.logins[0]).toMatchObject({
+      email: "new.login@example.test",
+      name: "Asha Rao Patil",
+    });
+
+    const login = await User.findById(ids.clientViewer._id);
+    expect(login.email).toBe("new.login@example.test");
+    expect(login.firstName).toBe("Asha");
+    expect(login.lastName).toBe("Rao Patil");
+    expect((await Organization.findById(ids.client._id)).email).toBe("new.login@example.test");
+
+    // Restore so later tests see the original login.
+    expect((await edit({ email: "client@example.test" })).status).toBe(200);
+  });
+
+  test("rejects editing to an invalid email or one used by another account", async () => {
+    const edit = (email) =>
+      request(app)
+        .patch(`/v1/api/auth/crm/clients/${ids.client._id}`)
+        .set(asUser(ids.platformAdmin))
+        .send({ email });
+
+    expect((await edit("not-an-email")).status).toBe(400);
+    expect((await edit("Platform@Example.test")).status).toBe(409);
+    expect((await User.findById(ids.clientViewer._id)).email).toBe("client@example.test");
+  });
+
   test("district staff (not super) cannot manage clients", async () => {
     const res = await request(app)
       .get("/v1/api/auth/crm/clients")
