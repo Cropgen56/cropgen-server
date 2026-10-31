@@ -84,12 +84,10 @@ beforeAll(async () => {
   ({ default: Purchase } = await import("../models/biodrops-client-credit-purchase.model.js"));
   credits = await import("../services/clientCredits.service.js");
   const { default: biodropsRoutes } = await import("../routes/index.js");
-  const { default: farmerCreditRoutes } = await import("../routes/client-credits.routes.js");
 
   app = express();
   app.use(express.json());
   app.use("/v1/api/auth", biodropsRoutes);
-  app.use("/v1/api/biodrops/client-credits", farmerCreditRoutes);
 
   const biodrops = await Organization.create({
     organizationName: "BioDrops",
@@ -281,44 +279,35 @@ describe("client purchase", () => {
   });
 });
 
-describe("farmer add-farm preview", () => {
-  test("a client farmer sees the credits a farm will use", async () => {
-    const res = await request(app)
-      .get("/v1/api/biodrops/client-credits/preview?acres=5")
-      .set(asUser(ids.clientFarmer));
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({
-      eligible: true,
+describe("farm activation by the client", () => {
+  const activate = (viewer, fieldId) =>
+    request(app)
+      .post(`/v1/api/auth/crm/client-credits/me/farms/${fieldId}/activate`)
+      .set(asUser(viewer));
+
+  test("a client farmer is told to ask their organization admin", async () => {
+    expect(await credits.getClientActivationNotice(ids.clientFarmer)).toEqual({
+      required: true,
       clientName: "Green Valley FPO",
-      creditsNeeded: 2.02,
-      remainingCredits: 10,
-      remainingAfter: 7.98,
-      enoughCredits: true,
     });
-
-    const big = await request(app)
-      .get("/v1/api/biodrops/client-credits/preview?acres=30")
-      .set(asUser(ids.clientFarmer));
-    expect(big.body.enoughCredits).toBe(false);
+    expect(await credits.getClientActivationNotice(ids.loneFarmer)).toEqual({ required: false });
   });
 
-  test("a farmer without a client gets no confirmation", async () => {
-    const res = await request(app)
-      .get("/v1/api/biodrops/client-credits/preview?acres=5")
-      .set(asUser(ids.loneFarmer));
-    expect(res.status).toBe(200);
-    expect(res.body.eligible).toBe(false);
-  });
-});
-
-describe("farm activation from credits", () => {
-  test("a client farmer's 5 acre farm is unlocked for 2.02 credits", async () => {
+  test("a new farm stays locked until the client activates it for 2.02 credits", async () => {
     const field = await createField(ids.clientFarmer, 5);
-    const result = await credits.applyClientCreditsToNewField({
-      field,
-      owner: ids.clientFarmer,
-    });
-    expect(result).toMatchObject({ applied: true, creditsUsed: 2.02 });
+    expect(await UserSubscription.exists({ fieldId: field._id })).toBeNull();
+
+    const pending = await request(app)
+      .get("/v1/api/auth/crm/client-credits/me/farms?status=pending")
+      .set(asUser(ids.clientViewer));
+    expect(pending.status).toBe(200);
+    expect(pending.body.farms.map((f) => f.fieldId)).toContain(String(field._id));
+    expect(pending.body.farms[0]).toMatchObject({ creditsNeeded: 2.02, status: "pending" });
+
+    const res = await activate(ids.clientViewer, field._id);
+    expect(res.status).toBe(200);
+    expect(res.body.creditsUsed).toBe(2.02);
+    expect(res.body.summary.remainingCredits).toBe(7.98);
 
     const sub = await UserSubscription.findOne({ fieldId: field._id }).lean();
     expect(sub).toMatchObject({
@@ -327,34 +316,43 @@ describe("farm activation from credits", () => {
       area: 5,
       totalAmountMinor: 0,
     });
+    expect(String(sub.activatedBy)).toBe(String(ids.clientViewer._id));
     const pool = await Purchase.findById(ids.purchaseId).lean();
-    expect(pool.usedCredits).toBeCloseTo(2.02);
     expect(sub.endDate.getTime()).toBe(pool.validUntil.getTime());
+
+    const active = await request(app)
+      .get("/v1/api/auth/crm/client-credits/me/farms?status=active")
+      .set(asUser(ids.clientViewer));
+    expect(active.body.farms.map((f) => f.fieldId)).toEqual([String(field._id)]);
     ids.field = field;
   });
 
-  test("a farmer outside any client keeps the normal paywall", async () => {
-    const field = await createField(ids.loneFarmer, 2);
-    const result = await credits.applyClientCreditsToNewField({
-      field,
-      owner: ids.loneFarmer,
-    });
-    expect(result.applied).toBe(false);
-    expect(await UserSubscription.exists({ fieldId: field._id })).toBeNull();
-  });
-
-  test("a farm larger than the remaining credits takes nothing", async () => {
-    const field = await createField(ids.clientFarmer, 30); // 12.14 ha
-    const result = await credits.applyClientCreditsToNewField({
-      field,
-      owner: ids.clientFarmer,
-    });
-    expect(result).toMatchObject({ applied: false, reason: "insufficient_credits" });
+  test("an already active farm cannot be activated again", async () => {
+    const res = await activate(ids.clientViewer, ids.field._id);
+    expect(res.status).toBe(409);
     const pool = await Purchase.findById(ids.purchaseId).lean();
     expect(pool.usedCredits).toBeCloseTo(2.02);
   });
 
-  test("growing a farm charges only the extra hectares", async () => {
+  test("clients can only activate their own farmers' farms", async () => {
+    const lone = await createField(ids.loneFarmer, 2);
+    expect((await activate(ids.clientViewer, lone._id)).status).toBe(404);
+
+    const ours = await createField(ids.clientFarmer, 1);
+    expect((await activate(ids.otherViewer, ours._id)).status).toBe(404);
+    expect((await activate(ids.admin, ours._id)).status).toBe(403);
+  });
+
+  test("a farm larger than the remaining credits is refused and takes nothing", async () => {
+    const field = await createField(ids.clientFarmer, 30); // 12.14 ha
+    const res = await activate(ids.clientViewer, field._id);
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/Not enough credits/);
+    const pool = await Purchase.findById(ids.purchaseId).lean();
+    expect(pool.usedCredits).toBeCloseTo(2.02);
+  });
+
+  test("growing an activated farm charges only the extra hectares", async () => {
     await FarmField.updateOne({ _id: ids.field._id }, { $set: { acre: 10 } });
     const field = await FarmField.findById(ids.field._id).lean();
     const result = await credits.applyClientCreditsToAreaIncrease({ field });
@@ -363,20 +361,29 @@ describe("farm activation from credits", () => {
     expect(sub.area).toBe(10);
   });
 
-  test("concurrent farm adds never overdraw the pool", async () => {
-    // 5.95 credits left; each 2 acre farm costs 0.81 → at most 7 fit.
+  test("a double click on Activate charges the farm only once", async () => {
+    const field = await createField(ids.clientFarmer, 2); // 0.81 credits
+    const results = await Promise.all([
+      activate(ids.clientViewer, field._id),
+      activate(ids.clientViewer, field._id),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(await UserSubscription.countDocuments({ fieldId: field._id })).toBe(1);
+    const pool = await Purchase.findById(ids.purchaseId).lean();
+    expect(pool.usedCredits).toBeCloseTo(4.05 + 0.81);
+  });
+
+  test("concurrent activations never overdraw the pool", async () => {
+    // 5.14 credits left; each 2 acre farm costs 0.81 → at most 6 fit.
     const fields = await Promise.all(
       Array.from({ length: 10 }, () => createField(ids.clientFarmer, 2)),
     );
-    const results = await Promise.all(
-      fields.map((field) =>
-        credits.applyClientCreditsToNewField({ field, owner: ids.clientFarmer }),
-      ),
-    );
-    expect(results.filter((r) => r.applied)).toHaveLength(7);
+    const results = await Promise.all(fields.map((f) => activate(ids.clientViewer, f._id)));
+    expect(results.filter((r) => r.status === 200)).toHaveLength(6);
+    expect(results.filter((r) => r.status === 400)).toHaveLength(4);
     const pool = await Purchase.findById(ids.purchaseId).lean();
     expect(pool.usedCredits).toBeLessThanOrEqual(10);
-    expect(pool.usedCredits).toBeCloseTo(4.05 + 7 * 0.81);
+    expect(pool.usedCredits).toBeCloseTo(4.86 + 6 * 0.81);
   });
 });
 

@@ -99,6 +99,8 @@ import {
   createMyClientCreditPurchase,
   verifyMyClientCreditPurchase,
   cancelMyClientCreditPurchase,
+  listMyClientFarms,
+  activateMyClientFarm,
 } from "../controllers/client-credits/client.controller.js";
 
 const router = express.Router();
@@ -224,6 +226,12 @@ router.post(
   "/client-credits/me/purchases/:id/cancel",
   ...crmClientGuards,
   cancelMyClientCreditPurchase,
+);
+router.get("/client-credits/me/farms", ...crmClientGuards, listMyClientFarms);
+router.post(
+  "/client-credits/me/farms/:fieldId/activate",
+  ...crmClientGuards,
+  activateMyClientFarm,
 );
 
 router.post("/access-cards/generate", ...crmGuards, generateAccessCards);

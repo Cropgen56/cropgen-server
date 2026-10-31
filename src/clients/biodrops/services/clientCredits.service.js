@@ -5,6 +5,7 @@ import BiodropsClientCreditPurchase from "../models/biodrops-client-credit-purch
 import BiodropsClientCreditTransaction from "../models/biodrops-client-credit-transaction.model.js";
 import Organization from "../../../models/organization.model.js";
 import User from "../../../models/user.model.js";
+import FarmField from "../../../models/field.model.js";
 import SubscriptionPlan from "../../../models/subscription-plan.model.js";
 import UserSubscription from "../../../models/user-subscription.model.js";
 import { createSubscriptionActivationNotification } from "../../../services/notification.service.js";
@@ -428,30 +429,6 @@ async function loadCreditClient(owner) {
   return client && client.status === "active" ? client : null;
 }
 
-/**
- * What adding a farm of `acres` would cost a client's farmer, for the
- * confirmation shown before the farm is saved. eligible=false means the
- * normal (paywall) flow applies and no confirmation is needed.
- */
-export async function previewClientCreditsForFarmer({ userId, acres }) {
-  const owner = await User.findById(userId).select("role clientOrganization").lean();
-  const client = await loadCreditClient(owner);
-  if (!client) return { eligible: false };
-
-  const org = await Organization.findById(client._id).select("organizationName").lean();
-  const summary = await getClientCreditSummary(client._id);
-  const creditsNeeded = acresToCredits(acres);
-  return {
-    eligible: true,
-    clientName: org?.organizationName || "",
-    creditsNeeded,
-    remainingCredits: summary.remainingCredits,
-    remainingAfter: Math.max(0, round2(summary.remainingCredits - creditsNeeded)),
-    enoughCredits: creditsNeeded > 0 && summary.remainingCredits + EPS >= creditsNeeded,
-    validUntil: summary.nextExpiry,
-  };
-}
-
 function ledgerRows(debits, { clientId, reason, field, subscriptionId }) {
   return debits.map((d) => ({
     clientOrganization: clientId,
@@ -467,20 +444,36 @@ function ledgerRows(debits, { clientId, reason, field, subscriptionId }) {
 }
 
 /**
- * New farm by a client's farmer: pay for it from the client's credits so the
- * farmer never sees checkout. Falls through (applied: false) when the farmer
- * has no client or the client is out of credits — the normal paywall applies.
+ * Shown to a client's farmer right after adding a farm: farms are not
+ * unlocked automatically, the client's admin activates them from the CRM.
  */
-export async function applyClientCreditsToNewField({ field, owner }) {
+export async function getClientActivationNotice(owner) {
   const client = await loadCreditClient(owner);
-  if (!client) return { applied: false, reason: "not_client_farmer" };
+  if (!client) return { required: false };
+  const org = await Organization.findById(client._id).select("organizationName").lean();
+  return { required: true, clientName: org?.organizationName || "" };
+}
 
+function activeSubscriptionQuery(fieldIds, now = new Date()) {
+  return {
+    fieldId: { $in: fieldIds },
+    status: "active",
+    $or: [{ endDate: null }, { endDate: { $gt: now } }],
+  };
+}
+
+/** Debit the field's hectares and create its subscription. */
+async function activateFieldFromClientCredits({ field, clientId, activatedBy }) {
   const credits = acresToCredits(field.acre);
-  if (credits <= 0) return { applied: false, reason: "no_area" };
+  if (credits <= 0) throw httpError(400, "This farm has no area to activate.");
 
-  const debits = await debitPools(client._id, credits);
+  const debits = await debitPools(clientId, credits);
   if (!debits) {
-    return { applied: false, reason: "insufficient_credits", creditsNeeded: credits };
+    const { remainingCredits } = await getClientCreditSummary(clientId);
+    throw httpError(
+      400,
+      `Not enough credits. This farm needs ${credits} credits and you have ${remainingCredits} left. Buy a plan to activate it.`,
+    );
   }
 
   let subscription = null;
@@ -508,11 +501,22 @@ export async function applyClientCreditsToNewField({ field, owner }) {
       endDate,
       billingMode: "legacy_order",
       activationSource: "client_credits",
+      activatedBy: activatedBy || null,
     });
+
+    // Two simultaneous activations of one farm: the oldest subscription wins,
+    // later ones roll back so the farm is only charged once.
+    const earlier = await UserSubscription.exists({
+      fieldId: field._id,
+      status: "active",
+      activationSource: "client_credits",
+      _id: { $lt: subscription._id },
+    });
+    if (earlier) throw httpError(409, "This farm is already activated.");
 
     await BiodropsClientCreditTransaction.insertMany(
       ledgerRows(debits, {
-        clientId: client._id,
+        clientId,
         reason: "farm_activation",
         field,
         subscriptionId: subscription._id,
@@ -530,7 +534,124 @@ export async function applyClientCreditsToNewField({ field, owner }) {
     console.error("client credit activation notification:", err),
   );
 
-  return { applied: true, creditsUsed: credits, subscriptionId: subscription._id };
+  return { creditsUsed: credits, subscription };
+}
+
+/**
+ * Client admin activates one of their farmers' farms from the CRM. Only
+ * farms of the client's own farmers, and only farms not already subscribed.
+ */
+export async function activateClientFarm({ clientId, fieldId, activatedBy }) {
+  if (!mongoose.Types.ObjectId.isValid(fieldId)) throw httpError(404, "Farm not found.");
+  const field = await FarmField.findById(fieldId).select("user fieldName acre").lean();
+  if (!field) throw httpError(404, "Farm not found.");
+
+  const owner = await User.findOne({ _id: field.user, deletedAt: null })
+    .select("role clientOrganization")
+    .lean();
+  if (
+    !owner ||
+    owner.role !== "farmer" ||
+    String(owner.clientOrganization) !== String(clientId)
+  ) {
+    throw httpError(404, "Farm not found.");
+  }
+  if (!(await loadCreditClient(owner))) {
+    throw httpError(403, "This client organization is inactive.");
+  }
+
+  if (await UserSubscription.exists(activeSubscriptionQuery([field._id]))) {
+    throw httpError(409, "This farm already has an active subscription.");
+  }
+
+  return activateFieldFromClientCredits({ field, clientId, activatedBy });
+}
+
+/**
+ * Every farm of the client's farmers with its activation state:
+ * pending = no active subscription yet; active = subscribed (any source).
+ */
+export async function listClientFarms(
+  clientId,
+  { status = "all", search = "", page = 1, limit = 20 } = {},
+) {
+  const safeLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+  const safePage = Math.max(1, parseInt(page, 10) || 1);
+
+  const farmers = await User.find({
+    clientOrganization: clientId,
+    role: "farmer",
+    deletedAt: null,
+  })
+    .select("firstName lastName phone")
+    .lean();
+  const farmerById = new Map(farmers.map((f) => [String(f._id), f]));
+
+  const fields = await FarmField.find({ user: { $in: farmers.map((f) => f._id) } })
+    .select("fieldName acre user createdAt")
+    .sort({ createdAt: -1 })
+    .lean();
+  const subs = await UserSubscription.find(activeSubscriptionQuery(fields.map((f) => f._id)))
+    .select("fieldId activationSource startDate endDate")
+    .lean();
+  const subByField = new Map(subs.map((sub) => [String(sub.fieldId), sub]));
+
+  let rows = fields.map((f) => {
+    const farmer = farmerById.get(String(f.user));
+    const sub = subByField.get(String(f._id));
+    const acres = Number(f.acre) || 0;
+    return {
+      fieldId: String(f._id),
+      fieldName: f.fieldName || "—",
+      acres: round2(acres),
+      hectares: round2(acres * HECTARES_PER_ACRE),
+      creditsNeeded: acresToCredits(acres),
+      addedAt: f.createdAt || null,
+      farmer: {
+        id: String(f.user),
+        name: personName(farmer),
+        phone: farmer?.phone || null,
+      },
+      status: sub ? "active" : "pending",
+      subscription: sub
+        ? {
+            activationSource: sub.activationSource || "razorpay",
+            startDate: sub.startDate || null,
+            endDate: sub.endDate || null,
+          }
+        : null,
+    };
+  });
+
+  const counts = {
+    all: rows.length,
+    pending: rows.filter((r) => r.status === "pending").length,
+    active: rows.filter((r) => r.status === "active").length,
+  };
+
+  if (status === "pending" || status === "active") {
+    rows = rows.filter((r) => r.status === status);
+  }
+  const q = String(search || "").trim().toLowerCase();
+  if (q) {
+    rows = rows.filter((r) =>
+      [r.fieldName, r.farmer.name, r.farmer.phone].some((v) =>
+        String(v || "").toLowerCase().includes(q),
+      ),
+    );
+  }
+
+  const total = rows.length;
+  return {
+    farms: rows.slice((safePage - 1) * safeLimit, safePage * safeLimit),
+    counts,
+    pagination: {
+      page: safePage,
+      limit: safeLimit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+    },
+  };
 }
 
 /**

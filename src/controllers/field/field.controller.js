@@ -15,7 +15,7 @@ import {
   canAccessAdminPanel,
 } from "../../utils/auth/orgScope.js";
 import {
-  applyClientCreditsToNewField,
+  getClientActivationNotice,
   applyClientCreditsToAreaIncrease,
 } from "../../clients/biodrops/services/clientCredits.service.js";
 function fieldAcreCount(field) {
@@ -116,17 +116,14 @@ export const addField = async (req, res) => {
       console.error("Error creating primary FieldCrop for new field:", cropError);
     }
 
-    /* ---------- BioDrops client farmers: unlock the farm from the client's
-       hectare credits so the farmer skips checkout. A failure leaves the
-       farm locked (normal paywall) and must not fail farm creation. ---------- */
-    let clientCredits = { applied: false };
+    /* ---------- BioDrops client farmers: the farm stays locked until the
+       client's admin activates it from the CRM. Tell the app so it can show
+       the "ask your organization admin" notice. Must not fail farm creation. ---------- */
+    let clientActivation = { required: false };
     try {
-      clientCredits = await applyClientCreditsToNewField({
-        field: savedFarmField,
-        owner: user,
-      });
+      clientActivation = await getClientActivationNotice(user);
     } catch (creditError) {
-      console.error("Error applying client credits to new field:", creditError);
+      console.error("Error checking client activation for new field:", creditError);
     }
 
     /* ---------- Trigger first advisory (background; logs success/failure) ---------- */
@@ -141,7 +138,7 @@ export const addField = async (req, res) => {
       message:
         "Farm field created successfully. Advisory will be generated shortly.",
       farmField: savedFarmField,
-      clientCredits,
+      clientActivation,
     });
   } catch (error) {
     console.error("Error adding farm field:", error);

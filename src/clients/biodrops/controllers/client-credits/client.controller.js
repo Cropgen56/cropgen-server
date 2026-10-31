@@ -1,11 +1,13 @@
 import { getRazorpayKeyId } from "../../../../services/razorpay.order.service.js";
 import {
+  activateClientFarm,
   cancelPendingClientCreditPurchase,
   createClientCreditPurchase,
   formatCreditPurchase,
   getClientCreditSummary,
   listClientPurchases,
   listClientUsage,
+  listClientFarms,
   listClientUsageByFarmer,
   listPlansForClient,
   verifyClientCreditPurchase,
@@ -128,5 +130,36 @@ export async function cancelMyClientCreditPurchase(req, res) {
     return res.json({ success: true });
   } catch (error) {
     return sendError(res, error, "cancelMyClientCreditPurchase", "Failed to cancel purchase.");
+  }
+}
+
+/** GET /crm/client-credits/me/farms?status=pending|active|all&search&page&limit */
+export async function listMyClientFarms(req, res) {
+  try {
+    const result = await listClientFarms(clientIdOf(req), req.query);
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return sendError(res, error, "listMyClientFarms", "Failed to load farms.");
+  }
+}
+
+/** POST /crm/client-credits/me/farms/:fieldId/activate — deducts the farm's hectares. */
+export async function activateMyClientFarm(req, res) {
+  try {
+    const { creditsUsed, subscription } = await activateClientFarm({
+      clientId: clientIdOf(req),
+      fieldId: req.params.fieldId,
+      activatedBy: req.biodropsAdminActor?.id,
+    });
+    const summary = await getClientCreditSummary(clientIdOf(req));
+    return res.json({
+      success: true,
+      creditsUsed,
+      subscriptionId: String(subscription._id),
+      endDate: subscription.endDate,
+      summary,
+    });
+  } catch (error) {
+    return sendError(res, error, "activateMyClientFarm", "Failed to activate farm.");
   }
 }
