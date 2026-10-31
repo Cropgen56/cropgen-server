@@ -1,4 +1,5 @@
 import User from "../../models/user.model.js";
+import WhatsAppMessage from "../../models/whatsapp-message.model.js";
 
 export function normalizePhoneDigits(phone) {
   return String(phone || "").replace(/\D/g, "");
@@ -29,18 +30,32 @@ export function buildPhoneQueryFilter(phone) {
   return { phone: { $in: [...variants] } };
 }
 
-/** Match Meta `from` (e.g. 919322396236) to User.phone (+919322396236). */
+/**
+ * Match Meta `from` (e.g. 919322396236) to User.phone (+919322396236).
+ * Phone is unique per org, so several accounts may share the number: the
+ * farmer is replying to whichever one we messaged last.
+ */
 export async function findUserByWhatsAppPhone(phone) {
   const digits = normalizePhoneDigits(phone);
   if (!digits) return null;
 
-  const exact = await User.findOne({ phone: `+${digits}` });
-  if (exact) return exact;
-
+  let users = await User.find({ phone: `+${digits}` });
   const last10 = digits.slice(-10);
-  if (last10.length === 10) {
-    return User.findOne({ phone: { $regex: `${last10}$` } });
+  if (!users.length && last10.length === 10) {
+    users = await User.find({ phone: { $regex: `${last10}$` } });
   }
+  if (users.length <= 1) return users[0] || null;
 
-  return null;
+  const lastOutbound = await WhatsAppMessage.findOne({
+    farmerId: { $in: users.map((u) => u._id) },
+    direction: "OUT",
+  })
+    .sort({ createdAt: -1 })
+    .select("farmerId")
+    .lean();
+  return (
+    users.find((u) => String(u._id) === String(lastOutbound?.farmerId)) ||
+    users.find((u) => !u.deletedAt) ||
+    users[0]
+  );
 }

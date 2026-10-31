@@ -2,13 +2,17 @@ import jwt from "jsonwebtoken";
 import User from "../../models/user.model.js"
 import Organization from "../../models/organization.model.js";
 import { resolveClientSource } from "../../utils/auth/authUtils.js";
+import { findUserByPhone, headerOrgCode } from "../../utils/auth/orgScope.js";
 
 async function createUserByPhoneSafe(payload) {
   try {
     return await User.create(payload);
   } catch (error) {
     if (error?.code === 11000 && payload?.phone) {
-      const existing = await User.findOne({ phone: payload.phone });
+      const existing = await User.findOne({
+        phone: payload.phone,
+        organization: payload.organization,
+      });
       if (existing) return existing;
     }
     throw error;
@@ -29,8 +33,9 @@ export const loginWithPhone = async (req, res) => {
       });
     }
 
-    // Check if user exists
-    let user = await User.findOne({ phone });
+    // Check if user exists in the calling app's org (phone is unique per org)
+    const appOrgCode = headerOrgCode(req);
+    let user = await findUserByPhone(phone, appOrgCode);
     if (user?.deletedAt) {
       return res.status(404).json({
         success: false,
@@ -61,7 +66,7 @@ export const loginWithPhone = async (req, res) => {
 
     if (!user) {
       // Find default organization
-      const orgCode = "CROPGEN";
+      const orgCode = appOrgCode || "CROPGEN";
       const organization = await Organization.findOne({
         organizationCode: orgCode,
       });

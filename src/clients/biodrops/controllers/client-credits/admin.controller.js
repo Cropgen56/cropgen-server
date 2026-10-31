@@ -7,6 +7,7 @@ import { ORGANIZATION_CODE, BRAND_ID } from "../../constants.js";
 import { resolveOrganizationByCode } from "../../../../utils/auth/authUtils.js";
 import { findClientById, formatClientOrg } from "../../utils/clientOrg.js";
 import {
+  assignClientCreditPlan,
   formatCreditPlan,
   formatCreditPurchase,
   getClientCreditSummary,
@@ -242,5 +243,27 @@ export async function getClientCreditsDetail(req, res) {
     });
   } catch (error) {
     return sendError(res, error, "getClientCreditsDetail", "Failed to load client credits.");
+  }
+}
+
+/**
+ * POST /crm/client-credits/clients/:clientId/assign { planId }
+ * Super admin assigns a plan to a client: credits are active at once, no payment.
+ */
+export async function assignClientCreditPlanToClient(req, res) {
+  try {
+    const client = await findClientById(req.params.clientId);
+    if (!client) return fail(res, 404, "Client not found.");
+    const purchase = await assignClientCreditPlan({
+      clientId: client._id,
+      planId: req.body?.planId,
+      userId: req.biodropsAdminActor?.id || null,
+    });
+    return res.status(201).json({
+      success: true,
+      purchase: formatCreditPurchase(purchase.toObject()),
+    });
+  } catch (error) {
+    return sendError(res, error, "assignClientCreditPlanToClient", "Failed to assign plan.");
   }
 }

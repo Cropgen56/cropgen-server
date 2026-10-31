@@ -1,5 +1,6 @@
 import User from "../../models/user.model.js"
 import Organization from "../../models/organization.model.js";
+import { DEFAULT_ORG_CODE, findUserByPhone, headerOrgCode } from "../../utils/auth/orgScope.js";
 
 
 // mobile application api controller
@@ -15,7 +16,13 @@ export const checkUser = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ phone });
+    // Phone is unique per org: only the org being joined matters.
+    const user = await findUserByPhone(
+      phone,
+      headerOrgCode(req) ||
+        String(organizationCode || "").trim().toUpperCase() ||
+        DEFAULT_ORG_CODE,
+    );
     if (user) {
       return res.status(400).json({
         success: false,

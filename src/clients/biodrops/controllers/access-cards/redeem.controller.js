@@ -5,6 +5,7 @@ import BiodropsAcreEntitlement from "../../models/biodrops-acre-entitlement.mode
 import { getPoolSummary } from "../../services/acreEntitlement.service.js";
 import { resolveCardForPackageRedemption } from "../../services/cardCheckout.service.js";
 import { logCardEvent } from "../../services/cardEvent.service.js";
+import { assertNotClientManaged } from "../../services/clientCredits.service.js";
 
 /** A card entitles the farmer to the BioDrops plan whose acre package matches the card exactly. */
 async function resolveMatchingPackagePlan(acreLimit) {
@@ -42,6 +43,9 @@ export async function redeemAccessCard(req, res) {
         message: "Unauthorized",
       });
     }
+
+    // Client farmers' farms are activated from their client's credits only.
+    await assertNotClientManaged(userId);
 
     const { code, fieldId } = req.body || {};
 
@@ -157,6 +161,7 @@ export async function redeemAccessCard(req, res) {
     if (statusCode >= 500) console.error("redeemAccessCard:", error);
     return res.status(statusCode).json({
       success: false,
+      ...(error.code === "CLIENT_MANAGED" ? { code: error.code } : {}),
       message: error.message || "Failed to redeem card",
     });
   }

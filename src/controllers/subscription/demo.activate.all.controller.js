@@ -2,6 +2,18 @@ import UserSubscription from "../../models/user-subscription.model.js";
 import SubscriptionPlan from "../../models/subscription-plan.model.js";
 import FarmField from "../../models/field.model.js";
 import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
+import { assertNotClientManaged } from "../../clients/biodrops/services/clientCredits.service.js";
+
+/** 403 for a client-managed farmer; null when the activation may go ahead. */
+async function clientManagedRefusal(userId, opts) {
+  try {
+    await assertNotClientManaged(userId, opts);
+    return null;
+  } catch (err) {
+    if (err.code !== "CLIENT_MANAGED") throw err;
+    return { code: err.code, clientName: err.clientName, message: err.message };
+  }
+}
 
 const DEMO_BILLING_CYCLE = "season";
 const DEMO_DURATION_DAYS = 120;
@@ -55,6 +67,9 @@ export const demoActivateAllSubscriptions = async (req, res) => {
         message: "Authentication required",
       });
     }
+
+    const refusal = await clientManagedRefusal(userId);
+    if (refusal) return res.status(403).json({ success: false, ...refusal });
 
     const plan = await resolveDemoPlan();
     if (!plan) {

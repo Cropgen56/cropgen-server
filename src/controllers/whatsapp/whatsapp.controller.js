@@ -25,7 +25,7 @@ export const sendFarmAdvisoryMessage = async (req, res) => {
 
     /* ================= 2️⃣ FIND FARMER ================= */
 
-    const farmer = await User.findOne({ phone: normalizedPhone });
+    let farmer = await User.findOne({ phone: normalizedPhone });
 
     if (!farmer) {
       return res.status(404).json({
@@ -54,6 +54,15 @@ export const sendFarmAdvisoryMessage = async (req, res) => {
         success: false,
         error: "Farm field not found",
       });
+    }
+
+    // Phone is unique per org, not globally: send for the farm's own owner.
+    if (farmDetails.user && String(farmDetails.user) !== String(farmer._id)) {
+      const owner = await User.findOne({
+        _id: farmDetails.user,
+        phone: normalizedPhone,
+      });
+      if (owner) farmer = owner;
     }
 
     /* ================= 4b️⃣ MULTI-CROP: SHOW THE CROP THIS ADVISORY IS ACTUALLY FOR ================= */

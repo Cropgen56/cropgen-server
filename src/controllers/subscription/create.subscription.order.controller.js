@@ -27,6 +27,7 @@ import { assertAatFieldWithinPlan, aatChargeArea } from "../../utils/subscriptio
 import { isBiodropsTierPlan, biodropsTierChargeArea } from "../../utils/subscription/biodropsTierPlan.js";
 import { createBiodropsCardHybridOrder } from "../../clients/biodrops/controllers/subscriptions/card-hybrid-order.controller.js";
 import { logActivity } from "../../utils/storage/activityLog.service.js";
+import { assertNotClientManaged } from "../../clients/biodrops/services/clientCredits.service.js";
 
 /** Web: fixed 7-day trial per field (mobile still uses plan.trialDays when set). */
 const WEB_TRIAL_DAYS = 7;
@@ -125,6 +126,19 @@ export const createSubscriptionOrder = async (req, res) => {
       commitBillingCycle: bodyCommitCycle,
       cardCode,
     } = req.body;
+
+    // A farmer registered under a client organization never buys a plan:
+    // their organization activates farms from its credits in the CRM.
+    try {
+      await assertNotClientManaged(userId);
+    } catch (err) {
+      if (err.code !== "CLIENT_MANAGED") throw err;
+      return res.status(403).json({
+        code: err.code,
+        clientName: err.clientName,
+        message: err.message,
+      });
+    }
 
     const planBrand = resolveSubscriptionPlanBrand(req);
     // BioDrops checkouts go to the BioDrops Razorpay account; others unchanged.

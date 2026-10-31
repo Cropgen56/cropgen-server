@@ -39,7 +39,12 @@ export const cropydealsRegisterLogin = async (req, res) => {
       return res.status(400).json({ error: "Invalid organization code" });
     }
 
-    let user = await User.findOne({ phone });
+    // Phone is unique per org: only this organization's account.
+    let user = await User.findOne({
+      phone,
+      organization: organization._id,
+      deletedAt: null,
+    });
 
     if (user) {
       if (!user.clientSource || user.clientSource === "unknown") {

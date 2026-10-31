@@ -10,6 +10,8 @@ import { isClientViewer } from "../../utils/clientOrg.js";
 function buildClientFilter(req, clientId) {
   if (!clientId || isClientViewer(req.adminActor)) return null;
   if (clientId === "none") return { clientOrganization: null };
+  // Every farmer registered under any client organization.
+  if (clientId === "any") return { clientOrganization: { $ne: null } };
   if (!mongoose.Types.ObjectId.isValid(clientId)) return null;
   return { clientOrganization: new mongoose.Types.ObjectId(clientId) };
 }

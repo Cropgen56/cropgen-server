@@ -18,6 +18,7 @@ import {
   resolveOrganizationByCode,
 } from "../../utils/auth/authUtils.js";
 import { resolveBiodropsGoogleAudiences } from "./biodropsGoogleAudiences.js";
+import { findUserByEmail, headerOrgCode } from "../../utils/auth/orgScope.js";
 
 function resolveGoogleMobileAudiencesByBrand(preset) {
   if (preset === "biodrops") {
@@ -90,7 +91,10 @@ const runGoogleMobileLogin = async (
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    let user = await User.findOne({ email }).populate("organization");
+    // An org's own app sends X-Organization-Code; accounts are per org.
+    const appOrgCode =
+      headerOrgCode(req) || (effectiveBrand === "biodrops" ? "BIODROPS" : null);
+    let user = await findUserByEmail(email, appOrgCode);
     if (user?.deletedAt) {
       return res.status(401).json({
         success: false,
@@ -102,7 +106,9 @@ const runGoogleMobileLogin = async (
       !!user && !!user.organization && user.terms === true;
 
     const targetOrgCode =
-      forcedOrgCode || (effectiveBrand === "biodrops" ? "BIODROPS" : "CROPGEN");
+      appOrgCode ||
+      forcedOrgCode ||
+      (effectiveBrand === "biodrops" ? "BIODROPS" : "CROPGEN");
     // CropGen app: a new account may join another CropGen-app org (AAT, …)
     // via the optional organization code. Existing accounts keep their org.
     const requestedOrgCode = String(req.body?.organizationCode || "")

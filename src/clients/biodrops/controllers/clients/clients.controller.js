@@ -39,18 +39,29 @@ function pickAddress(address) {
   return out;
 }
 
+/** Client logins live in BIODROPS; email and phone are unique per org. */
+async function biodropsOrgId() {
+  const { org } = await resolveOrganizationByCode(ORGANIZATION_CODE);
+  return org._id;
+}
+
 async function emailInUse(email, exceptUserId = null) {
   const query = {
     email: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
     deletedAt: null,
+    organization: await biodropsOrgId(),
   };
   if (exceptUserId) query._id = { $ne: exceptUserId };
   return !!(await User.exists(query));
 }
 
-/** Phone is unique across all users, soft-deleted ones included (DB index). */
+/** Phone is unique per org among active accounts (deleted ones free it up). */
 async function phoneInUse(phone) {
-  return !!(await User.exists({ phone }));
+  return !!(await User.exists({
+    phone,
+    organization: await biodropsOrgId(),
+    deletedAt: null,
+  }));
 }
 
 /** "" for no phone, the +E.164 form, or null when it can't be a valid number. */

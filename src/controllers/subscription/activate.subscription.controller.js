@@ -6,6 +6,18 @@ import { resolveSubscriptionPlanBrandForTarget } from "../../utils/auth/authUtil
 import { assertAatFieldWithinPlan } from "../../utils/subscription/aatPlan.js";
 import { assertCanManageTargetUser } from "../../utils/auth/orgScope.js";
 import { logActivity } from "../../utils/storage/activityLog.service.js";
+import { assertNotClientManaged } from "../../clients/biodrops/services/clientCredits.service.js";
+
+/** 403 for a client-managed farmer; null when the activation may go ahead. */
+async function clientManagedRefusal(userId, opts) {
+  try {
+    await assertNotClientManaged(userId, opts);
+    return null;
+  } catch (err) {
+    if (err.code !== "CLIENT_MANAGED") throw err;
+    return { code: err.code, clientName: err.clientName, message: err.message };
+  }
+}
 
 export const activateSubscriptionManually = async (req, res) => {
   try {
@@ -17,6 +29,9 @@ export const activateSubscriptionManually = async (req, res) => {
     if (!access.ok) {
       return res.status(access.status).json({ message: access.message });
     }
+
+    const refusal = await clientManagedRefusal(userId, { forAdmin: true });
+    if (refusal) return res.status(403).json(refusal);
 
     /* ================= PLAN ================= */
     const plan = await SubscriptionPlan.findOne({

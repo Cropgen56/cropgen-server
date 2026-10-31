@@ -192,6 +192,7 @@ const corsOptions = {
     "X-Requested-With",
     "X-Client-Brand",
     "X-Client-App",
+    "X-Organization-Code",
     "Accept",
     "Accept-Language",
     "Cache-Control",

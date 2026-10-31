@@ -19,6 +19,7 @@ import {
 import mongoose from "mongoose";
 import { resolveBiodropsGoogleAudiences } from "./biodropsGoogleAudiences.js";
 import { logActivity } from "../../utils/storage/activityLog.service.js";
+import { findUserByEmail, headerOrgCode } from "../../utils/auth/orgScope.js";
 
 function resolveGoogleClientIdByBrand(preset) {
   if (preset === "biodrops") {
@@ -113,13 +114,13 @@ const runGoogleWebLogin = async (
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    const targetOrgCode = forcedOrgCode || (isBiodropsBrand ? "BIODROPS" : "CROPGEN");
+    // An org's own app sends X-Organization-Code; accounts are per org.
+    const appOrgCode = headerOrgCode(req) || (isBiodropsBrand ? "BIODROPS" : null);
+    const targetOrgCode =
+      appOrgCode || forcedOrgCode || (isBiodropsBrand ? "BIODROPS" : "CROPGEN");
 
     // Check if user exists (include soft-deleted so Google can sign them up again)
-    let user = await User.findOne({ email }).populate(
-      "organization",
-      "organizationCode",
-    );
+    let user = await findUserByEmail(email, appOrgCode);
 
     const wasDeleted = Boolean(user?.deletedAt);
     if (wasDeleted) {

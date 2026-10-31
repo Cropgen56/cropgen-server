@@ -1,4 +1,4 @@
-import User from "../../models/user.model.js"
+import { findUserByPhone, headerOrgCode } from "../../utils/auth/orgScope.js";
 
 
 // check phone number is exist or not to send the otp
@@ -25,8 +25,9 @@ export const isUserExist = async (req, res) => {
       });
     }
 
-    // Check if user exists
-    const user = await User.findOne({ phone });
+    // Check if user exists in the calling app's org (any CropGen-side org
+    // when the app sends none)
+    const user = await findUserByPhone(phone, headerOrgCode(req));
 
     if (user) {
       return res.status(200).json({

@@ -28,6 +28,9 @@ import {
   listBiodropsFarmers,
   getBiodropsFarmerStats,
   getBiodropsFarmerById,
+  updateBiodropsFarmer,
+  createBiodropsFarmer,
+  deleteBiodropsFarmer,
 } from "../controllers/farmers/index.js";
 import {
   generateAccessCards,
@@ -91,6 +94,7 @@ import {
   deleteClientCreditPlan,
   getClientCreditsOverview,
   getClientCreditsDetail,
+  assignClientCreditPlanToClient,
 } from "../controllers/client-credits/admin.controller.js";
 import {
   getMyClientCredits,
@@ -189,7 +193,14 @@ router.get("/farmers/stats", ...crmReadGuards, getBiodropsFarmerStats);
 router.get("/farmers/:id/fields", ...crmReadGuards, getCrmFarmerFields);
 router.patch("/farmers/:id/client", ...crmSuperGuards, assignFarmerToClient);
 router.get("/farmers/:id", ...crmReadGuards, getBiodropsFarmerById);
+// Edit profile: CRM admins, and client logins for their own farmers
+// (resolveCrmUserBaseQuery scopes a client to its clientOrganization).
+router.patch("/farmers/:id", ...crmReadGuards, updateBiodropsFarmer);
+// Delete (soft): CRM admins only — client logins cannot remove farmers.
+router.delete("/farmers/:id", ...crmGuards, deleteBiodropsFarmer);
 router.get("/farmers", ...crmReadGuards, listBiodropsFarmers);
+// Add farmer: CRM admins (region admins only inside their region).
+router.post("/farmers", ...crmGuards, createBiodropsFarmer);
 router.get("/fields/:fieldId/advisories", ...crmReadGuards, getCrmFieldAdvisories);
 
 router.get("/clients", ...crmSuperGuards, listCrmClients);
@@ -207,6 +218,11 @@ router.get(
   "/client-credits/clients/:clientId",
   ...crmSuperGuards,
   getClientCreditsDetail,
+);
+router.post(
+  "/client-credits/clients/:clientId/assign",
+  ...crmSuperGuards,
+  assignClientCreditPlanToClient,
 );
 
 router.get("/client-credits/me", ...crmClientGuards, getMyClientCredits);

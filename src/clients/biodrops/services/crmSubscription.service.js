@@ -1,4 +1,5 @@
 import User from "../../../models/user.model.js";
+import { assertNotClientManaged } from "./clientCredits.service.js";
 import FarmField from "../../../models/field.model.js";
 import SubscriptionPlan from "../../../models/subscription-plan.model.js";
 import UserSubscription from "../../../models/user-subscription.model.js";
@@ -50,6 +51,7 @@ export async function activateEnterpriseFarmSubscription({
   billingCycle,
   adminId,
 }) {
+  await assertNotClientManaged(farmerId, { forAdmin: true });
   if (!VALID_BILLING_CYCLES.includes(billingCycle)) {
     const err = new Error("billingCycle must be monthly, yearly, or season");
     err.status = 400;
@@ -159,6 +161,7 @@ export async function approveCardRemainderSubscription(subscriptionId, adminId) 
     err.status = 404;
     throw err;
   }
+  await assertNotClientManaged(subscription.userId, { forAdmin: true });
 
   if (subscription.status !== "pending") {
     const err = new Error("Only pending subscriptions can be approved");

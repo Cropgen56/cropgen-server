@@ -466,3 +466,50 @@ describe("deactivated clients", () => {
     expect(res.body.valid).toBe(false);
   });
 });
+
+describe("CRM adds a farmer", () => {
+  const add = (body, who = ids.platformAdmin) =>
+    request(app).post("/v1/api/auth/crm/farmers").set(asUser(who)).send(body);
+  const base = { firstName: "Asha", lastName: "Kale", country: "IN", state: "MH", district: "PUNE" };
+
+  test("admin adds a registered BIODROPS farmer, tagged to a client", async () => {
+    const client = await Organization.create({
+      organizationName: "Add Farmer FPO",
+      organizationCode: "BD-ADDF1",
+      parentOrganization: biodrops._id,
+      status: "active",
+    });
+    const res = await add({ ...base, phone: "9876500001", email: "asha@example.com", clientId: String(client._id) });
+    expect(res.status).toBe(200);
+    expect(res.body.farmer.name).toBe("Asha Kale");
+    expect(res.body.farmer.phone).toBe("+919876500001");
+
+    const stored = await User.findById(res.body.farmer.id).lean();
+    expect(stored.role).toBe("farmer");
+    expect(stored.terms).toBe(true);
+    expect(String(stored.organization)).toBe(String(biodrops._id));
+    expect(String(stored.clientOrganization)).toBe(String(client._id));
+  });
+
+  test("name and phone are required; duplicate phone in BIODROPS is refused", async () => {
+    expect((await add({ phone: "9876500002" })).status).toBe(400);
+    expect((await add({ firstName: "NoPhone" })).status).toBe(400);
+    const dup = await add({ ...base, phone: "9876500001" });
+    expect(dup.status).toBe(409);
+    expect(await User.countDocuments({ phone: "+919876500001" })).toBe(1);
+  });
+
+  test("a district admin adds farmers only inside their district", async () => {
+    const inside = await add({ ...base, phone: "9876500003" }, ids.districtStaff);
+    expect(inside.status).toBe(200);
+
+    const outside = await add({ ...base, district: "NASHIK", phone: "9876500004" }, ids.districtStaff);
+    expect(outside.status).toBe(403);
+    expect(await User.exists({ phone: "+919876500004" })).toBeNull();
+  });
+
+  test("an unknown client is refused", async () => {
+    const res = await add({ ...base, phone: "9876500005", clientId: String(new mongoose.Types.ObjectId()) });
+    expect(res.status).toBe(400);
+  });
+});

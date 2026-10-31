@@ -483,3 +483,295 @@ describe("usage reporting", () => {
     expect(me.body.purchases[0].planName).toBe("Starter 10 ha");
   });
 });
+
+describe("super admin assigns a plan to a client", () => {
+  const assign = (clientId, planId, who = ids.admin) =>
+    request(app)
+      .post(`/v1/api/auth/crm/client-credits/clients/${clientId}/assign`)
+      .set(asUser(who))
+      .send({ planId });
+
+  const createPlan = async (name, totalHectares, clientId) => {
+    const res = await request(app)
+      .post("/v1/api/auth/crm/client-credit-plans")
+      .set(asUser(ids.admin))
+      .send({
+        name,
+        totalHectares,
+        pricePerHectareMinor: 100,
+        validityMonths: 12,
+        featurePlanId: String(ids.featurePlan._id),
+        ...(clientId ? { clientId: String(clientId) } : {}),
+      });
+    expect(res.status).toBe(201);
+    return res.body.plan;
+  };
+
+  test("assigning activates the credits at once, with no payment", async () => {
+    const plan = await createPlan("Assigned 20 ha", 20, ids.client._id);
+    const balance = async () =>
+      (
+        await request(app)
+          .get("/v1/api/auth/crm/client-credits/me")
+          .set(asUser(ids.clientViewer))
+      ).body.summary.remainingCredits;
+    const overviewSpent = async () =>
+      (
+        await request(app)
+          .get("/v1/api/auth/crm/client-credits/overview")
+          .set(asUser(ids.admin))
+      ).body.clients.find((c) => c.id === String(ids.client._id)).credits.spentMinor;
+
+    const before = await balance();
+    const spentBefore = await overviewSpent();
+
+    const res = await assign(ids.client._id, plan.id);
+    expect(res.status).toBe(201);
+    expect(res.body.purchase.status).toBe("active");
+    expect(res.body.purchase.paymentMethod).toBe("assigned");
+    expect(res.body.purchase.amountMinor).toBe(0);
+
+    expect(await balance()).toBeCloseTo(before + 20);
+    expect(await overviewSpent()).toBe(spentBefore);
+    const stored = await Purchase.findById(res.body.purchase.id).lean();
+    expect(String(stored.purchasedBy)).toBe(String(ids.admin._id));
+    expect(stored.validUntil).toBeTruthy();
+  });
+
+  test("a global plan can be assigned to any client", async () => {
+    const plan = await createPlan("Global 3 ha", 3, null);
+    const res = await assign(ids.otherClient._id, plan.id);
+    expect(res.status).toBe(201);
+  });
+
+  test("another client's private plan cannot be assigned", async () => {
+    const plan = await createPlan("Other private", 4, ids.otherClient._id);
+    const res = await assign(ids.client._id, plan.id);
+    expect(res.status).toBe(404);
+  });
+
+  test("only super admins can assign; unknown client is 404", async () => {
+    const plan = await createPlan("Guarded 1 ha", 1, null);
+    expect((await assign(ids.client._id, plan.id, ids.clientViewer)).status).toBe(403);
+    expect((await assign(new mongoose.Types.ObjectId(), plan.id)).status).toBe(404);
+  });
+});
+
+describe("CRM edits a farmer's profile", () => {
+  const edit = (farmerId, body, who = ids.admin) =>
+    request(app)
+      .patch(`/v1/api/auth/crm/farmers/${farmerId}`)
+      .set(asUser(who))
+      .send(body);
+
+  test("admin updates name, contact and location", async () => {
+    const res = await edit(ids.loneFarmer._id, {
+      firstName: "Ravi",
+      lastName: "Patil",
+      email: "Ravi.Patil@Example.com",
+      phone: "9123456780",
+      language: "mr",
+      country: "in",
+      state: "mh",
+      district: "Pune",
+      city: "Pune",
+      village: "Wagholi",
+      pincode: "412207",
+    });
+    expect(res.status).toBe(200);
+    const f = res.body.farmer;
+    expect(f.name).toBe("Ravi Patil");
+    expect(f.firstName).toBe("Ravi");
+    expect(f.email).toBe("ravi.patil@example.com");
+    expect(f.phone).toBe("+919123456780");
+    expect(f.language).toBe("mr");
+    expect([f.country, f.state, f.district]).toEqual(["IN", "MH", "PUNE"]);
+    expect([f.village, f.pincode]).toEqual(["Wagholi", "412207"]);
+  });
+
+  test("only sent fields change; empty clears an optional field", async () => {
+    const res = await edit(ids.loneFarmer._id, { village: "" });
+    expect(res.status).toBe(200);
+    expect(res.body.farmer.village).toBeNull();
+    expect(res.body.farmer.firstName).toBe("Ravi");
+  });
+
+  test("invalid input is refused", async () => {
+    expect((await edit(ids.loneFarmer._id, { email: "not-an-email" })).status).toBe(400);
+    expect((await edit(ids.loneFarmer._id, { phone: "12" })).status).toBe(400);
+    expect((await edit(ids.loneFarmer._id, { firstName: "" })).status).toBe(400);
+    expect((await edit(ids.loneFarmer._id, { language: "xx" })).status).toBe(400);
+  });
+
+  test("phone and email must be unique within the organization only", async () => {
+    const dupPhone = await edit(ids.loneFarmer._id, { phone: ids.clientFarmer.phone });
+    expect(dupPhone.status).toBe(409);
+
+    const elsewhere = await Organization.create({
+      organizationName: "Elsewhere",
+      organizationCode: "ELSEWHERE",
+    });
+    await User.create({
+      phone: "+919000011111",
+      email: "shared@example.com",
+      role: "farmer",
+      terms: true,
+      organization: elsewhere._id,
+    });
+    const ok = await edit(ids.loneFarmer._id, {
+      phone: "+919000011111",
+      email: "shared@example.com",
+    });
+    expect(ok.status).toBe(200);
+  });
+
+  test("a client login edits its own farmers only", async () => {
+    const own = await edit(ids.clientFarmer._id, { village: "Hadapsar" }, ids.clientViewer);
+    expect(own.status).toBe(200);
+    expect(own.body.farmer.village).toBe("Hadapsar");
+
+    // loneFarmer is not under this client; another client's login can't see clientFarmer.
+    expect((await edit(ids.loneFarmer._id, { firstName: "X" }, ids.clientViewer)).status).toBe(404);
+    expect((await edit(ids.clientFarmer._id, { firstName: "X" }, ids.otherViewer)).status).toBe(404);
+  });
+
+  test("unknown farmer is 404", async () => {
+    expect((await edit(new mongoose.Types.ObjectId(), { firstName: "X" })).status).toBe(404);
+  });
+});
+
+describe("CRM deletes a farmer", () => {
+  const del = (farmerId, who = ids.admin) =>
+    request(app)
+      .delete(`/v1/api/auth/crm/farmers/${farmerId}`)
+      .set(asUser(who));
+
+  test("client logins cannot delete, even their own farmers", async () => {
+    expect((await del(ids.clientFarmer._id, ids.clientViewer)).status).toBe(403);
+    expect(await User.exists({ _id: ids.clientFarmer._id, deletedAt: null })).toBeTruthy();
+  });
+
+  test("admin soft-deletes a farmer; it leaves the list and the detail view", async () => {
+    const victim = await User.create({
+      firstName: "ToDelete",
+      phone: "+919000022222",
+      role: "farmer",
+      terms: true,
+      organization: (await Organization.findOne({ organizationCode: "BIODROPS" }))._id,
+    });
+    const res = await del(victim._id);
+    expect(res.status).toBe(200);
+
+    const stored = await User.findById(victim._id).lean();
+    expect(stored.deletedAt).toBeTruthy();
+
+    const detail = await request(app)
+      .get(`/v1/api/auth/crm/farmers/${victim._id}`)
+      .set(asUser(ids.admin));
+    expect(detail.status).toBe(404);
+    const list = await request(app)
+      .get("/v1/api/auth/crm/farmers?search=ToDelete")
+      .set(asUser(ids.admin));
+    expect(list.body.farmers.map((f) => f.id)).not.toContain(String(victim._id));
+
+    expect((await del(victim._id)).status).toBe(404);
+  });
+});
+
+describe("client farmers cannot buy a plan themselves", () => {
+  let subApp;
+  beforeAll(async () => {
+    // The subscription controllers build Razorpay clients at import time;
+    // dummy keys are enough — the guard answers before any Razorpay call.
+    for (const k of ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_BIODROPS_KEY_ID", "RAZORPAY_BIODROPS_KEY_SECRET"]) {
+      process.env[k] = process.env[k] || "test";
+    }
+    const { default: subscriptionRoutes } = await import("../../../routes/subscription.routes.js");
+    subApp = express();
+    subApp.use(express.json());
+    subApp.use("/api/subscription", subscriptionRoutes);
+  });
+  const order = (who) =>
+    request(subApp)
+      .post("/api/subscription/create-order")
+      .set(asUser(who))
+      .set("X-Client-Brand", "biodrops")
+      .send({ farmId: String(new mongoose.Types.ObjectId()), planId: String(ids.featurePlan._id) });
+
+  test("a farmer under a client organization is sent to their admin", async () => {
+    const res = await order(ids.clientFarmer);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("CLIENT_MANAGED");
+    expect(res.body.clientName).toBe("Green Valley FPO");
+  });
+
+  test("a direct BioDrops farmer is not blocked", async () => {
+    const res = await order(ids.loneFarmer);
+    expect(res.status).not.toBe(403);
+  });
+});
+
+describe("farmers list: client vs BioDrops filter", () => {
+  const list = (clientId) =>
+    request(app)
+      .get(`/v1/api/auth/crm/farmers?limit=100&clientId=${clientId}`)
+      .set(asUser(ids.admin));
+
+  test("'any' lists only client farmers; 'none' only direct BioDrops farmers", async () => {
+    const anyRes = await list("any");
+    expect(anyRes.status).toBe(200);
+    const anyIds = anyRes.body.farmers.map((f) => f.id);
+    expect(anyIds).toContain(String(ids.clientFarmer._id));
+    expect(anyIds).not.toContain(String(ids.loneFarmer._id));
+    expect(anyRes.body.farmers.every((f) => f.client)).toBe(true);
+
+    const noneRes = await list("none");
+    const noneIds = noneRes.body.farmers.map((f) => f.id);
+    expect(noneIds).toContain(String(ids.loneFarmer._id));
+    expect(noneIds).not.toContain(String(ids.clientFarmer._id));
+    expect(noneRes.body.farmers.every((f) => !f.client)).toBe(true);
+  });
+});
+
+describe("plans never mix: client credits vs Razorpay/cards/admin plans", () => {
+  let farm;
+  beforeAll(async () => {
+    farm = await createField(ids.clientFarmer, 1);
+  });
+
+  test("client farmer cannot redeem a product card", async () => {
+    const res = await request(app)
+      .post("/v1/api/auth/biodrops/access-cards/redeem")
+      .set(asUser(ids.clientFarmer))
+      .send({ code: "ANY-CODE", fieldId: String(farm._id) });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("CLIENT_MANAGED");
+  });
+
+  test("CRM admin cannot enable a plan on a client farmer's farm", async () => {
+    const res = await request(app)
+      .post(`/v1/api/auth/crm/farmers/${ids.clientFarmer._id}/subscriptions/activate`)
+      .set(asUser(ids.admin))
+      .send({ farmId: String(farm._id), planId: String(ids.featurePlan._id), billingCycle: "monthly" });
+    expect(res.status).toBe(403);
+    expect(res.body.message).toMatch(/activated from .*credits/);
+    expect(await UserSubscription.exists({ fieldId: farm._id, status: "active", activationSource: "admin" })).toBeNull();
+  });
+
+  test("a direct BioDrops farmer is not refused by the client rule", async () => {
+    await expect(credits.assertNotClientManaged(ids.loneFarmer._id)).resolves.toBeUndefined();
+    await expect(credits.assertNotClientManaged(ids.clientFarmer._id)).rejects.toMatchObject({
+      status: 403,
+      code: "CLIENT_MANAGED",
+    });
+  });
+
+  test("client credits never activate a direct BioDrops farmer's farm", async () => {
+    const direct = await createField(ids.loneFarmer, 1);
+    const res = await request(app)
+      .post(`/v1/api/auth/crm/client-credits/me/farms/${direct._id}/activate`)
+      .set(asUser(ids.clientViewer));
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(await UserSubscription.exists({ fieldId: direct._id })).toBeNull();
+  });
+});

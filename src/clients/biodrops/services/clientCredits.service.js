@@ -134,6 +134,7 @@ export function formatCreditPurchase(purchase) {
     amountMinor: purchase.amountMinor,
     currency: purchase.currency || "INR",
     paymentStatus: purchase.paymentStatus,
+    paymentMethod: purchase.paymentMethod || "razorpay",
     status: purchaseStatus(purchase),
     razorpayPaymentId: purchase.razorpayPaymentId || null,
     paidAt: purchase.paidAt || null,
@@ -233,6 +234,41 @@ export async function createClientCreditPurchase({ clientId, planId, userId }) {
     await purchase.save().catch(() => {});
     throw err;
   }
+}
+
+/**
+ * Super admin grants a plan to a client without payment: the credits are
+ * active immediately, and the ₹0 amount keeps it out of "Total paid".
+ */
+export async function assignClientCreditPlan({ clientId, planId, userId }) {
+  if (!mongoose.Types.ObjectId.isValid(planId)) {
+    throw httpError(400, "Invalid plan.");
+  }
+  const plan = await BiodropsClientCreditPlan.findOne({
+    _id: planId,
+    active: true,
+    $or: [{ clientOrganization: null }, { clientOrganization: clientId }],
+  }).lean();
+  if (!plan) throw httpError(404, "This plan is not available for this client.");
+
+  const purchase = await BiodropsClientCreditPurchase.create({
+    paymentMethod: "assigned",
+    clientOrganization: clientId,
+    planId: plan._id,
+    purchasedBy: userId || null,
+    planSnapshot: {
+      name: plan.name,
+      totalHectares: plan.totalHectares,
+      pricePerHectareMinor: plan.pricePerHectareMinor,
+      validityMonths: plan.validityMonths,
+      featurePlanId: plan.featurePlanId,
+    },
+    amountMinor: 0,
+    currency: plan.currency || "INR",
+    totalCredits: plan.totalHectares,
+  });
+  const { purchase: paid } = await markClientCreditPurchasePaid({ purchase });
+  return paid;
 }
 
 export function findClientCreditPurchaseByRazorpayOrderId(razorpayOrderId) {
@@ -447,6 +483,29 @@ function ledgerRows(debits, { clientId, reason, field, subscriptionId }) {
  * Shown to a client's farmer right after adding a farm: farms are not
  * unlocked automatically, the client's admin activates them from the CRM.
  */
+/**
+ * Plans reach the two kinds of farmer one way each, never mixed:
+ * - client farmers: only from their client's credits (activateClientFarm);
+ * - direct BioDrops farmers: Razorpay, product cards or a CRM admin plan.
+ * Every non-credit activation path calls this first. `forAdmin` words the
+ * error for a CRM/admin user instead of the farmer.
+ */
+export async function assertNotClientManaged(userId, { forAdmin = false } = {}) {
+  const user = await User.findById(userId).select("role clientOrganization").lean();
+  const notice = await getClientActivationNotice(user);
+  if (!notice.required) return;
+  const name = notice.clientName || "a client organization";
+  const err = new Error(
+    forAdmin
+      ? `This farmer belongs to ${name}. Their farms are activated from ${name}'s credits, not with a plan.`
+      : `Your subscription is managed by ${name}. Please contact your organization admin to activate your farm.`,
+  );
+  err.status = 403;
+  err.code = "CLIENT_MANAGED";
+  err.clientName = notice.clientName;
+  throw err;
+}
+
 export async function getClientActivationNotice(owner) {
   const client = await loadCreditClient(owner);
   if (!client) return { required: false };

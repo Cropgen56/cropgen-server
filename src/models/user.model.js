@@ -21,9 +21,11 @@ const userSchema = new Schema(
       default: null,
     },
 
+    // Not unique: one address may have an account in every organization.
+    // Uniqueness per org is enforced by emailScopeFilter (utils/auth/orgScope.js).
     email: {
       type: String,
-      unique: true,
+      index: true,
       sparse: true,
       lowercase: true,
       trim: true,
@@ -196,19 +198,10 @@ userSchema.index({ lastActiveAt: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ country: 1, state: 1, district: 1 });
 userSchema.index({ organization: 1, country: 1, state: 1, district: 1 });
-userSchema.index(
-  { phone: 1 },
-  {
-    unique: true,
-    // `partialFilterExpression` already limits the index to real,
-    // non-empty phone values — MongoDB rejects combining it with `sparse`
-    // (mutually exclusive) and doesn't support `$ne` in partial filters at
-    // all, so this index has never actually built; the intended uniqueness
-    // was silently unenforced. `$gt: ""` is the standard idiom for
-    // "non-empty string" where `$ne` isn't allowed.
-    partialFilterExpression: { phone: { $gt: "" } },
-  },
-);
+// Not unique: like email, one number may have an account in every
+// organization. Uniqueness per org is enforced by phoneScopeFilter
+// (utils/auth/orgScope.js).
+userSchema.index({ phone: 1 });
 
 const User = mongoose.model("User", userSchema);
 

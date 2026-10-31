@@ -121,6 +121,7 @@ export const createCrmInvitation = async (req, res) => {
         const emailTaken = await User.findOne({
           email: normalizedEmail,
           _id: { $ne: user._id },
+          organization: tenantId,
         });
         if (emailTaken) {
           return res.status(409).json({
@@ -135,6 +136,8 @@ export const createCrmInvitation = async (req, res) => {
         const phoneTaken = await User.findOne({
           phone: normalizedPhone,
           _id: { $ne: user._id },
+          organization: tenantId,
+          deletedAt: null,
         });
         if (phoneTaken) {
           return res.status(409).json({

@@ -76,10 +76,26 @@ export const updateUserById = async (req, res) => {
     }
 
     /* ================= PHONE UNIQUE CHECK (OPTIONAL) ================= */
+    // Phone is unique per org: check the org the user ends up in.
     if (updateData.phone) {
+      let orgId =
+        (await User.findById(id).select("organization").lean())
+          ?.organization ?? null;
+      if (req.body.organizationCode !== undefined) {
+        const target = await Organization.findOne({
+          organizationCode:
+            String(req.body.organizationCode || "").trim().toUpperCase() ||
+            "CROPGEN",
+        })
+          .select("_id")
+          .lean();
+        if (target) orgId = target._id;
+      }
       const existingPhone = await User.findOne({
         phone: updateData.phone,
+        deletedAt: null,
         _id: { $ne: id },
+        organization: orgId,
       });
 
       if (existingPhone) {

@@ -91,6 +91,107 @@ export function normalizeLoginEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
+export const DEFAULT_ORG_CODE = "CROPGEN";
+
+/** Orgs with their own app — their accounts never show up in another app. */
+const SEPARATE_APP_ORG_CODES = ["BIODROPS"];
+
+/** Org an app declares via the X-Organization-Code header, or null. */
+export function headerOrgCode(req) {
+  return (
+    String(req?.headers?.["x-organization-code"] || "")
+      .trim()
+      .toUpperCase() || null
+  );
+}
+
+/**
+ * Org the calling app belongs to: X-Organization-Code, else BIODROPS for the
+ * BioDrops brand, else null (a CropGen-side app that does not send its org).
+ */
+export function requestOrgCode(req) {
+  const brand = String(
+    req?.headers?.["x-client-brand"] || req?.body?.clientBrand || "",
+  ).toLowerCase();
+  return headerOrgCode(req) || (brand === "biodrops" ? "BIODROPS" : null);
+}
+
+/**
+ * Email is unique per organization, not globally: the same address may hold
+ * one account in every org. Merge this into a user lookup by email.
+ * - Known org: only that org's accounts. CROPGEN also owns orgless signup
+ *   placeholders (OTP signup before onboarding picks the org).
+ * - null: legacy CropGen-side app — any org except the separate-app ones.
+ */
+export async function emailScopeFilter(orgCode) {
+  if (orgCode) {
+    const org = await Organization.findOne({ organizationCode: orgCode })
+      .select("_id")
+      .lean();
+    if (!org) return { _id: null }; // unknown org owns no accounts
+    return orgCode === DEFAULT_ORG_CODE
+      ? { organization: { $in: [org._id, null] } }
+      : { organization: org._id };
+  }
+  const separate = await Organization.find({
+    organizationCode: { $in: SEPARATE_APP_ORG_CODES },
+  })
+    .select("_id")
+    .lean();
+  return { organization: { $nin: separate.map((o) => o._id) } };
+}
+
+/** Phone, like email, is unique per organization — same scoping rules. */
+export const phoneScopeFilter = emailScopeFilter;
+
+/**
+ * The account for `email` that `orgCode`'s app should see (organization
+ * populated). Without an org several accounts can match, so prefer active,
+ * then CROPGEN / orgless, then the oldest.
+ */
+export function findUserByEmail(email, orgCode, extra = {}) {
+  return findUserInOrg({ email: normalizeLoginEmail(email) }, orgCode, extra);
+}
+
+/** Same as findUserByEmail, matched on the E.164 phone number. */
+export function findUserByPhone(phone, orgCode, extra = {}) {
+  return findUserInOrg({ phone }, orgCode, extra);
+}
+
+/**
+ * The account in `orgCode`'s scope whose OTP for this phone was sent last —
+ * the one verify/resend must act on when several orgs share the number.
+ */
+export async function findLatestOtpUserByPhone(phone, orgCode) {
+  const [user] = await User.find({
+    phone,
+    deletedAt: null,
+    otp: { $ne: null },
+    ...(await phoneScopeFilter(orgCode)),
+  })
+    .sort({ lastOtpSentAt: -1 })
+    .limit(1)
+    .populate("organization");
+  return user || null;
+}
+
+async function findUserInOrg(match, orgCode, extra) {
+  const users = await User.find({
+    ...match,
+    ...extra,
+    ...(await emailScopeFilter(orgCode)),
+  })
+    .sort({ createdAt: 1 })
+    .populate("organization");
+  const rank = (u) =>
+    (u.deletedAt ? 2 : 0) +
+    (!u.organization ||
+    u.organization.organizationCode === DEFAULT_ORG_CODE
+      ? 0
+      : 1);
+  return users.sort((a, b) => rank(a) - rank(b))[0] || null;
+}
+
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -122,9 +223,12 @@ export async function ensureOrganizationClientUser(org) {
   const email = normalizeLoginEmail(org.email);
   if (!email) return null;
 
+  // Only this org's account (or an orgless one) — the same email may own
+  // accounts in other orgs, which stay untouched.
   let user = await User.findOne({
     ...emailMatchQuery(email),
     deletedAt: null,
+    organization: { $in: [org._id, null] },
   }).populate(ORG_POPULATE);
 
   if (user) {
@@ -151,21 +255,25 @@ export async function ensureOrganizationClientUser(org) {
   return user.populate(ORG_POPULATE);
 }
 
-/** Resolve the account that may request/verify an admin-panel OTP. */
-export async function findAdminLoginUser(rawEmail) {
+/**
+ * Resolve the account that may request/verify an admin-panel OTP. An org's
+ * own panel passes its `orgCode`; without one any org's admin may match.
+ */
+export async function findAdminLoginUser(rawEmail, orgCode = null) {
   const email = normalizeLoginEmail(rawEmail);
   if (!email) return null;
 
   const users = await User.find({
     ...emailMatchQuery(email),
     deletedAt: null,
+    ...(orgCode ? await emailScopeFilter(orgCode) : {}),
   }).populate(ORG_POPULATE);
 
   const privileged = users.find((u) => canAccessAdminPanel(u));
   if (privileged) return privileged;
 
   const org = await findOrganizationByEmail(email);
-  if (org) {
+  if (org && (!orgCode || org.organizationCode === orgCode)) {
     const orgClient = await ensureOrganizationClientUser(org);
     if (orgClient && canAccessAdminPanel(orgClient)) return orgClient;
   }

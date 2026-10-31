@@ -16,6 +16,7 @@ import {
 } from "../../utils/email/template.js";
 import { logActivity } from "../../utils/storage/activityLog.service.js";
 import { findActiveClientByCode } from "../../clients/biodrops/utils/clientOrg.js";
+import { headerOrgCode } from "../../utils/auth/orgScope.js";
 
 /** Roles that must never be self-assigned at signup. */
 const PRIVILEGED_ROLES = new Set(["admin", "developer", "staff"]);
@@ -129,8 +130,9 @@ export const completeProfile = async (req, res) => {
       if (preset === "biodrops") {
         ({ org, orgCode } = await resolveOrganizationByCode("BIODROPS"));
       } else {
+        // An org's own app fixes the org; otherwise the user's chosen code.
         ({ org, orgCode } = await resolveOrganizationByCode(
-          organizationCode || "CROPGEN",
+          headerOrgCode(req) || organizationCode || "CROPGEN",
         ));
       }
     } catch (err) {
@@ -141,6 +143,40 @@ export const completeProfile = async (req, res) => {
         });
       }
       throw err;
+    }
+
+    // Email is unique per org: refuse joining an org that already has it.
+    const finalEmail = email ? String(email).trim().toLowerCase() : user.email;
+    if (finalEmail) {
+      const taken = await User.exists({
+        email: finalEmail,
+        organization: org._id,
+        deletedAt: null,
+        _id: { $ne: user._id },
+      });
+      if (taken) {
+        return res.status(409).json({
+          success: false,
+          message: `This email is already registered in ${orgCode}. Try logging in instead.`,
+        });
+      }
+    }
+
+    // Phone is unique per org too.
+    if (phone) {
+      // Deleted accounts don't hold their number.
+      const phoneTaken = await User.exists({
+        phone,
+        organization: org._id,
+        deletedAt: null,
+        _id: { $ne: user._id },
+      });
+      if (phoneTaken) {
+        return res.status(409).json({
+          success: false,
+          message: `This phone number is already registered in ${orgCode}. Try logging in instead.`,
+        });
+      }
     }
 
     // Update user details

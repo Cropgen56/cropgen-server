@@ -360,7 +360,9 @@ describe("CropGen mobile app (no signupIntent, optional organization code)", () 
 });
 
 describe("blocked and invalid cases", () => {
-  test("BioDrops phone account cannot log in on CropGen web", async () => {
+  test("BioDrops phone account is not visible to CropGen web login", async () => {
+    // Phone is unique per org: the BioDrops account is a separate account,
+    // so CropGen sees no account for the number and offers sign-up.
     const phone = "+919000000900";
     await User.create({
       phone,
@@ -374,7 +376,7 @@ describe("blocked and invalid cases", () => {
       .set(WEB)
       .send(web({ phone, signupIntent: false }));
     expect(res.status).toBe(404);
-    expect(res.body.message).toMatch(/different CropGen platform/);
+    expect(res.body.message).toBe("User does not exist. Please sign up first.");
   });
 
   test("unknown phone gets the sign-up-first message", async () => {
@@ -395,5 +397,279 @@ describe("blocked and invalid cases", () => {
       );
     expect(res.status).toBe(404);
     expect(await User.findOne({ phone: "+919000000998" })).toBeNull();
+  });
+});
+
+describe("same email / phone in several organizations", () => {
+  const phone = "+919000000700";
+  const email = "multi-org@example.com";
+  const orgHeader = (code) => ({ ...WEB, "X-Organization-Code": code });
+
+  test("one phone number signs up in CROPGEN and in AAT", async () => {
+    for (const code of ["CROPGEN", "AAT"]) {
+      await User.updateMany({ phone }, { $set: { lastOtpSentAt: null } });
+      const res = await request(app)
+        .post("/api/auth/send-otp")
+        .set(WEB)
+        .send(
+          web({ phone, firstName: "Multi", country: "IN", organizationCode: code, signupIntent: true }),
+        );
+      expect(res.status).toBe(200);
+    }
+    const accounts = await User.find({ phone }).populate("organization");
+    expect(accounts.map((u) => u.organization.organizationCode).sort()).toEqual(["AAT", "CROPGEN"]);
+  });
+
+  test("each org's app logs in to its own account for that phone", async () => {
+    for (const code of ["CROPGEN", "AAT"]) {
+      await User.updateMany({ phone }, { $set: { lastOtpSentAt: null } });
+      const send = await request(app)
+        .post("/api/auth/send-otp")
+        .set(orgHeader(code))
+        .send(web({ phone, signupIntent: false }));
+      expect(send.status).toBe(200);
+      const verify = await request(app)
+        .post("/api/auth/verify-otp")
+        .set(orgHeader(code))
+        .send(web({ phone, otp: sentOtps[phone] }));
+      expect(verify.status).toBe(200);
+      expect(await profileOrgCode(verify.body.accessToken)).toBe(code);
+    }
+  });
+
+  test("signing up twice in the same org is still refused", async () => {
+    const res = await request(app)
+      .post("/api/auth/send-otp")
+      .set(WEB)
+      .send(web({ phone, organizationCode: "AAT", signupIntent: true, firstName: "X" }));
+    expect(res.status).toBe(409);
+  });
+
+  test("one email signs up in AAT and in CROPGEN, each app sees its own", async () => {
+    const ids = {};
+    for (const code of ["AAT", "CROPGEN"]) {
+      await User.updateMany({ email }, { $set: { lastOtpSentAt: null } });
+      const send = await request(app)
+        .post("/api/auth/otp")
+        .set(orgHeader(code))
+        .send(web({ email, signupIntent: true }));
+      expect(send.status).toBe(200);
+      const verify = await request(app)
+        .post("/api/auth/verify")
+        .set(orgHeader(code))
+        .send(web({ email, otp: sentOtps[email] }));
+      expect(verify.status).toBe(200);
+      ids[code] = String(verify.body.user.id);
+    }
+    expect(ids.AAT).not.toBe(ids.CROPGEN);
+    expect(await orgCodeOf({ _id: ids.AAT })).toBe("AAT");
+    expect(await User.countDocuments({ email })).toBe(2);
+  });
+});
+
+describe("BioDrops login only for registered accounts", () => {
+  const BD = { "X-Client-Brand": "biodrops", "X-Client-App": "biodrops_web" };
+  const bd = (body) => ({ ...body, clientBrand: "biodrops" });
+  const phoneLogin = (phone) =>
+    request(app).post("/api/auth/biodrops/whatsapp/otp").set(BD).send(bd({ phone, signupIntent: false }));
+  const emailLogin = (email) =>
+    request(app).post("/api/auth/biodrops/login/otp").set(BD).send(bd({ email }));
+  const bioFarmer = (extra) =>
+    User.create({ role: "farmer", firstName: "Bio", organization: orgs.BIODROPS, ...extra });
+
+  test("unknown phone gets 'not registered' and no OTP", async () => {
+    axiosPost.mockClear();
+    const res = await phoneLogin("+919000000801");
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("NOT_REGISTERED");
+    expect(axiosPost).not.toHaveBeenCalled();
+  });
+
+  test("a deleted farmer's phone is not registered", async () => {
+    await bioFarmer({ phone: "+919000000802", terms: true, deletedAt: new Date() });
+    const res = await phoneLogin("+919000000802");
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("NOT_REGISTERED");
+  });
+
+  test("an unfinished signup is not registered, and signing up again resumes it", async () => {
+    await bioFarmer({ phone: "+919000000803", terms: false });
+    expect((await phoneLogin("+919000000803")).status).toBe(404);
+
+    const signup = await request(app)
+      .post("/api/auth/biodrops/whatsapp/otp")
+      .set(BD)
+      .send(bd({ phone: "+919000000803", firstName: "New", lastName: "Name", country: "IN", signupIntent: true }));
+    expect(signup.status).toBe(200);
+    expect(await User.countDocuments({ phone: "+919000000803" })).toBe(1);
+    expect((await User.findOne({ phone: "+919000000803" })).firstName).toBe("New");
+  });
+
+  test("a registered farmer's phone gets an OTP", async () => {
+    await bioFarmer({ phone: "+919000000804", terms: true });
+    expect((await phoneLogin("+919000000804")).status).toBe(200);
+  });
+
+  test("email login: unknown email is 'not registered'", async () => {
+    const res = await emailLogin("nobody@example.com");
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("NOT_REGISTERED");
+  });
+
+  test("email login: a registered farmer signs in with an email OTP", async () => {
+    const email = "bio-email@example.com";
+    await bioFarmer({ email, phone: "+919000000805", terms: true });
+    expect((await emailLogin(email)).status).toBe(200);
+    const verify = await request(app)
+      .post("/api/auth/biodrops/login/verify")
+      .set(BD)
+      .send(bd({ email, otp: sentOtps[email] }));
+    expect(verify.status).toBe(200);
+    expect(verify.body.accessToken).toBeTruthy();
+    expect(verify.body.onboardingRequired).toBe(false);
+  });
+});
+
+describe("CropGen email login only for registered accounts", () => {
+  const emailLogin = (email) =>
+    request(app).post("/api/auth/otp").set(WEB).send(web({ email, signupIntent: false }));
+
+  test("unknown email is 'not registered': no OTP, no placeholder account", async () => {
+    const email = "cg-unknown@example.com";
+    const res = await emailLogin(email);
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("NOT_REGISTERED");
+    expect(sentOtps[email]).toBeUndefined();
+    expect(await User.countDocuments({ email })).toBe(0);
+  });
+
+  test("an unfinished signup (no org yet) is not registered", async () => {
+    const email = "cg-unfinished@example.com";
+    await User.create({ email, role: "farmer", terms: false });
+    expect((await emailLogin(email)).status).toBe(404);
+  });
+
+  test("a deleted account is not registered", async () => {
+    const email = "cg-deleted@example.com";
+    await User.create({ email, role: "farmer", terms: true, organization: orgs.CROPGEN, deletedAt: new Date() });
+    expect((await emailLogin(email)).status).toBe(404);
+  });
+
+  test("an unknown email can still sign up", async () => {
+    const res = await request(app)
+      .post("/api/auth/otp")
+      .set(WEB)
+      .send(web({ email: "cg-new@example.com", signupIntent: true }));
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("BioDrops signup reuses a deleted account's phone", () => {
+  const BD = { "X-Client-Brand": "biodrops", "X-Client-App": "biodrops_web" };
+  const bd = (body) => ({ ...body, clientBrand: "biodrops" });
+
+  test("signup + verify + complete profile succeeds after the old account was deleted", async () => {
+    const phone = "+919000000901";
+    await User.create({
+      phone,
+      firstName: "Old",
+      role: "farmer",
+      terms: false,
+      organization: orgs.BIODROPS,
+      deletedAt: new Date(),
+    });
+
+    const send = await request(app)
+      .post("/api/auth/biodrops/whatsapp/otp")
+      .set(BD)
+      .send(bd({ phone, firstName: "New", lastName: "Farmer", country: "IN", signupIntent: true }));
+    expect(send.status).toBe(200);
+
+    const verify = await request(app)
+      .post("/api/auth/biodrops/whatsapp/verify")
+      .set(BD)
+      .send(bd({ phone, otp: sentOtps[phone] }));
+    expect(verify.status).toBe(200);
+
+    const complete = await request(app)
+      .post("/api/auth/biodrops/signup/complete-profile")
+      .set(BD)
+      .set("Authorization", `Bearer ${verify.body.accessToken}`)
+      .send(
+        bd({
+          terms: true,
+          firstName: "New",
+          lastName: "Farmer",
+          phone,
+          language: "en",
+          country: "IN",
+          state: "MH",
+          city: "Pune",
+          village: "Shivne",
+          pincode: "445207",
+        }),
+      );
+    expect(complete.status).toBe(201);
+    expect(await User.countDocuments({ phone, deletedAt: null, terms: true })).toBe(1);
+  });
+});
+
+describe("CRM super admin, CRM client and BioDrops web farmer signed in side by side", () => {
+  const bdHeaders = (app) => ({ "X-Client-Brand": "biodrops", "X-Client-App": app });
+  const idOf = (jwtToken) =>
+    JSON.parse(Buffer.from(String(jwtToken).split(".")[1], "base64url").toString()).id;
+
+  async function login(email, app) {
+    await User.updateMany({ email }, { $set: { lastOtpSentAt: null } });
+    const send = await request(app_)
+      .post("/api/auth/biodrops/login/otp")
+      .set(bdHeaders(app))
+      .send({ email, clientBrand: "biodrops" });
+    expect(send.status).toBe(200);
+    const verify = await request(app_)
+      .post("/api/auth/biodrops/login/verify")
+      .set(bdHeaders(app))
+      .send({ email, otp: sentOtps[email], clientBrand: "biodrops" });
+    expect(verify.status).toBe(200);
+    return verify.body.refreshToken;
+  }
+  // Like the CRM now: no cookie, the refresh token travels in the body.
+  const refresh = (app, refreshToken) =>
+    request(app_).post("/api/auth/refresh").set(bdHeaders(app)).send({ refreshToken });
+
+  let app_;
+  const users = {};
+  beforeAll(async () => {
+    app_ = app;
+    users.admin = await User.create({ email: "crm-super@example.com", role: "admin", terms: true, organization: orgs.BIODROPS });
+    users.client = await User.create({ email: "crm-client@example.com", role: "staff", terms: true, organization: orgs.BIODROPS });
+    users.farmer = await User.create({ email: "web-farmer@example.com", role: "farmer", terms: true, organization: orgs.BIODROPS });
+  });
+
+  test("each session refreshes as its own account, across rotations, and logout only ends one", async () => {
+    const tokens = {
+      admin: { app: "satagro_crm", rt: await login("crm-super@example.com", "satagro_crm") },
+      client: { app: "satagro_crm", rt: await login("crm-client@example.com", "satagro_crm") },
+      farmer: { app: "biodrops_web", rt: await login("web-farmer@example.com", "biodrops_web") },
+    };
+
+    for (let round = 0; round < 3; round += 1) {
+      for (const who of ["admin", "farmer", "client"]) {
+        const res = await refresh(tokens[who].app, tokens[who].rt);
+        expect(res.status).toBe(200);
+        expect(String(idOf(res.body.accessToken))).toBe(String(users[who]._id));
+        tokens[who].rt = res.body.refreshToken; // rotated
+      }
+    }
+
+    // The client signs out of the CRM: only the client's session ends.
+    const out = await request(app_)
+      .post("/api/auth/logout")
+      .set(bdHeaders("satagro_crm"))
+      .send({ refreshToken: tokens.client.rt });
+    expect(out.status).toBe(200);
+    expect((await refresh("satagro_crm", tokens.client.rt)).status).toBe(403);
+    expect((await refresh("satagro_crm", tokens.admin.rt)).status).toBe(200);
+    expect((await refresh("biodrops_web", tokens.farmer.rt)).status).toBe(200);
   });
 });

@@ -3,6 +3,7 @@ import User from "../../models/user.model.js"
 import Organization from "../../models/organization.model.js";
 import admin from "firebase-admin";
 import { resolveClientSource } from "../../utils/auth/authUtils.js";
+import { headerOrgCode, phoneScopeFilter } from "../../utils/auth/orgScope.js";
 
 
 // mobile singup api controller
@@ -38,9 +39,15 @@ export const signupWithFirebase = async (req, res) => {
       });
     }
 
-    // Check for existing user
+    // Handle organization code (an org's own app fixes it via header)
+    const orgCode =
+      headerOrgCode(req) ||
+      (organizationCode ? organizationCode.toUpperCase() : "CROPGEN");
+
+    // Check for existing user — phone is unique per org, so only this org
     const query = {
       $or: [{ firebaseUid: uid }, { phone: phone_number }],
+      ...(await phoneScopeFilter(orgCode)),
     };
 
     const existingUser = await User.findOne(query);
@@ -59,11 +66,6 @@ export const signupWithFirebase = async (req, res) => {
         message: "User already exists.",
       });
     }
-
-    // Handle organization code
-    const orgCode = organizationCode
-      ? organizationCode.toUpperCase()
-      : "CROPGEN";
 
     const organization = await Organization.findOne({
       organizationCode: orgCode,

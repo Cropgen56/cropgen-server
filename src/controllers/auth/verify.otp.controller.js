@@ -9,7 +9,12 @@ import {
   setClientRefreshId,
 } from "../../utils/auth/authUtils.js";
 import { enrichBiodropsAuthPayload } from "../../clients/biodrops/utils/authPayload.js";
-import { canAccessAdminPanel, normalizeLoginEmail } from "../../utils/auth/orgScope.js";
+import {
+  canAccessAdminPanel,
+  emailScopeFilter,
+  normalizeLoginEmail,
+  requestOrgCode,
+} from "../../utils/auth/orgScope.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
 import {
   getEmailBrand,
@@ -31,13 +36,24 @@ export const verifyOtp = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Email and OTP are required." });
 
-    const user =
-      (await User.findOne({
-        email,
-        deletedAt: null,
-        otp: { $ne: null },
-      }).populate("organization")) ||
-      (await User.findOne({ email, deletedAt: null }).populate("organization"));
+    // The same email may own an account in several orgs: take the one in
+    // the calling app's org whose OTP was sent last. The shared admin panel
+    // (no org header) verifies whichever admin account requested the OTP.
+    const clientApp = resolveClientAppKey(req);
+    const requestOrg = requestOrgCode(req);
+    const scope =
+      clientApp === "admin" && !requestOrg
+        ? {}
+        : await emailScopeFilter(requestOrg);
+    const [user] = await User.find({
+      email,
+      deletedAt: null,
+      otp: { $ne: null },
+      ...scope,
+    })
+      .sort({ lastOtpSentAt: -1 })
+      .limit(1)
+      .populate("organization");
     if (!user || !user.otp || !user.otpExpires) {
       return res.status(400).json({
         success: false,
@@ -91,7 +107,6 @@ export const verifyOtp = async (req, res) => {
       }
     }
 
-    const clientApp = resolveClientAppKey(req);
     if (clientApp === "admin" && !canAccessAdminPanel(user)) {
       user.otp = null;
       user.otpExpires = null;

@@ -1,7 +1,12 @@
 import { sendBasicEmail } from "../../config/sesClient.js";
 import { genOtp, hash } from "../../utils/auth/authUtils.js";
 import { htmlAdminOtp } from "../../utils/email/template.js";
-import { canAccessAdminPanel, findAdminLoginUser, normalizeLoginEmail } from "../../utils/auth/orgScope.js";
+import {
+  canAccessAdminPanel,
+  findAdminLoginUser,
+  headerOrgCode,
+  normalizeLoginEmail,
+} from "../../utils/auth/orgScope.js";
 
 export const requestAdminOtp = async (req, res) => {
   try {
@@ -11,7 +16,7 @@ export const requestAdminOtp = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Email is required." });
 
-    const user = await findAdminLoginUser(email);
+    const user = await findAdminLoginUser(email, headerOrgCode(req));
     if (!user) {
       return res.status(404).json({
         success: false,

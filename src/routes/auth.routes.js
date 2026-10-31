@@ -39,6 +39,8 @@ import { validateOrganizationCode } from "../controllers/organization/organizati
 const router = express.Router();
 
 const forceLfpOrganization = (req, _res, next) => {
+  // LFP is its own app: accounts are looked up inside LFP only.
+  req.headers["x-organization-code"] = "LFP";
   req.body = { ...(req.body || {}), organizationCode: "LFP" };
   next();
 };

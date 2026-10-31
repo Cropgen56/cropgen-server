@@ -74,6 +74,9 @@ export function formatCrmFarmerDetail(user, { fields = [] } = {}) {
   return {
     ...summary,
     email: user.email || null,
+    firstName: user.firstName || null,
+    lastName: user.lastName || null,
+    pincode: user.pincode || null,
     country: user.country || null,
     state: user.state || null,
     district: user.district || null,

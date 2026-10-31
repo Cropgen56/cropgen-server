@@ -5,6 +5,12 @@ import User from "../../models/user.model.js";
 import Organization from "../../models/organization.model.js";
 import { whatsappLanguageMap } from "../../utils/whatsapp/languageMap.js";
 import {
+  emailScopeFilter,
+  findLatestOtpUserByPhone,
+  findUserByPhone,
+  headerOrgCode,
+} from "../../utils/auth/orgScope.js";
+import {
   generateRefreshId,
   resolveClientAppKey,
   resolveClientSource,
@@ -30,7 +36,10 @@ async function createUserByPhoneSafe(payload) {
     return await User.create(payload);
   } catch (error) {
     if (error?.code === 11000 && payload?.phone) {
-      const existing = await User.findOne({ phone: payload.phone });
+      const existing = await User.findOne({
+        phone: payload.phone,
+        organization: payload.organization,
+      });
       if (existing) return existing;
     }
     throw error;
@@ -187,12 +196,16 @@ export const sendWhatsappOtp = async (req, res) => {
     const isSignup = signupIntent === true;
     const isLogin = signupIntent === false;
     const normalizedLanguage = normalizeLanguage(language);
-    const requestedOrgCode = normalizeOrgCode(organizationCode);
+    // Phone is unique per org. An org's own app fixes the org (header);
+    // signup joins the requested org; a login from an app that sends no org
+    // finds the number in any CropGen-side org (CROPGEN preferred).
+    const appOrgCode = headerOrgCode(req);
+    const requestedOrgCode = appOrgCode || normalizeOrgCode(organizationCode);
     const normalizedEmail = normalizeEmail(email);
 
-    let user = await User.findOne({ phone }).populate(
-      "organization",
-      "organizationCode",
+    let user = await findUserByPhone(
+      phone,
+      isSignup ? requestedOrgCode : appOrgCode,
     );
 
     if (user?.deletedAt) {
@@ -245,7 +258,11 @@ export const sendWhatsappOtp = async (req, res) => {
       }
 
       if (normalizedEmail) {
-        const emailOwner = await User.findOne({ email: normalizedEmail })
+        const emailOwner = await User.findOne({
+          email: normalizedEmail,
+          // Email is unique per org: only the org being joined matters.
+          ...(await emailScopeFilter(requestedOrgCode)),
+        })
           .select("_id")
           .lean();
         if (emailOwner) {
@@ -379,10 +396,12 @@ export const verifyWhatsappOtp = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ phone }).populate(
-      "organization",
-      "organizationCode",
-    );
+    // Several orgs may share the number: verify the account that was just
+    // sent an OTP; fall back to any account only to word the error.
+    const appOrgCode = headerOrgCode(req);
+    const user =
+      (await findLatestOtpUserByPhone(phone, appOrgCode)) ||
+      (await findUserByPhone(phone, appOrgCode));
 
     if (isCropgenClientRequest(req) && cropgenPhoneLoginDenied(user)) {
       return res.status(404).json({
@@ -525,10 +544,10 @@ export const resendWhatsappOtp = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ phone }).populate(
-      "organization",
-      "organizationCode",
-    );
+    const appOrgCode = headerOrgCode(req);
+    const user =
+      (await findLatestOtpUserByPhone(phone, appOrgCode)) ||
+      (await findUserByPhone(phone, appOrgCode));
     if (
       !user ||
       user.deletedAt ||

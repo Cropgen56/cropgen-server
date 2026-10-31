@@ -57,8 +57,11 @@ export const updateCrmUser = async (req, res) => {
         ? email.trim().toLowerCase()
         : null;
       if (normalizedEmail) {
+        // Email is unique per organization.
         const dup = await User.findOne({
           email: normalizedEmail,
+          organization: user.organization,
+          deletedAt: null,
           _id: { $ne: user._id },
         });
         if (dup) {
@@ -81,8 +84,11 @@ export const updateCrmUser = async (req, res) => {
           message: "A valid mobile number is required for CRM users.",
         });
       }
+      // Phone is unique per organization.
       const dup = await User.findOne({
         phone: normalizedPhone,
+        organization: user.organization,
+        deletedAt: null,
         _id: { $ne: user._id },
       });
       if (dup) {

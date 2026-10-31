@@ -39,10 +39,13 @@ const BiodropsClientCreditPurchaseSchema = new mongoose.Schema(
     amountMinor: { type: Number, required: true, min: 0 },
     currency: { type: String, enum: ["INR"], default: "INR" },
 
-    /** direct = activated on click without payment (until Razorpay is enabled). */
+    /**
+     * direct = activated on click without payment (until Razorpay is enabled).
+     * assigned = granted by a SatAgro super admin; purchasedBy is that admin.
+     */
     paymentMethod: {
       type: String,
-      enum: ["razorpay", "direct"],
+      enum: ["razorpay", "direct", "assigned"],
       default: "razorpay",
     },
     paymentStatus: {

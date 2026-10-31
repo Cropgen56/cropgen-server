@@ -17,11 +17,13 @@ export async function resolveInviteUser({
   normalizedEmail,
   tenantId,
 }) {
+  // Email and phone are unique per org: an account in another org is a
+  // separate account and must not be reused or block the invite.
   const userByPhone = normalizedPhone
-    ? await User.findOne({ phone: normalizedPhone })
+    ? await User.findOne({ phone: normalizedPhone, organization: tenantId, deletedAt: null })
     : null;
   const userByEmail = normalizedEmail
-    ? await User.findOne({ email: normalizedEmail })
+    ? await User.findOne({ email: normalizedEmail, organization: tenantId, deletedAt: null })
     : null;
 
   if (

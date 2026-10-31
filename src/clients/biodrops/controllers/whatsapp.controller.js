@@ -13,6 +13,7 @@ import {
 } from "../../../utils/auth/authUtils.js";
 import { buildBiodropsAuthTokenPayload } from "../utils/authPayload.js";
 import { ORGANIZATION_CODE } from "../constants.js";
+import { findUserByPhone } from "../../../utils/auth/orgScope.js";
 import {
   BIODROPS_DEMO_USER_PROFILE,
   biodropsDemoOtpHash,
@@ -69,7 +70,10 @@ async function createUserByPhoneSafe(payload) {
   } catch (error) {
     // Parallel requests can race at creation time; recover by reading existing user.
     if (error?.code === 11000 && payload?.phone) {
-      const existing = await User.findOne({ phone: payload.phone });
+      const existing = await User.findOne({
+        phone: payload.phone,
+        organization: payload.organization,
+      });
       if (existing) return existing;
     }
     throw error;
@@ -112,6 +116,15 @@ async function migrateUserToBiodropsOrg(user, req) {
  * POST /v1/api/auth/biodrops/whatsapp/otp
  * body: { phone, language, country, firstName, lastName, signupIntent }
  */
+/** Not registered: no account, or a farmer who never finished signup. */
+const NOT_REGISTERED_MESSAGE =
+  "This mobile number is not registered. Please create an account first.";
+
+/** A farmer counts as registered once signup is complete (terms accepted). */
+function isRegistered(user) {
+  return user.role !== "farmer" || user.terms === true;
+}
+
 export const biodropsSendWhatsappOtp = async (req, res) => {
   try {
     const {
@@ -127,7 +140,7 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
     const lang = normalizeLanguage(language);
     const isDemoPhone = isBiodropsDemoPhone(phone);
 
-    let user = await User.findOne({ phone }).populate("organization");
+    let user = await findUserByPhone(phone, ORGANIZATION_CODE, { deletedAt: null });
 
     // Login path: only existing BIODROPS users may receive OTP (register via signup first).
     if (signupIntent !== true) {
@@ -141,10 +154,11 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
           language: lang,
         });
       }
-      if (!user) {
+      if (!user || !isRegistered(user)) {
         return res.status(404).json({
           success: false,
-          message: "User does not exist. Please register first.",
+          code: "NOT_REGISTERED",
+          message: NOT_REGISTERED_MESSAGE,
         });
       }
       const orgCode = String(
@@ -156,7 +170,8 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
     }
 
     // Signup path: do not allow duplicate registration for an existing phone.
-    if (signupIntent === true && user) {
+    // An unfinished signup is picked up again instead.
+    if (signupIntent === true && user && isRegistered(user)) {
       return res.status(409).json({
         success: false,
         message: "User already exists. Please log in.",
@@ -191,6 +206,12 @@ export const biodropsSendWhatsappOtp = async (req, res) => {
       }
     } else {
       user.language = lang;
+      if (signupIntent === true) {
+        // Resuming an unfinished signup: keep the newly entered details.
+        if (String(firstName || "").trim()) user.firstName = String(firstName).trim();
+        if (String(lastName || "").trim()) user.lastName = String(lastName).trim();
+        if (country) user.country = String(country).trim().toUpperCase();
+      }
     }
 
     // Rate limiting (demo account bypasses for store reviewers)
@@ -255,7 +276,7 @@ export const biodropsVerifyWhatsappOtp = async (req, res) => {
       });
     }
 
-    let user = await User.findOne({ phone }).populate("organization");
+    let user = await findUserByPhone(phone, ORGANIZATION_CODE, { deletedAt: null });
     if (!user && isDemoPhone && isBiodropsDemoOtp(otp)) {
       const { org: biodropsOrg } = await resolveOrganizationByCode(ORGANIZATION_CODE);
       user = await createUserByPhoneSafe({
@@ -365,7 +386,7 @@ export const biodropsResendWhatsappOtp = async (req, res) => {
     const phone = assertPhone(phoneRaw);
     const isDemoPhone = isBiodropsDemoPhone(phone);
 
-    let user = await User.findOne({ phone }).populate("organization");
+    let user = await findUserByPhone(phone, ORGANIZATION_CODE, { deletedAt: null });
     if (!user) {
       return res.status(404).json({
         success: false,
