@@ -217,11 +217,47 @@ export async function findOrganizationByEmail(email) {
   return Organization.findOne(emailMatchQuery(normalized));
 }
 
-/** Create or reuse a client user so the organization email can log into admin. */
-export async function ensureOrganizationClientUser(org) {
+/**
+ * Soft-delete an organization's old client login and free its email, so a
+ * Google / OTP lookup by that email can't land on the deleted row.
+ */
+async function retireOrganizationClientUser(user) {
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        deletedAt: new Date(),
+        emailBeforeDelete: user.email,
+        refreshTokenId: null,
+      },
+      $unset: { email: "", refreshTokenIds: "" },
+    },
+    { strict: false },
+  );
+}
+
+/**
+ * Create or reuse a client user so the organization email can log into admin.
+ *
+ * `previousEmail` is the organization's email before an update: its client
+ * login is moved to the new email (or retired, when the new email already has
+ * its own account) instead of being left behind as an extra client.
+ */
+export async function ensureOrganizationClientUser(org, { previousEmail } = {}) {
   if (!org?._id) return null;
   const email = normalizeLoginEmail(org.email);
   if (!email) return null;
+
+  const oldEmail = normalizeLoginEmail(previousEmail);
+  const previousClient =
+    oldEmail && oldEmail !== email
+      ? await User.findOne({
+          ...emailMatchQuery(oldEmail),
+          role: "client",
+          organization: org._id,
+          deletedAt: null,
+        })
+      : null;
 
   // Only this org's account (or an orgless one) — the same email may own
   // accounts in other orgs, which stay untouched.
@@ -239,9 +275,16 @@ export async function ensureOrganizationClientUser(org) {
       if (user.role === "farmer") user.role = "client";
       if (!user.terms) user.terms = true;
       await user.save();
+      if (previousClient) await retireOrganizationClientUser(previousClient);
       await user.populate(ORG_POPULATE);
       return user;
     }
+  }
+
+  if (previousClient && !user) {
+    previousClient.email = email;
+    await previousClient.save();
+    return previousClient.populate(ORG_POPULATE);
   }
 
   user = await User.create({

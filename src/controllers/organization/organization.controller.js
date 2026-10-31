@@ -179,7 +179,9 @@ export const updateOrganization = async (req, res) => {
     );
 
     try {
-      await ensureOrganizationClientUser(updatedOrganization);
+      await ensureOrganizationClientUser(updatedOrganization, {
+        previousEmail: organization.email,
+      });
     } catch (clientError) {
       console.error("Failed to sync organization login user:", clientError);
     }
