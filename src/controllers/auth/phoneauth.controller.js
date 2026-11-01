@@ -131,6 +131,23 @@ function isCropgenClientRequest(req) {
  * (AAT, CROPYDEALS, …) are served by the CropGen apps, same as Google web login. */
 const SEPARATE_PLATFORM_ORG_CODES = ["BIODROPS"];
 
+/** Accounts from a signup attempt this recent may be reused (see below). */
+const ABANDONED_SIGNUP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * A recent account whose OTP was never verified and that was never used —
+ * left behind by an abandoned signup (the account is created when the OTP is
+ * sent). Signing up again may reuse it instead of failing as a duplicate.
+ * Older or ever-used accounts are real users and are never touched.
+ */
+function isAbandonedPhoneSignup(user) {
+  if (!user || user.deletedAt || user.lastLoginAt || user.lastActiveAt) {
+    return false;
+  }
+  const created = user.createdAt ? new Date(user.createdAt).getTime() : 0;
+  return Date.now() - created < ABANDONED_SIGNUP_MAX_AGE_MS;
+}
+
 /** Account belongs to another platform (BioDrops), not CropGen. */
 function isOtherPlatformUser(user) {
   const code = String(user?.organization?.organizationCode || "").toUpperCase();
@@ -228,6 +245,22 @@ export const sendWhatsappOtp = async (req, res) => {
       });
     }
 
+    // A CropGen app must not create accounts in a separate-platform org (BioDrops):
+    // verify-otp never looks there for CropGen clients, so the account could never
+    // sign in, and every retry would create another one.
+    if (
+      !user &&
+      !isLogin &&
+      !appOrgCode &&
+      isCropgenClientRequest(req) &&
+      SEPARATE_PLATFORM_ORG_CODES.includes(requestedOrgCode)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "This organization code can't be used in the CropGen app.",
+      });
+    }
+
     // Web login: never create an account. Fast exist-check + OTP only.
     if (isLogin) {
       if (!user) {
@@ -238,16 +271,38 @@ export const sendWhatsappOtp = async (req, res) => {
       }
     }
 
-    // Signup: reject duplicates, then create with profile + org.
+    // Signup: reject duplicates, then create with profile + org. An account
+    // from an earlier signup attempt whose OTP was never verified is reused
+    // (the account is created when the OTP is sent, so going back and
+    // signing up again must not be blocked as "already exists").
     if (isSignup) {
-      if (user) {
+      const reclaim =
+        user && !isOtherPlatformUser(user) && isAbandonedPhoneSignup(user)
+          ? user
+          : null;
+      if (user && !reclaim) {
         const otherPlatform = isOtherPlatformUser(user);
         return res.status(409).json({
           success: false,
+          // `code`/`field` let clients show the error on the right input.
+          code: otherPlatform
+            ? "PHONE_REGISTERED_OTHER_PLATFORM"
+            : "PHONE_ALREADY_REGISTERED",
+          field: "phone",
           message: otherPlatform
-            ? "This phone is already registered. Please use a different number to sign up."
-            : "User already exists. Please log in.",
+            ? "This mobile number is already associated with an account on another platform. Please use a different number."
+            : "This mobile number is already associated with an account. Please log in.",
         });
+      }
+
+      if (reclaim?.lastOtpSentAt) {
+        const diff = Date.now() - new Date(reclaim.lastOtpSentAt).getTime();
+        if (diff < OTP_RESEND_COOLDOWN) {
+          return res.status(429).json({
+            success: false,
+            message: "Please wait before requesting OTP again",
+          });
+        }
       }
 
       if (normalizedEmail && !EMAIL_OK.test(normalizedEmail)) {
@@ -262,13 +317,17 @@ export const sendWhatsappOtp = async (req, res) => {
           email: normalizedEmail,
           // Email is unique per org: only the org being joined matters.
           ...(await emailScopeFilter(requestedOrgCode)),
+          ...(reclaim ? { _id: { $ne: reclaim._id } } : {}),
         })
           .select("_id")
           .lean();
         if (emailOwner) {
           return res.status(409).json({
             success: false,
-            message: "This email is already registered. Please log in.",
+            code: "EMAIL_ALREADY_REGISTERED",
+            field: "email",
+            message:
+              "This email is already associated with an account. Please log in or use a different email.",
           });
         }
       }
@@ -292,8 +351,7 @@ export const sendWhatsappOtp = async (req, res) => {
         normalizedLanguage || DEFAULT_LANGUAGE,
       );
 
-      user = await createUserByPhoneSafe({
-        phone,
+      const signupFields = {
         email: normalizedEmail || undefined,
         firstName: String(firstName || "").trim() || "User",
         lastName: String(lastName || "").trim(),
@@ -307,7 +365,14 @@ export const sendWhatsappOtp = async (req, res) => {
         otpExpires: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
         lastOtpSentAt: new Date(),
         otpAttemptCount: 0,
-      });
+      };
+
+      if (reclaim) {
+        reclaim.set(signupFields);
+        user = await reclaim.save();
+      } else {
+        user = await createUserByPhoneSafe({ phone, ...signupFields });
+      }
 
       return res.status(200).json({
         success: true,

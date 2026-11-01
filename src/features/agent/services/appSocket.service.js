@@ -68,7 +68,7 @@ function fallbackWelcome({ userName, profile, farms }) {
   if (!farms.length) {
     return `Hi ${userName}! I'm your ${profile.assistantTitle}. Ask me anything about farming, or add a farm from the dashboard for field-specific advice.`;
   }
-  return `Hi ${userName}! I'm your ${profile.assistantTitle}. Tap General for farming practices, or a farm above for field-specific advice.`;
+  return `Hi ${userName}! I'm your ${profile.assistantTitle}. Ask me anything about farming, or pick a farm above for field-specific advice.`;
 }
 
 function normalizeAgentReply(res) {
