@@ -16,17 +16,62 @@ function buildClientFilter(req, clientId) {
   return { clientOrganization: new mongoose.Types.ObjectId(clientId) };
 }
 
-function buildFarmerSearchFilter(search) {
-  if (!search?.trim()) return null;
-  const q = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return {
-    $or: [
-      { firstName: { $regex: q, $options: "i" } },
-      { lastName: { $regex: q, $options: "i" } },
-      { phone: { $regex: q, $options: "i" } },
-      { email: { $regex: q, $options: "i" } },
-    ],
-  };
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const FARMER_TEXT_FIELDS = [
+  "firstName",
+  "lastName",
+  "email",
+  "phone",
+  "village",
+  "city",
+  "district",
+  "state",
+];
+
+/** One search word → $or over the fields the table shows. */
+function buildFarmerTermFilter(term) {
+  const rx = { $regex: escapeRegex(term), $options: "i" };
+  const or = FARMER_TEXT_FIELDS.map((field) => ({ [field]: rx }));
+
+  // Phone-like word ("+91-93223", "(932)"): match on digits only.
+  const digits = term.replace(/\D/g, "");
+  const phoneChars = term.replace(/[\s+\-().]/g, "");
+  if (digits.length >= 3 && digits.length === phoneChars.length && digits !== term) {
+    or.push({ phone: { $regex: digits } });
+  }
+
+  // Farmer ID as shown in the table: FR-<last 6 hex of _id>.
+  const idMatch = term.match(/^fr-?([0-9a-f]{1,6})$/i);
+  if (idMatch) {
+    or.push({
+      $expr: {
+        $regexMatch: {
+          input: { $toString: "$_id" },
+          // Prefix of the 6-char suffix, e.g. "FR-21C" → /21c[0-9a-f]{3}$/
+          regex: `${idMatch[1]}[0-9a-f]{${6 - idMatch[1].length}}$`,
+          options: "i",
+        },
+      },
+    });
+  }
+
+  return { $or: or };
+}
+
+/**
+ * Every whitespace-separated word must match (AND), so "vishal maske",
+ * "maske vishal", "vishal shivne" and "93223 96236" all work.
+ */
+export function buildFarmerSearchFilter(search) {
+  const terms = String(search || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 8);
+  if (!terms.length) return null;
+  const filters = terms.map(buildFarmerTermFilter);
+  return filters.length === 1 ? filters[0] : { $and: filters };
 }
 
 /**

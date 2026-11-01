@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { FARMER_ACCOUNT_FILTER, isFarmerAccount } from "../utils/clientOrg.js";
 import { addMonths } from "date-fns";
 import BiodropsClientCreditPlan from "../models/biodrops-client-credit-plan.model.js";
 import BiodropsClientCreditPurchase from "../models/biodrops-client-credit-purchase.model.js";
@@ -458,7 +459,7 @@ async function debitPools(clientId, credits) {
 }
 
 async function loadCreditClient(owner) {
-  if (!owner?.clientOrganization || owner.role !== "farmer") return null;
+  if (!owner?.clientOrganization || !isFarmerAccount(owner)) return null;
   const client = await Organization.findById(owner.clientOrganization)
     .select("status")
     .lean();
@@ -491,7 +492,7 @@ function ledgerRows(debits, { clientId, reason, field, subscriptionId }) {
  * error for a CRM/admin user instead of the farmer.
  */
 export async function assertNotClientManaged(userId, { forAdmin = false } = {}) {
-  const user = await User.findById(userId).select("role clientOrganization").lean();
+  const user = await User.findById(userId).select("role clientOrganization upgradedFromFarmer").lean();
   const notice = await getClientActivationNotice(user);
   if (!notice.required) return;
   const name = notice.clientName || "a client organization";
@@ -606,11 +607,11 @@ export async function activateClientFarm({ clientId, fieldId, activatedBy }) {
   if (!field) throw httpError(404, "Farm not found.");
 
   const owner = await User.findOne({ _id: field.user, deletedAt: null })
-    .select("role clientOrganization")
+    .select("role clientOrganization upgradedFromFarmer")
     .lean();
   if (
     !owner ||
-    owner.role !== "farmer" ||
+    !isFarmerAccount(owner) ||
     String(owner.clientOrganization) !== String(clientId)
   ) {
     throw httpError(404, "Farm not found.");
@@ -639,7 +640,7 @@ export async function listClientFarms(
 
   const farmers = await User.find({
     clientOrganization: clientId,
-    role: "farmer",
+    ...FARMER_ACCOUNT_FILTER,
     deletedAt: null,
   })
     .select("firstName lastName phone")
@@ -729,7 +730,7 @@ export async function applyClientCreditsToAreaIncrease({ field }) {
   const coveredAcres = Number(subscription.area) || 0;
   if (newAcres <= coveredAcres) return { applied: false, reason: "covered" };
 
-  const owner = await User.findById(field.user).select("role clientOrganization").lean();
+  const owner = await User.findById(field.user).select("role clientOrganization upgradedFromFarmer").lean();
   const client = await loadCreditClient(owner);
   if (!client) return { applied: false, reason: "not_client_farmer" };
 

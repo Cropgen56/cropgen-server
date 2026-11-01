@@ -14,6 +14,8 @@ import {
   generateUniqueClientCode,
   isValidClientCodeFormat,
   normalizeClientCode,
+  FARMER_ACCOUNT_FILTER,
+  isFarmerAccount,
 } from "../../utils/clientOrg.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -116,7 +118,7 @@ async function loadFarmerCounts(clientIds) {
     {
       $match: {
         clientOrganization: { $in: clientIds },
-        role: "farmer",
+        ...FARMER_ACCOUNT_FILTER,
         deletedAt: null,
       },
     },
@@ -329,7 +331,7 @@ export async function assignFarmerToClient(req, res) {
     if (!mongoose.Types.ObjectId.isValid(id)) return fail(res, 400, "Invalid farmer ID.");
 
     const { user } = await assertCrmFarmerAccess(req, id);
-    if (user.role !== "farmer") {
+    if (!isFarmerAccount(user)) {
       return fail(res, 400, "Only farmer accounts can be assigned to a client.");
     }
 

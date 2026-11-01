@@ -40,8 +40,30 @@ export function isClientViewer(actor) {
   return (
     actor?.role === "staff" &&
     !!actor.clientOrganization &&
+    // An upgraded client farmer is staff + clientOrganization too; without
+    // this, suspending their assignment would hand them the client's login.
+    actor.upgradedFromFarmer !== true &&
     !(actor.adminAssignments || []).length
   );
+}
+
+/** Mongo filter: the farmers of a client, including ones upgraded to CRM staff. */
+export const FARMER_ACCOUNT_FILTER = {
+  $or: [{ role: "farmer" }, { upgradedFromFarmer: true }],
+};
+
+/** A farmer account for farm/credit purposes (still true after upgrade to staff). */
+export function isFarmerAccount(user) {
+  return user?.role === "farmer" || user?.upgradedFromFarmer === true;
+}
+
+/**
+ * A client organization's own login account (not one of its farmers).
+ * It must never become CRM staff: an admin assignment would turn the
+ * client's login into a BioDrops admin and the client would lose it.
+ */
+export function isClientLoginAccount(user) {
+  return !!user?.clientOrganization && !isFarmerAccount(user);
 }
 
 /** Active client org under BIODROPS for a signup code, or null. */

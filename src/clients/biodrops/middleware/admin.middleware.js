@@ -14,6 +14,7 @@ function enrichActor(user = {}) {
     role: user.role,
     organization: user.organization,
     clientOrganization: user.clientOrganization || null,
+    upgradedFromFarmer: user.upgradedFromFarmer === true,
     adminAssignments,
     highestAdminLevel: getHighestAdminLevel(adminAssignments),
     isCropgenPlatformAdmin: CROPGEN_PLATFORM_ROLES.has(user.role),
@@ -31,7 +32,7 @@ export async function attachBiodropsAdminActor(req, res, next) {
     const [adminAssignments, dbUser] = await Promise.all([
       loadBiodropsAssignmentsForUser(userId),
       User.findOne({ _id: userId, deletedAt: null })
-        .select("role clientOrganization")
+        .select("role clientOrganization upgradedFromFarmer")
         .populate("clientOrganization", "status")
         .lean(),
     ]);
@@ -43,6 +44,7 @@ export async function attachBiodropsAdminActor(req, res, next) {
       ...req.user,
       role: dbUser.role,
       clientOrganization: clientOrg?._id || null,
+      upgradedFromFarmer: dbUser.upgradedFromFarmer === true,
       adminAssignments,
     };
     if (isClientViewer(actorUser) && clientOrg?.status === "inactive") {

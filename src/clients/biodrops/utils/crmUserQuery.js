@@ -7,7 +7,7 @@ import {
 } from "./adminScope.js";
 import { CROPGEN_PLATFORM_ROLES } from "../constants/adminLevels.js";
 import { resolveOrganizationByCode } from "../../../utils/auth/authUtils.js";
-import { isClientViewer } from "./clientOrg.js";
+import { FARMER_ACCOUNT_FILTER, isClientViewer } from "./clientOrg.js";
 import {
   formatCrmUser,
   deriveCrmUserStatus,
@@ -25,7 +25,7 @@ export async function resolveCrmUserBaseQuery(req) {
     return {
       baseQuery: {
         clientOrganization: actor.clientOrganization,
-        role: "farmer",
+        ...FARMER_ACCOUNT_FILTER,
       },
       org,
     };
@@ -88,16 +88,50 @@ export function buildCrmTeamUserByIdQuery(teamQuery, userId) {
   };
 }
 
-function buildSearchFilter(search) {
-  if (!search?.trim()) return null;
-  const q = search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return {
-    $or: [
-      { firstName: { $regex: q, $options: "i" } },
-      { lastName: { $regex: q, $options: "i" } },
-      { email: { $regex: q, $options: "i" } },
-      { phone: { $regex: q, $options: "i" } },
-    ],
+const digitsOnly = (value) => String(value || "").replace(/\D/g, "");
+
+/**
+ * Builds a matcher over the formatted CRM row (the fields the table shows),
+ * so search finds what the user can see: full name, login/invite email,
+ * phone (ignoring spaces, dashes and +country code), role, region, BD id.
+ * Every whitespace-separated term must match somewhere (AND), case-insensitive.
+ */
+export function buildCrmUserSearchMatcher(search) {
+  const terms = String(search || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!terms.length) return null;
+
+  return (row) => {
+    const haystack = [
+      row.name,
+      row.email,
+      row.invitationEmail,
+      row.phone,
+      row.role,
+      row.region,
+      row.territory,
+      row.uid,
+      row.country,
+      row.state,
+      row.district,
+    ]
+      .filter((v) => v && v !== "—")
+      .join(" ")
+      .toLowerCase();
+    const phoneDigits = digitsOnly(row.phone);
+
+    return terms.every((term) => {
+      if (haystack.includes(term)) return true;
+      const termDigits = digitsOnly(term);
+      // Phone-like term: compare digits only (e.g. "70128 04255", "+91-7012").
+      return (
+        termDigits.length >= 3 &&
+        termDigits.length >= term.replace(/[\s+\-().]/g, "").length &&
+        phoneDigits.includes(termDigits)
+      );
+    });
   };
 }
 
@@ -114,11 +148,7 @@ export async function fetchCrmScopedUsers({
   const parsedPage = Math.max(1, parseInt(page, 10) || 1);
   const skip = (parsedPage - 1) * parsedLimit;
 
-  let query = await buildCrmTeamUserQuery(baseQuery, org._id);
-  const searchFilter = buildSearchFilter(search);
-  if (searchFilter) {
-    query = { $and: [query, searchFilter] };
-  }
+  const query = await buildCrmTeamUserQuery(baseQuery, org._id);
 
   const allUsers = await User.find(query)
     .sort({ createdAt: -1 })
@@ -165,7 +195,9 @@ export async function fetchCrmScopedUsers({
       invitationByUser.get(key) || null,
     );
     if (actor) {
-      row.canManage = canManageUserAssignment(actor, assignment, org._id);
+      row.canManage =
+        key !== String(actor.id) &&
+        canManageUserAssignment(actor, assignment, org._id);
     }
     return row;
   });
@@ -173,6 +205,11 @@ export async function fetchCrmScopedUsers({
   if (status && status !== "all") {
     const needle = String(status).toUpperCase();
     formatted = formatted.filter((u) => u.status === needle);
+  }
+
+  const matchesSearch = buildCrmUserSearchMatcher(search);
+  if (matchesSearch) {
+    formatted = formatted.filter(matchesSearch);
   }
 
   const totalUsers = formatted.length;

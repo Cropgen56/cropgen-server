@@ -48,20 +48,39 @@ export const checkCrmInviteUser = async (req, res) => {
       .filter(Boolean)
       .join(" ")
       .trim();
+    const isFarmer = user.role === "farmer";
+    const who = name ? `${isFarmer ? "Registered farmer" : "Existing account"} ${name}` : null;
+
+    // Which typed value matched — lets the form explain conflicts precisely.
+    const matchedBy = [
+      normalizedPhone && user.phone && user.phone.replace(/\D/g, "").endsWith(normalizedPhone.replace(/\D/g, "").slice(-10))
+        ? "phone"
+        : null,
+      normalizedEmail && user.email?.toLowerCase() === normalizedEmail ? "email" : null,
+    ].filter(Boolean);
 
     return res.status(200).json({
       success: true,
       canInvite: true,
       status: "existing",
-      message: name
-        ? `Existing account found (${name}). It will be upgraded to CRM staff.`
-        : "Existing account found. It will be upgraded to CRM staff.",
+      message: isFarmer
+        ? `${who || "A registered farmer"} found — details loaded. Sending this invite upgrades them to CRM staff; their farms and history stay linked.`
+        : `${who || "An existing account"} found — details loaded. Sending this invite gives them CRM access.`,
       existingUser: {
         id: String(user._id),
         name: name || null,
+        firstName: user.firstName || null,
+        lastName: user.lastName || null,
         email: user.email || null,
         phone: user.phone || null,
         role: user.role,
+        isFarmer,
+        country: user.country || null,
+        state: user.state || null,
+        district: user.district || null,
+        city: user.city || null,
+        village: user.village || null,
+        matchedBy,
       },
     });
   } catch (err) {

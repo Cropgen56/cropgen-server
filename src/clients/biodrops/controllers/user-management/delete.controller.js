@@ -1,3 +1,4 @@
+import User from "../../../../models/user.model.js";
 import BiodropsAdminAssignment from "../../models/admin-assignment.model.js";
 import CrmInvitation from "../../models/crm-invitation.model.js";
 import {
@@ -24,9 +25,18 @@ export const deleteCrmUser = async (req, res) => {
     });
 
     await CrmInvitation.updateMany(
-      { userId: user._id, tenantId: org._id, status: "pending" },
+      { userId: user._id, tenantId: org._id, status: { $in: ["pending", "expired"] } },
       { status: "cancelled" },
     );
+
+    // A farmer who was upgraded to staff goes back to being a farmer, with
+    // the same account, farms and client — and can be invited again later.
+    if (user.upgradedFromFarmer === true) {
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { role: "farmer", upgradedFromFarmer: false } },
+      );
+    }
 
     return res.status(200).json({
       success: true,

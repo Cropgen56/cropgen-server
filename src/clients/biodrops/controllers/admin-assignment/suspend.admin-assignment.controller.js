@@ -43,10 +43,13 @@ export const suspendBiodropsAdminAssignment = async (req, res) => {
       assignment,
     });
   } catch (err) {
-    console.error("suspendBiodropsAdminAssignment:", err);
-    return res.status(500).json({
+    // Guard errors (e.g. "last active Super Admin") carry their own status
+    // and message — surface them instead of a generic 500.
+    const status = err.status || 500;
+    if (status >= 500) console.error("suspendBiodropsAdminAssignment:", err);
+    return res.status(status).json({
       success: false,
-      message: "Failed to suspend admin assignment.",
+      message: status >= 500 ? "Failed to suspend admin assignment." : err.message,
     });
   }
 };

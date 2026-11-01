@@ -775,3 +775,52 @@ describe("plans never mix: client credits vs Razorpay/cards/admin plans", () => 
     expect(await UserSubscription.exists({ fieldId: direct._id })).toBeNull();
   });
 });
+
+describe("a client farmer upgraded to CRM staff keeps client credits", () => {
+  let upgraded;
+  let farm;
+  beforeAll(async () => {
+    // What the invite / admin-assignment upgrade leaves behind.
+    upgraded = await User.create({
+      firstName: "Upgraded",
+      phone: "+919876500099",
+      role: "staff",
+      upgradedFromFarmer: true,
+      terms: true,
+      organization: ids.admin.organization,
+      clientOrganization: ids.client._id,
+    });
+    farm = await createField(upgraded, 1);
+  });
+
+  test("their farms are still managed by the client's credits", async () => {
+    expect(await credits.getClientActivationNotice(upgraded)).toEqual({
+      required: true,
+      clientName: "Green Valley FPO",
+    });
+    await expect(credits.assertNotClientManaged(upgraded._id)).rejects.toMatchObject({
+      code: "CLIENT_MANAGED",
+    });
+  });
+
+  test("the client still sees and can activate their farm", async () => {
+    const pending = await request(app)
+      .get("/v1/api/auth/crm/client-credits/me/farms?status=all&limit=100")
+      .set(asUser(ids.clientViewer));
+    expect(pending.status).toBe(200);
+    expect(pending.body.farms.map((f) => f.fieldId)).toContain(String(farm._id));
+
+    const res = await request(app)
+      .post(`/v1/api/auth/crm/client-credits/me/farms/${farm._id}/activate`)
+      .set(asUser(ids.clientViewer));
+    // Not "Farm not found" — the owner still counts as the client's farmer.
+    expect(res.status).not.toBe(404);
+  });
+
+  test("without an active assignment they are never treated as the client's login", async () => {
+    const res = await request(app)
+      .get("/v1/api/auth/crm/client-credits/me/farms")
+      .set(asUser(upgraded));
+    expect(res.status).toBe(403);
+  });
+});

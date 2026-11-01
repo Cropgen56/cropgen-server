@@ -12,7 +12,9 @@ import { generateInvitationToken } from "../../utils/invitationToken.js";
 import { sendCrmInvitationEmail } from "../../services/crmInvitationEmail.service.js";
 import { checkAssignmentAvailability } from "../../utils/assignmentAvailability.js";
 import {
+  emailMatchQuery,
   normalizeInvitePhone,
+  phoneMatchQuery,
   resolveInviteUser,
 } from "../../utils/inviteUserResolve.js";
 
@@ -100,57 +102,38 @@ export const createCrmInvitation = async (req, res) => {
     let user = resolved.user;
     const { firstName, lastName } = splitFullName(fullName);
 
-    if (!user) {
-      user = await User.create({
-        firstName,
-        lastName,
-        email: normalizedEmail,
-        phone: normalizedPhone,
-        role: "staff",
-        terms: false,
-        organization: tenantId,
-        clientSource: "web",
-      });
-    } else {
-      // Reused an existing platform account (matched by phone or email).
-      // Apply the invited profile so CRM list/edit match what the admin entered.
-      user.firstName = firstName;
-      user.lastName = lastName;
-
+    // Validate everything BEFORE touching the user: previously an existing
+    // farmer was saved as staff first, so a failed scope/permission check
+    // left them stranded (no farmer role, no CRM assignment).
+    if (user) {
       if (normalizedEmail) {
         const emailTaken = await User.findOne({
-          email: normalizedEmail,
+          email: emailMatchQuery(normalizedEmail),
           _id: { $ne: user._id },
           organization: tenantId,
-        });
+          deletedAt: null,
+        }).lean();
         if (emailTaken) {
           return res.status(409).json({
             success: false,
             message: "This email is already linked to another account.",
           });
         }
-        user.email = normalizedEmail;
       }
-
       if (normalizedPhone) {
         const phoneTaken = await User.findOne({
-          phone: normalizedPhone,
+          phone: phoneMatchQuery(normalizedPhone),
           _id: { $ne: user._id },
           organization: tenantId,
           deletedAt: null,
-        });
+        }).lean();
         if (phoneTaken) {
           return res.status(409).json({
             success: false,
             message: "This mobile number is already linked to another account.",
           });
         }
-        user.phone = normalizedPhone;
       }
-
-      if (!user.organization) user.organization = tenantId;
-      if (user.role === "farmer") user.role = "staff";
-      await user.save();
     }
 
     const geoCountry = level === "super" ? null : countryCode || null;
@@ -217,17 +200,70 @@ export const createCrmInvitation = async (req, res) => {
       });
     }
 
-    const assignment = await BiodropsAdminAssignment.create({
-      userId: user._id,
-      level,
-      tenantId,
-      countryCode: fieldCheck.countryCode,
-      stateCode: fieldCheck.stateCode,
-      districtCode: fieldCheck.districtCode,
-      managedOrganizationId: null,
-      appointedBy: reportsToUserId || req.adminActor?.id || null,
-      status: "active",
-    });
+    // All checks passed — now create or upgrade the account.
+    let createdUser = false;
+    let previousProfile = null;
+    if (!user) {
+      user = await User.create({
+        firstName,
+        lastName,
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        role: "staff",
+        terms: false,
+        organization: tenantId,
+        clientSource: "web",
+      });
+      createdUser = true;
+    } else {
+      // Existing account (often a registered farmer) → CRM staff. Keep the
+      // same user id so their farms, orders and history stay linked.
+      previousProfile = {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        organization: user.organization,
+        upgradedFromFarmer: user.upgradedFromFarmer === true,
+      };
+      user.firstName = firstName;
+      user.lastName = lastName;
+      if (normalizedEmail) user.email = normalizedEmail;
+      if (normalizedPhone) user.phone = normalizedPhone;
+      if (!user.organization) user.organization = tenantId;
+      if (user.role === "farmer") {
+        user.role = "staff";
+        // Keeps client credits on their own farms and stops them being read
+        // as the client's CRM login (see isClientViewer).
+        user.upgradedFromFarmer = true;
+      }
+      await user.save();
+    }
+
+    let assignment;
+    try {
+      assignment = await BiodropsAdminAssignment.create({
+        userId: user._id,
+        level,
+        tenantId,
+        countryCode: fieldCheck.countryCode,
+        stateCode: fieldCheck.stateCode,
+        districtCode: fieldCheck.districtCode,
+        managedOrganizationId: null,
+        appointedBy: reportsToUserId || req.adminActor?.id || null,
+        status: "active",
+      });
+    } catch (assignErr) {
+      // Race (slot taken between check and insert): undo the account change.
+      if (createdUser) {
+        await User.deleteOne({ _id: user._id }).catch(() => {});
+      } else if (previousProfile) {
+        Object.assign(user, previousProfile);
+        await user.save().catch(() => {});
+      }
+      throw assignErr;
+    }
 
     if (fieldCheck.countryCode) user.country = fieldCheck.countryCode;
     if (fieldCheck.stateCode) user.state = fieldCheck.stateCode;
@@ -302,6 +338,8 @@ export const createCrmInvitation = async (req, res) => {
         id: String(assignment._id),
         userId: String(user._id),
         crmInvitationId: emailInvitation ? String(emailInvitation._id) : null,
+        existingAccount: !createdUser,
+        upgradedFromFarmer: previousProfile?.role === "farmer",
         level,
         organizationCode: org.organizationCode,
       },

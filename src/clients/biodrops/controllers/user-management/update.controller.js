@@ -1,4 +1,5 @@
 import User from "../../../../models/user.model.js";
+import { emailMatchQuery, phoneMatchQuery } from "../../utils/inviteUserResolve.js";
 import BiodropsAdminAssignment from "../../models/admin-assignment.model.js";
 import {
   loadCrmTeamUserForManage,
@@ -59,7 +60,7 @@ export const updateCrmUser = async (req, res) => {
       if (normalizedEmail) {
         // Email is unique per organization.
         const dup = await User.findOne({
-          email: normalizedEmail,
+          email: emailMatchQuery(normalizedEmail),
           organization: user.organization,
           deletedAt: null,
           _id: { $ne: user._id },
@@ -86,7 +87,7 @@ export const updateCrmUser = async (req, res) => {
       }
       // Phone is unique per organization.
       const dup = await User.findOne({
-        phone: normalizedPhone,
+        phone: phoneMatchQuery(normalizedPhone),
         organization: user.organization,
         deletedAt: null,
         _id: { $ne: user._id },

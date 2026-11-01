@@ -54,6 +54,10 @@ export const resendCrmInvitation = async (req, res) => {
       .join(" ")
       .trim();
 
+    // Send to the user's current email: it may have been corrected in
+    // user management since the first invite went to a wrong address.
+    invitation.email = user.email.toLowerCase();
+
     await sendCrmInvitationEmail({
       to: invitation.email,
       inviteeName: [user.firstName, user.lastName].filter(Boolean).join(" "),

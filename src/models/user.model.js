@@ -181,6 +181,16 @@ const userSchema = new Schema(
       index: true,
     },
 
+    /**
+     * A farmer upgraded to CRM staff (invite or admin assignment). They stay
+     * a farmer for their own farms — client credits keep applying — and are
+     * never treated as a client's read-only CRM login.
+     */
+    upgradedFromFarmer: {
+      type: Boolean,
+      default: false,
+    },
+
     /** Set when an admin deletes the account. Deleted users cannot log in. */
     deletedAt: {
       type: Date,

@@ -9,6 +9,7 @@ import {
 } from "../../utils/adminScope.js";
 import { checkAssignmentAvailability } from "../../utils/assignmentAvailability.js";
 import { resolveBiodropsTenantId } from "../../utils/authPayload.js";
+import { isClientLoginAccount } from "../../utils/clientOrg.js";
 
 async function resolveManagedOrganizationId({
   managedOrganizationId,
@@ -69,6 +70,14 @@ export const createBiodropsAdminAssignment = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Target user must belong to the BIODROPS organization.",
+      });
+    }
+
+    if (isClientLoginAccount(targetUser)) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "This is a client organization's login account. Client accounts can't be made CRM staff.",
       });
     }
 
@@ -138,6 +147,7 @@ export const createBiodropsAdminAssignment = async (req, res) => {
     }
     if (targetUser.role === "farmer") {
       targetUser.role = "staff";
+      targetUser.upgradedFromFarmer = true;
     }
     await targetUser.save();
 

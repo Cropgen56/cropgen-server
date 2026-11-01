@@ -39,11 +39,11 @@ export const getUserManagementById = async (req, res) => {
     const allAssignments = await loadAllAssignmentsForUser(user._id);
 
     const formattedUser = formatCrmUser(user, assignment, invitation);
-    formattedUser.canManage = canManageUserAssignment(
-      req.adminActor,
-      assignment,
-      org._id,
-    );
+    // Nobody manages their own CRM access (the server refuses self edit /
+    // suspend / remove), so don't offer those actions on your own record.
+    formattedUser.canManage =
+      String(user._id) !== String(req.adminActor?.id) &&
+      canManageUserAssignment(req.adminActor, assignment, org._id);
 
     return res.status(200).json({
       success: true,
