@@ -18,7 +18,7 @@ export const createPost = async (req, res) => {
       tags: tags || [],
     });
 
-    await post.populate("author", "name avatar");
+    await post.populate("author", "firstName lastName email avatar role");
 
     return res.status(201).json({
       message: "Post created successfully",
@@ -331,6 +331,34 @@ export const toggleLike = async (req, res) => {
     });
   } catch (error) {
     console.error("toggleLike error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const sharePost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: "Invalid post id" });
+    }
+
+    const post = await Post.findByIdAndUpdate(
+      postId,
+      { $inc: { shareCount: 1 } },
+      { new: true, projection: { shareCount: 1 } },
+    ).lean();
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    return res.status(200).json({
+      message: "Share recorded",
+      data: { shareCount: post.shareCount },
+    });
+  } catch (error) {
+    console.error("sharePost error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

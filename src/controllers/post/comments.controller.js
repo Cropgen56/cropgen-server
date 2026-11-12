@@ -21,7 +21,7 @@ export const addComment = async (req, res) => {
       content: content.trim(),
     });
 
-    await comment.populate("author", "name avatar");
+    await comment.populate("author", "firstName lastName email avatar role");
 
     return res.status(201).json({
       message: "Comment added successfully",
@@ -42,10 +42,17 @@ export const deleteComment = async (req, res) => {
       return res.status(404).json({ message: "Comment not found" });
     }
 
-    const isOwner = comment.author.toString() === req.user?.id.toString();
-    const isAdmin = req.user.role === "admin";
-
+    const userId = req.user?.id?.toString();
+    const isOwner = comment.author.toString() === userId;
+    const isAdmin = req.user?.role === "admin";
+    // The post's author can also remove comments on their own post.
+    let isPostAuthor = false;
     if (!isOwner && !isAdmin) {
+      const post = await Post.findById(comment.post).select("author").lean();
+      isPostAuthor = !!post && post.author?.toString() === userId;
+    }
+
+    if (!isOwner && !isAdmin && !isPostAuthor) {
       return res
         .status(403)
         .json({ message: "Not authorized to delete this comment" });

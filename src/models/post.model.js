@@ -26,6 +26,13 @@ const postSchema = new mongoose.Schema(
     ],
 
     tags: [String],
+
+    /** How many times the post was shared from the apps. */
+    shareCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   { timestamps: true },
 );

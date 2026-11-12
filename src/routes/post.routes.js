@@ -5,6 +5,7 @@ import {
   getPostById,
   deletePost,
   toggleLike,
+  sharePost,
   getPostImageUploadUrl,
 } from "../controllers/post/post.controller.js";
 
@@ -22,6 +23,7 @@ router.get("/", isAuthenticated, getPosts);
 router.get("/:postId", isAuthenticated, getPostById);
 router.delete("/:postId", isAuthenticated, deletePost);
 router.post("/:postId/like", isAuthenticated, toggleLike);
+router.post("/:postId/share", isAuthenticated, sharePost);
 
 // post comments routes
 router.post("/:postId/comments", isAuthenticated, addComment);
