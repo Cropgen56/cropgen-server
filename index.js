@@ -31,6 +31,7 @@ import { apiLogger } from "./src/middleware/apiLogger.middleware.js";
 // Smart advisory routes
 import advisoryRoutes from "./src/features/advisory/routes/advisory.routes.js";
 import carbonRoutes from "./src/routes/carbon.routes.js";
+import mandiRoutes from "./src/routes/mandi.routes.js";
 import soilHealthRoutes from "./src/features/soil-health/soilHealth.routes.js";
 import logRoutes from "./src/routes/log.routes.js";
 
@@ -253,6 +254,7 @@ app.use("/v1/api/logs", logRoutes);
 // Smart advisory routes (v2 matches mobile/web client expectations)
 app.use("/v1/api/advisory", advisoryRoutes);
 app.use("/v1/api/carbon", carbonRoutes);
+app.use("/v1/api/mandi", mandiRoutes);
 app.use("/v1/api/soil-health", soilHealthRoutes);
 app.use("/v2/api/advisory", advisoryRoutes);
 app.use("/v2/api/carbon", carbonRoutes);
