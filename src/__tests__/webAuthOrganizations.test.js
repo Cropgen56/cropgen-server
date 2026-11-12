@@ -14,6 +14,13 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 
 jest.setTimeout(120000);
 
+// The messages are the source of truth in the app code, not copied here.
+const {
+  INDIA_ONLY_MESSAGE,
+  CROPGEN_ONLY_APP_MESSAGE,
+  CROPGEN_ONLY_SIGNUP_MESSAGE,
+} = await import("../utils/auth/nativeAppAccess.js");
+
 process.env.JWT_ACCESS_SECRET = "test-access-secret";
 process.env.JWT_REFRESH_SECRET = "test-refresh-secret";
 process.env.GOOGLE_CLIENT_ID = "test-google-client";
@@ -184,7 +191,10 @@ describe.each(["CROPGEN", "AAT"])("%s user on the CropGen web app", (code) => {
       .set(WEB)
       .send(web({ phone, organizationCode: code, signupIntent: true, firstName: "X" }));
     expect(res.status).toBe(409);
-    expect(res.body.message).toBe("User already exists. Please log in.");
+    expect(res.body.code).toBe("PHONE_ALREADY_REGISTERED");
+    expect(res.body.message).toBe(
+      "This mobile number is already associated with an account. Please log in.",
+    );
   });
 
   test("email signup + complete profile puts the user in the chosen organization", async () => {
@@ -268,19 +278,16 @@ test("new Google user picks AAT in the profile popup and stays AAT on next login
   expect(await orgCodeOf({ email })).toBe("AAT");
 });
 
-describe("CropGen mobile app (no signupIntent, optional organization code)", () => {
+describe("CropGen mobile app (Indian numbers and CropGen accounts only)", () => {
   const APP = { "X-Client-App": "cropgen_android" };
-
-  test.each([
-    ["AAT", "AAT", "+919000000400"],
-    ["", "CROPGEN", "+919000000401"],
-  ])("new phone user with code '%s' joins %s and can log in", async (code, expected, phone) => {
+  test("a new Indian phone user joins CROPGEN and can log in", async () => {
+    const phone = "+919000000401";
     const send = await request(app)
       .post("/api/auth/send-otp")
       .set(APP)
-      .send({ phone, language: "en", ...(code ? { organizationCode: code } : {}) });
+      .send({ phone, language: "en" });
     expect(send.status).toBe(200);
-    expect(await orgCodeOf({ phone })).toBe(expected);
+    expect(await orgCodeOf({ phone })).toBe("CROPGEN");
 
     const verify = await request(app)
       .post("/api/auth/verify-otp")
@@ -290,37 +297,56 @@ describe("CropGen mobile app (no signupIntent, optional organization code)", () 
     expect(verify.body.data.accessToken).toBeTruthy();
   });
 
-  test("existing AAT phone user logs in and stays AAT, whatever code is sent", async () => {
+  test("signing up with another organization's code (AAT) is refused and creates no account", async () => {
     const phone = "+919000000400";
-    await User.updateOne({ phone }, { $set: { lastOtpSentAt: null } });
     const send = await request(app)
       .post("/api/auth/send-otp")
       .set(APP)
-      .send({ phone, language: "en", organizationCode: "CROPGEN" });
-    expect(send.status).toBe(200);
+      .send({ phone, language: "en", organizationCode: "AAT" });
+    expect(send.status).toBe(403);
+    expect(send.body.message).toBe(CROPGEN_ONLY_SIGNUP_MESSAGE);
+    expect(await User.findOne({ phone })).toBeNull();
+  });
+
+  test("a non-Indian phone number is refused", async () => {
+    const send = await request(app)
+      .post("/api/auth/send-otp")
+      .set(APP)
+      .send({ phone: "+14155550123", language: "en" });
+    expect(send.status).toBe(403);
+    expect(send.body.message).toBe(INDIA_ONLY_MESSAGE);
+  });
+
+  test("an existing AAT account cannot sign in on the mobile app and stays AAT", async () => {
+    const phone = "+919000000402";
+    await User.create({
+      phone, firstName: "Aat", role: "farmer", terms: true, organization: orgs.AAT,
+    });
+    const send = await request(app)
+      .post("/api/auth/send-otp")
+      .set(APP)
+      .send({ phone, language: "en" });
+    expect(send.status).toBe(404);
+    expect(send.body.message).toBe(CROPGEN_ONLY_APP_MESSAGE);
     expect(await orgCodeOf({ phone })).toBe("AAT");
   });
 
-  test("new Google user with code AAT joins AAT; existing account keeps its org", async () => {
-    const email = "mobile-google-aat@example.com";
-    const token = `g:${email}:Mobile Farmer`;
-    const first = await request(app)
+  test("Google: an unknown account is told to sign up with an Indian mobile number; none is created", async () => {
+    const email = "mobile-google-new@example.com";
+    const res = await request(app)
       .post("/api/auth/google-mobile")
       .set(APP)
-      .send({ token, organizationCode: "aat" });
-    expect(first.status).toBe(200);
-    expect(await orgCodeOf({ email })).toBe("AAT");
-
-    const again = await request(app)
-      .post("/api/auth/google-mobile")
-      .set(APP)
-      .send({ token, organizationCode: "CROPGEN" });
-    expect(again.status).toBe(200);
-    expect(await orgCodeOf({ email })).toBe("AAT");
+      .send({ token: `g:${email}:Mobile Farmer`, organizationCode: "AAT" });
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Sign up in the CropGen app with your Indian mobile number.");
+    expect(await User.findOne({ email })).toBeNull();
   });
 
-  test("new Google user without a code joins CROPGEN", async () => {
+  test("Google: an existing CropGen account with an Indian number signs in", async () => {
     const email = "mobile-google-cg@example.com";
+    await User.create({
+      email, phone: "+919000000403", firstName: "Cg", role: "farmer", terms: true, organization: orgs.CROPGEN,
+    });
     const res = await request(app)
       .post("/api/auth/google-mobile")
       .set(APP)
@@ -329,33 +355,23 @@ describe("CropGen mobile app (no signupIntent, optional organization code)", () 
     expect(await orgCodeOf({ email })).toBe("CROPGEN");
   });
 
-  test("Google code BIODROPS is ignored and an unknown code is rejected", async () => {
-    const bio = "mobile-google-bio@example.com";
-    const res = await request(app)
-      .post("/api/auth/google-mobile")
-      .set(APP)
-      .send({ token: `g:${bio}:X Y`, organizationCode: "BIODROPS" });
-    expect(res.status).toBe(200);
-    expect(await orgCodeOf({ email: bio })).toBe("CROPGEN");
+  test("Google: an AAT account, or a CropGen account with a non-Indian number, is refused", async () => {
+    const aat = "mobile-google-aat@example.com";
+    await User.create({
+      email: aat, phone: "+919000000404", firstName: "Aat", role: "farmer", terms: true, organization: orgs.AAT,
+    });
+    const r1 = await request(app).post("/api/auth/google-mobile").set(APP).send({ token: `g:${aat}:X Y` });
+    expect(r1.status).toBe(403);
+    expect(r1.body.message).toBe(CROPGEN_ONLY_APP_MESSAGE);
+    expect(await orgCodeOf({ email: aat })).toBe("AAT");
 
-    const bad = "mobile-google-bad@example.com";
-    const rejected = await request(app)
-      .post("/api/auth/google-mobile")
-      .set(APP)
-      .send({ token: `g:${bad}:X Y`, organizationCode: "NOPE" });
-    expect(rejected.status).toBe(404);
-    expect(await User.findOne({ email: bad })).toBeNull();
-  });
-
-  test("existing AAT user is no longer signed out by the app's profile check", async () => {
-    const phone = "+919000000400";
-    await User.updateOne({ phone }, { $set: { lastOtpSentAt: null } });
-    await request(app).post("/api/auth/send-otp").set(APP).send({ phone, language: "en" });
-    const verify = await request(app)
-      .post("/api/auth/verify-otp")
-      .set(APP)
-      .send({ phone, otp: sentOtps[phone] });
-    expect(await profileOrgCode(verify.body.data.accessToken)).toBe("AAT");
+    const abroad = "mobile-google-abroad@example.com";
+    await User.create({
+      email: abroad, phone: "+14155550199", firstName: "Ab", role: "farmer", terms: true, organization: orgs.CROPGEN,
+    });
+    const r2 = await request(app).post("/api/auth/google-mobile").set(APP).send({ token: `g:${abroad}:X Y` });
+    expect(r2.status).toBe(403);
+    expect(r2.body.message).toBe(INDIA_ONLY_MESSAGE);
   });
 });
 

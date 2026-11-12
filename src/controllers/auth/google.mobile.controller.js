@@ -1,3 +1,10 @@
+import {
+  CROPGEN_ONLY_APP_MESSAGE,
+  INDIA_ONLY_MESSAGE,
+  isCropgenOrgUser,
+  isIndianPhone,
+  isNativeCropgenAppRequest,
+} from "../../utils/auth/nativeAppAccess.js";
 import { OAuth2Client } from "google-auth-library";
 import User from "../../models/user.model.js";
 import { sendBasicEmail } from "../../config/sesClient.js";
@@ -139,6 +146,27 @@ const runGoogleMobileLogin = async (
           success: false,
           message: `Access denied. Only ${targetOrgCode} organization users can sign in here.`,
         });
+      }
+    }
+
+    if (isNativeCropgenAppRequest(req)) {
+      // Google accounts carry no verified phone, so the mobile app only lets
+      // in existing CropGen accounts whose phone is Indian (+91).
+      if (!user) {
+        return res.status(403).json({
+          success: false,
+          message: "Sign up in the CropGen app with your Indian mobile number.",
+        });
+      }
+      if (!isCropgenOrgUser(user)) {
+        return res
+          .status(403)
+          .json({ success: false, message: CROPGEN_ONLY_APP_MESSAGE });
+      }
+      if (!isIndianPhone(user.phone)) {
+        return res
+          .status(403)
+          .json({ success: false, message: INDIA_ONLY_MESSAGE });
       }
     }
 
