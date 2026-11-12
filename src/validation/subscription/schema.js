@@ -4,7 +4,7 @@ const pricingSchema = Joi.object({
   currency: Joi.string().valid("INR", "USD").required(),
   billingCycle: Joi.string().valid("monthly", "yearly", "season").required(),
   pricePerUnitMinor: Joi.number().integer().min(0).required(),
-  unit: Joi.string().valid("acre").default("acre"),
+  unit: Joi.string().valid("acre", "hectare").default("acre"),
 });
 
 const pricingArraySchema = Joi.array().items(pricingSchema);

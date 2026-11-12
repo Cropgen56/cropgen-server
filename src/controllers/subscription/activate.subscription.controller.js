@@ -7,6 +7,7 @@ import { assertAatFieldWithinPlan } from "../../utils/subscription/aatPlan.js";
 import { assertCanManageTargetUser } from "../../utils/auth/orgScope.js";
 import { logActivity } from "../../utils/storage/activityLog.service.js";
 import { assertNotClientManaged } from "../../clients/biodrops/services/clientCredits.service.js";
+import { supersedeActiveSubscriptions } from "../../services/subscription.supersede.service.js";
 
 /** 403 for a client-managed farmer; null when the activation may go ahead. */
 async function clientManagedRefusal(userId, opts) {
@@ -91,12 +92,6 @@ export const activateSubscriptionManually = async (req, res) => {
       });
     }
 
-    /* ===== Deactivate Old Active Plan ===== */
-    await UserSubscription.updateMany(
-      { userId, fieldId: farmId, status: "active" },
-      { status: "expired" },
-    );
-
     /* ===== Create Active Subscription ===== */
     const subscription = await UserSubscription.create({
       userId,
@@ -123,6 +118,10 @@ export const activateSubscriptionManually = async (req, res) => {
       activatedByAdmin: true,
       activatedBy: adminId,
     });
+
+    // Retire the farm's previous plan and cancel its Razorpay autopay so the
+    // customer is not billed for the old plan as well.
+    await supersedeActiveSubscriptions(subscription);
 
     await createSubscriptionActivationNotification(subscription._id);
 

@@ -4,6 +4,13 @@ import User from "../../models/user.model.js";
 import UserSubscription from "../../models/user-subscription.model.js";
 import FieldCrop from "../../models/field-crop.model.js";
 import { triggerInitialAdvisoryForNewField } from "../../features/advisory/services/triggerInitialAdvisory.service.js";
+import {
+  FREE_TRIAL_MAX_ACRES,
+  FREE_TRIAL_MAX_FARMS,
+  FREE_TRIAL_MAX_HECTARES,
+  freeTrialBlocksNewFarm,
+  getLiveFreeTrial,
+} from "../../utils/subscription/freeTrial.js";
 import MonitoringRequest from "../../models/monitoring-request.model.js";
 import {
   createPrimaryFieldCrop,
@@ -71,6 +78,15 @@ export const addField = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: "You can only add farms in your organization.",
+      });
+    }
+
+    /* ---------- Free trial: 1 farm only (trial-only accounts) ---------- */
+    if (await freeTrialBlocksNewFarm(userId)) {
+      return res.status(403).json({
+        success: false,
+        code: "FREE_TRIAL_FARM_LIMIT",
+        message: `Your free trial covers ${FREE_TRIAL_MAX_FARMS} farm only. Subscribe to a plan to add more farms.`,
       });
     }
 
@@ -259,6 +275,20 @@ export const getField = async (req, res) => {
       }
     });
 
+    /* ================= TRIAL ELIGIBILITY ================= */
+    // A farm gets one trial ever; the apps use `trialEligible` to decide
+    // whether to advertise a trial or a plain paid checkout.
+    const trialUsedFieldIds = new Set(
+      (
+        await UserSubscription.distinct("fieldId", {
+          fieldId: { $in: fieldIds },
+          status: { $in: ["active", "expired", "cancelled"] },
+          subscriptionPhase: { $ne: "trial_mandate_pending" },
+          $or: [{ billingCycle: "trial" }, { postTrialPlanId: { $ne: null } }],
+        })
+      ).map(String),
+    );
+
     /* ================= BUILD RESPONSE ================= */
 
     const now = new Date();
@@ -272,7 +302,7 @@ export const getField = async (req, res) => {
           ...field,
           crops,
           isLocked: true,
-          trialEligible: true,
+          trialEligible: !trialUsedFieldIds.has(String(field._id)),
           subscription: {
             hasActiveSubscription: false,
             status: "locked",
@@ -299,7 +329,9 @@ export const getField = async (req, res) => {
         ...field,
         crops,
         isLocked: !isFieldUnlocked(field, sub, hasActiveSubscription),
-        trialEligible: true,
+        // A farm that already has a running plan is not on a trial path either.
+        trialEligible:
+          !hasActiveSubscription && !trialUsedFieldIds.has(String(field._id)),
         subscription: {
           hasActiveSubscription,
 
@@ -323,6 +355,9 @@ export const getField = async (req, res) => {
           daysLeft,
 
           activationSource: sub.activationSource || "razorpay",
+          freeTrialOffer: Boolean(sub.freeTrialOffer),
+          commitBillingCycle: sub.commitBillingCycle || null,
+          trialEndsAt: sub.trialEndsAt || null,
           cardAcres: Number(sub.cardAcres) || 0,
           paidAcres: Number(sub.paidAcres) || 0,
           pendingAdminAcres: Number(sub.pendingAdminAcres) || 0,
@@ -559,6 +594,25 @@ export const updateField = async (req, res) => {
         success: false,
         message: "You can only update farms in your organization.",
       });
+    }
+
+    /* ---------- Free trial: no additional area ---------- */
+    if (updateData.acre != null) {
+      const liveTrial = await getLiveFreeTrial(fieldExists.user);
+      if (liveTrial && String(liveTrial.fieldId) === String(fieldExists._id)) {
+        const newAcre = Number(updateData.acre);
+        const coveredAcre = Math.min(
+          Number(liveTrial.area) || FREE_TRIAL_MAX_ACRES,
+          FREE_TRIAL_MAX_ACRES,
+        );
+        if (Number.isFinite(newAcre) && newAcre > coveredAcre + 1e-6) {
+          return res.status(403).json({
+            success: false,
+            code: "FREE_TRIAL_AREA_LIMIT",
+            message: `Your free trial covers this farm's current area (up to ${FREE_TRIAL_MAX_HECTARES} ha). Subscribe to a plan to increase it.`,
+          });
+        }
+      }
     }
 
     const updatedField = await FarmField.findByIdAndUpdate(

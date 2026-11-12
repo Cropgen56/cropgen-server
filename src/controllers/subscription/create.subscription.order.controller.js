@@ -1,5 +1,7 @@
+import mongoose from "mongoose";
 import FarmField from "../../models/field.model.js";
 import SubscriptionPlan from "../../models/subscription-plan.model.js";
+import { mobilePlanRestrictionMessage } from "../../utils/subscription/mobilePlanRestriction.js";
 import UserSubscription from "../../models/user-subscription.model.js";
 import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
 import {
@@ -21,6 +23,7 @@ import {
   billingPatternFromBillingCycle,
   resolveRazorpayChargeMinor,
   resolveDisplayPricing,
+  perAcreMinor,
 } from "../../utils/subscription/pricing.js";
 import { resolveSubscriptionPlanBrand } from "../../utils/auth/authUtils.js";
 import { assertAatFieldWithinPlan, aatChargeArea } from "../../utils/subscription/aatPlan.js";
@@ -28,6 +31,17 @@ import { isBiodropsTierPlan, biodropsTierChargeArea } from "../../utils/subscrip
 import { createBiodropsCardHybridOrder } from "../../clients/biodrops/controllers/subscriptions/card-hybrid-order.controller.js";
 import { logActivity } from "../../utils/storage/activityLog.service.js";
 import { assertNotClientManaged } from "../../clients/biodrops/services/clientCredits.service.js";
+import {
+  farmHasLiveSubscription,
+  farmHasUsedTrial,
+} from "../../utils/subscription/trialEligibility.js";
+import {
+  FREE_TRIAL_DAYS,
+  FREE_TRIAL_MAX_HECTARES,
+  acresToHectares,
+  freeTrialCurrencyForPlan,
+  userHasUsedFreeTrial,
+} from "../../utils/subscription/freeTrial.js";
 
 /** Web: fixed 7-day trial per field (mobile still uses plan.trialDays when set). */
 const WEB_TRIAL_DAYS = 7;
@@ -120,12 +134,26 @@ export const createSubscriptionOrder = async (req, res) => {
     const {
       farmId,
       planId,
-      billingCycle,
+      billingCycle: bodyBillingCycle,
       displayCurrency: bodyDisplayCurrency,
       /** Billing cycle that starts after trial ends (monthly | yearly | season). */
       commitBillingCycle: bodyCommitCycle,
       cardCode,
+      /** CropGen 21-day Free Trial (Growth plan, autopay required). */
+      freeTrial: bodyFreeTrial,
     } = req.body;
+    const wantsFreeTrial = bodyFreeTrial === true;
+    let billingCycle = bodyBillingCycle;
+
+    // Malformed ids are a client error, not a server error.
+    if (
+      !mongoose.isValidObjectId(farmId) ||
+      !mongoose.isValidObjectId(planId)
+    ) {
+      return res.status(400).json({
+        message: "A valid farmId and planId are required",
+      });
+    }
 
     // A farmer registered under a client organization never buys a plan:
     // their organization activates farms from its credits in the CRM.
@@ -167,6 +195,15 @@ export const createSubscriptionOrder = async (req, res) => {
       return res.status(404).json({
         message: "Plan not found for this app",
       });
+    }
+
+    const mobileRestrictionMessage = mobilePlanRestrictionMessage(
+      req,
+      plan,
+      bodyDisplayCurrency,
+    );
+    if (mobileRestrictionMessage) {
+      return res.status(403).json({ message: mobileRestrictionMessage });
     }
 
     const fieldArea = Number(farm.acre) || 1;
@@ -223,6 +260,55 @@ export const createSubscriptionOrder = async (req, res) => {
       }
     }
 
+    /* ================= FREE TRIAL ELIGIBILITY (CropGen USD web) ================= */
+    if (wantsFreeTrial) {
+      const offerCurrency =
+        planBrand === "cropgen" ? freeTrialCurrencyForPlan(plan) : null;
+      if (!offerCurrency) {
+        return res.status(400).json({
+          code: "FREE_TRIAL_PLAN",
+          message:
+            "The free trial is available on the Growth plan (USD) and the Basic plan (INR).",
+        });
+      }
+      if ((bodyDisplayCurrency || offerCurrency) !== offerCurrency) {
+        return res.status(400).json({
+          code: "FREE_TRIAL_REGION",
+          message: `The free trial for this plan is priced in ${offerCurrency}.`,
+        });
+      }
+      if (!["monthly", "yearly"].includes(billingCycle)) {
+        return res.status(400).json({
+          message:
+            "Choose Monthly or Yearly billing for after the free trial (autopay).",
+        });
+      }
+      const hectares = acresToHectares(fieldArea);
+      if (hectares > FREE_TRIAL_MAX_HECTARES + 1e-9) {
+        return res.status(400).json({
+          code: "FREE_TRIAL_AREA_LIMIT",
+          message: `The free trial supports farms up to ${FREE_TRIAL_MAX_HECTARES} ha. This farm is ${hectares.toFixed(2)} ha.`,
+        });
+      }
+      if (
+        (await farmHasUsedTrial(farmId)) ||
+        (await farmHasLiveSubscription(farmId))
+      ) {
+        return res.status(409).json({
+          code: "FREE_TRIAL_FARM_USED",
+          message:
+            "This farm already has a plan or has already used a trial. The free trial is for a farm's first plan.",
+        });
+      }
+      if (await userHasUsedFreeTrial(userId)) {
+        return res.status(409).json({
+          code: "FREE_TRIAL_USED",
+          message:
+            "You have already used your free trial. It is available once per account, for one farm.",
+        });
+      }
+    }
+
     const aatLimitMessage = assertAatFieldWithinPlan(plan, fieldArea);
     if (aatLimitMessage) {
       return res.status(400).json({ message: aatLimitMessage });
@@ -235,12 +321,35 @@ export const createSubscriptionOrder = async (req, res) => {
     const isFlatPackagePlan = planBrand === "aat" || isBiodropsTierPlan(plan);
     const coverageArea = isFlatPackagePlan ? fieldArea : area;
 
+    /* ================= TRIAL OR NOT ================= */
+    // A farm gets ONE trial, ever, and switching the plan of a farm that
+    // already has one is never a new trial: that checkout is a normal paid
+    // subscription that starts (and is charged) right away. Without this a
+    // farm could chain 7-day trials, or get a free trial period on top of a
+    // plan it is already paying for.
+    const noTrialThisCheckout =
+      !wantsFreeTrial &&
+      ((await farmHasUsedTrial(farmId)) ||
+        (await farmHasLiveSubscription(farmId)));
+
+    if (noTrialThisCheckout && billingCycle === "trial") {
+      // The web app asks for a trial and sends the cycle to bill after it.
+      billingCycle = bodyCommitCycle || "yearly";
+      if (!["monthly", "yearly", "season"].includes(billingCycle)) {
+        return res.status(400).json({
+          message: "commitBillingCycle must be monthly, yearly, or season",
+        });
+      }
+    }
+
     /* ================= TRIAL + POST-TRIAL (web + mobile: one Razorpay subscription, charge at trial end via start_at) ================= */
     const webPaidAsTrial =
+      !noTrialThisCheckout &&
       plan.platform === "web" &&
       ["monthly", "yearly", "season"].includes(billingCycle);
 
     const mobilePaidAsTrial =
+      !noTrialThisCheckout &&
       (plan.platform === "mobile" || plan.platform === "all") &&
       plan.isTrialEnabled &&
       ["monthly", "yearly", "season"].includes(billingCycle);
@@ -254,8 +363,9 @@ export const createSubscriptionOrder = async (req, res) => {
 
       await cancelLiveTrialsForField(userId, farmId);
 
-      const trialDayCount =
-        plan.platform === "web"
+      const trialDayCount = wantsFreeTrial
+        ? FREE_TRIAL_DAYS
+        : plan.platform === "web"
           ? WEB_TRIAL_DAYS
           : plan.trialDays >= 1
             ? plan.trialDays
@@ -290,6 +400,14 @@ export const createSubscriptionOrder = async (req, res) => {
           commitBillingCycle,
           "INR",
         );
+      }
+
+      /* The free trial always needs autopay: no mandate pricing → no trial. */
+      if (wantsFreeTrial && (!charge || !display)) {
+        return res.status(400).json({
+          message:
+            "Autopay could not be set up for this plan, so the free trial is unavailable.",
+        });
       }
 
       /* No pricing for post-trial period → legacy free trial (no mandate). */
@@ -384,6 +502,7 @@ export const createSubscriptionOrder = async (req, res) => {
             postTrialPlanId: plan._id,
             trialEndsAt: endDate,
             subscriptionPhase: "trial_mandate_pending",
+            freeTrialOffer: wantsFreeTrial,
           },
         );
 
@@ -447,7 +566,8 @@ export const createSubscriptionOrder = async (req, res) => {
       return res.status(400).json({ message: "Pricing not found" });
     }
 
-    const displayAmountMinor = Math.round(chargeArea * pricing.pricePerUnitMinor);
+    const unitMinorPerAcre = perAcreMinor(pricing);
+    const displayAmountMinor = Math.round(chargeArea * unitMinorPerAcre);
     let exchangeRate = null;
     if (displayCurrency === "USD") {
       exchangeRate = Number(process.env.RAZORPAY_USD_INR_RATE || "91.46");
@@ -479,7 +599,7 @@ export const createSubscriptionOrder = async (req, res) => {
       unit: "acre",
       billingCycle,
       displayCurrency,
-      pricePerUnitMinor: pricing.pricePerUnitMinor,
+      pricePerUnitMinor: Math.round(unitMinorPerAcre * 100) / 100,
       totalAmountMinor: displayAmountMinor,
       chargedCurrency: "INR",
       exchangeRate,

@@ -23,9 +23,10 @@ const PricingSchema = new Schema(
       min: 0,
     },
 
+    /** Unit the price is quoted in. Charges are always computed on the field's acres. */
     unit: {
       type: String,
-      enum: ["acre"],
+      enum: ["acre", "hectare"],
       default: "acre",
     },
   },

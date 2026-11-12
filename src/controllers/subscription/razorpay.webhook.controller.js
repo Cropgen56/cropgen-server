@@ -19,6 +19,7 @@ import {
   findClientCreditPurchaseByRazorpayOrderId,
   markClientCreditPurchasePaid,
 } from "../../clients/biodrops/services/clientCredits.service.js";
+import { supersedeActiveSubscriptions } from "../../services/subscription.supersede.service.js";
 
 async function processRazorpayEvent(event, eventId) {
   const eventType = event.event || "unknown";
@@ -244,15 +245,9 @@ async function handleSuccessfulCharge(userSubscription, payload, subscriptionEnt
     );
     if (!charge) return;
 
-    await UserSubscription.updateMany(
-      {
-        userId: userSubscription.userId,
-        fieldId: userSubscription.fieldId,
-        status: "active",
-        _id: { $ne: userSubscription._id },
-      },
-      { status: "expired" },
-    );
+    // Trial converted to the paid plan: retire any other plan on this farm
+    // (and its autopay) so the farm is not billed twice.
+    await supersedeActiveSubscriptions(userSubscription);
 
     const { termEnd, periodEnd } = computeRecurringTermBounds(
       commitCycle,
@@ -345,7 +340,9 @@ const createRazorpayWebhookHandler = (secretEnvVar) => async (req, res) => {
       .update(raw)
       .digest("hex");
 
-    if (expected !== signature) {
+    const given = Buffer.from(String(signature || ""));
+    const want = Buffer.from(expected);
+    if (given.length !== want.length || !crypto.timingSafeEqual(given, want)) {
       return res.status(400).send("Invalid signature");
     }
 

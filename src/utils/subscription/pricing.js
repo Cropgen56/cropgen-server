@@ -6,6 +6,19 @@
  */
 import { displayMinorToInrMinor, USD_INR_RATE } from "../../services/razorpay.subscription.service.js";
 
+/** 1 acre = 0.404686 ha (same factor as the web app). */
+export const HECTARES_PER_ACRE = 0.404686;
+
+/**
+ * Price per acre (minor units) for a plan pricing row. Rows quoted per hectare
+ * are converted, because field area (and therefore every charge) is in acres.
+ * May be fractional; round only the final total.
+ */
+export function perAcreMinor(row) {
+  const minor = Number(row?.pricePerUnitMinor) || 0;
+  return row?.unit === "hectare" ? minor * HECTARES_PER_ACRE : minor;
+}
+
 /** Map API billingCycle to UserSubscription.billingPattern (Razorpay commitment). */
 export function billingPatternFromBillingCycle(billingCycle) {
   if (billingCycle === "monthly") return "twelve_monthly";
@@ -32,7 +45,7 @@ export function resolveRazorpayChargeMinor(plan, area, billingCycle) {
   );
   if (inrRow) {
     return {
-      chargedMinor: Math.max(Math.round(a * inrRow.pricePerUnitMinor), 100),
+      chargedMinor: Math.max(Math.round(a * perAcreMinor(inrRow)), 100),
       source: "INR",
     };
   }
@@ -40,7 +53,7 @@ export function resolveRazorpayChargeMinor(plan, area, billingCycle) {
     (p) => p.currency === "USD" && p.billingCycle === billingCycle,
   );
   if (!usdRow) return null;
-  const displayMinor = Math.round(a * usdRow.pricePerUnitMinor);
+  const displayMinor = Math.round(a * perAcreMinor(usdRow));
   return {
     chargedMinor: displayMinorToInrMinor(displayMinor, "USD"),
     source: "USD_FX",
@@ -83,9 +96,11 @@ export function resolveDisplayPricing(plan, area, billingCycle, displayCurrency 
     (p) => p.currency === displayCurrency && p.billingCycle === billingCycle,
   );
   if (!row) return null;
-  const totalMinor = Math.round(a * row.pricePerUnitMinor);
+  const unitMinor = perAcreMinor(row);
+  const totalMinor = Math.round(a * unitMinor);
   return {
-    pricePerUnitMinor: row.pricePerUnitMinor,
+    // UserSubscription stores unit "acre", so always record the per-acre price.
+    pricePerUnitMinor: Math.round(unitMinor * 100) / 100,
     totalAmountMinor: totalMinor,
     displayCurrency,
     exchangeRate: displayCurrency === "USD" ? USD_INR_RATE() : null,

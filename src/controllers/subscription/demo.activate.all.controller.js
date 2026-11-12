@@ -2,6 +2,7 @@ import UserSubscription from "../../models/user-subscription.model.js";
 import SubscriptionPlan from "../../models/subscription-plan.model.js";
 import FarmField from "../../models/field.model.js";
 import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
+import { supersedeActiveSubscriptions } from "../../services/subscription.supersede.service.js";
 import { assertNotClientManaged } from "../../clients/biodrops/services/clientCredits.service.js";
 
 /** 403 for a client-managed farmer; null when the activation may go ahead. */
@@ -122,11 +123,6 @@ export const demoActivateAllSubscriptions = async (req, res) => {
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + DEMO_DURATION_DAYS);
 
-      await UserSubscription.updateMany(
-        { userId, fieldId, status: "active" },
-        { status: "expired" },
-      );
-
       const subscription = await UserSubscription.create({
         userId,
         fieldId,
@@ -152,6 +148,9 @@ export const demoActivateAllSubscriptions = async (req, res) => {
         activatedByAdmin: false,
         activatedBy: null,
       });
+
+      // Retire the farm's previous plan and cancel its autopay.
+      await supersedeActiveSubscriptions(subscription);
 
       try {
         await createSubscriptionActivationNotification(subscription._id);

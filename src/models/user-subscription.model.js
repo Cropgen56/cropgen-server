@@ -49,6 +49,9 @@ const UserSubscriptionSchema = new Schema(
       required: true,
     },
 
+    /** True for the CropGen 21-day Free Trial (Growth access, 1 farm, up to 5 ha). */
+    freeTrialOffer: { type: Boolean, default: false },
+
     /** After trial: monthly | yearly | season (web + mandate flows). */
     commitBillingCycle: {
       type: String,
@@ -204,6 +207,7 @@ UserSubscriptionSchema.index(
 =========================================================== */
 
 UserSubscriptionSchema.index({ status: 1, endDate: 1 });
+UserSubscriptionSchema.index({ userId: 1, freeTrialOffer: 1 });
 
 const UserSubscription =
   mongoose.models.UserSubscription ||

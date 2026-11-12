@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import crypto from "crypto";
 import UserSubscription from "../../models/user-subscription.model.js";
 import FarmField from "../../models/field.model.js";
@@ -8,6 +9,7 @@ import {
   brandForSubscription,
   razorpaySignatureSecrets,
 } from "../../services/razorpay.subscription.service.js";
+import { supersedeActiveSubscriptionsDetailed } from "../../services/subscription.supersede.service.js";
 import { activateBiodropsCardHybridAfterPayment } from "../../clients/biodrops/controllers/subscriptions/card-hybrid-order.controller.js";
 
 async function recordVerifyBillingEvent(
@@ -58,6 +60,13 @@ export const verifySubscriptionOrder = async (req, res) => {
       });
     }
 
+    if (!mongoose.isValidObjectId(subscriptionId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid subscription id",
+      });
+    }
+
     if (!razorpay_subscription_id && !razorpay_order_id) {
       return res.status(400).json({
         success: false,
@@ -68,6 +77,21 @@ export const verifySubscriptionOrder = async (req, res) => {
     const subscription = await UserSubscription.findById(subscriptionId);
 
     if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: "Subscription not found",
+      });
+    }
+
+    // Only the subscription's owner (or an admin-panel role acting for them)
+    // may verify it. Answer 404 so ids of other users' subscriptions are not
+    // confirmed to exist.
+    const callerId = String(req.user?.id || req.user?._id || "");
+    const isOwner = callerId && String(subscription.userId) === callerId;
+    const isStaff = ["admin", "developer", "staff", "client"].includes(
+      req.user?.role,
+    );
+    if (!isOwner && !isStaff) {
       return res.status(404).json({
         success: false,
         message: "Subscription not found",
@@ -96,6 +120,30 @@ export const verifySubscriptionOrder = async (req, res) => {
     const secrets = razorpaySignatureSecrets(
       await brandForSubscription(subscription),
     );
+    // The signed payment must be the one created for THIS subscription: a valid
+    // signature for a different (e.g. cheaper) Razorpay subscription or order
+    // must never activate it.
+    if (
+      subscription.billingMode === "recurring" &&
+      (!razorpay_subscription_id ||
+        razorpay_subscription_id !== subscription.razorpaySubscriptionId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment does not belong to this subscription",
+      });
+    }
+    if (
+      subscription.billingMode === "legacy_order" &&
+      (!subscription.razorpayOrderId ||
+        razorpay_order_id !== subscription.razorpayOrderId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment does not belong to this subscription",
+      });
+    }
+
     const signatureValid = secrets.some(
       (secret) =>
         crypto.createHmac("sha256", secret).update(signedPayload).digest("hex") ===
@@ -204,16 +252,6 @@ export const verifySubscriptionOrder = async (req, res) => {
 
     /* ================= PAID RECURRING (first charge at checkout) ================= */
     if (isPendingPaidRecurring) {
-      await UserSubscription.updateMany(
-        {
-          userId: subscription.userId,
-          fieldId: subscription.fieldId,
-          status: "active",
-          _id: { $ne: subscription._id },
-        },
-        { status: "expired" },
-      );
-
       const now = new Date();
       let termEnd;
       let periodEnd;
@@ -258,6 +296,15 @@ export const verifySubscriptionOrder = async (req, res) => {
       }
 
       await subscription.save();
+
+      // Plan change: retire the farm's previous plan and its autopay. Switching
+      // within 24 hours of paying for the old plan refunds that payment; after
+      // that nothing is refunded (see utils/subscription/refundPolicy.js).
+      const { refunds } = await supersedeActiveSubscriptionsDetailed(
+        subscription,
+        { refundRecentPayment: true, now },
+      );
+
       await createSubscriptionActivationNotification(subscription._id);
 
       await recordVerifyBillingEvent(
@@ -278,6 +325,8 @@ export const verifySubscriptionOrder = async (req, res) => {
           planName: plan?.name,
           transactionId: razorpay_payment_id,
           verifyType: "recurring_first_charge",
+          // Set when the previous plan's payment is being refunded.
+          previousPlanRefund: refunds[0] || null,
         },
       });
     }
@@ -290,15 +339,9 @@ export const verifySubscriptionOrder = async (req, res) => {
       });
     }
 
-    await UserSubscription.updateMany(
-      {
-        userId: subscription.userId,
-        fieldId: subscription.fieldId,
-        status: "active",
-        _id: { $ne: subscription._id },
-      },
-      { status: "expired" },
-    );
+    await supersedeActiveSubscriptionsDetailed(subscription, {
+      refundRecentPayment: true,
+    });
 
     subscription.status = "active";
     subscription.razorpayPaymentId = razorpay_payment_id;

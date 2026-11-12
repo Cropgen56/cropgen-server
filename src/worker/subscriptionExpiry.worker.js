@@ -4,18 +4,28 @@ import Notification from "../models/notification.model.js";
 import { createSubscriptionExpiryNotification } from "../services/notification.service.js";
 import { isBiodropsUser } from "../utils/organization/biodropsOrganization.js";
 
+/**
+ * Marks every active subscription whose end date has passed as expired and
+ * sends the 7 / 3 / 1-day expiry reminders. Runs nightly (see below).
+ * Returns the number of subscriptions it expired.
+ */
+export const runSubscriptionExpiry = async (now = new Date()) => {
+  const expired = await UserSubscription.updateMany(
+    {
+      status: "active",
+      endDate: { $lte: now },
+    },
+    { $set: { status: "expired" } },
+  );
+  return expired.modifiedCount ?? 0;
+};
+
 export const startSubscriptionExpiryJob = () => {
   cron.schedule("0 0 * * *", async () => {
     try {
       const now = new Date();
 
-      await UserSubscription.updateMany(
-        {
-          status: "active",
-          endDate: { $lte: now },
-        },
-        { $set: { status: "expired" } },
-      );
+      await runSubscriptionExpiry(now);
 
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 7);

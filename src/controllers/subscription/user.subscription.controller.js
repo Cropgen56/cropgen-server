@@ -4,6 +4,10 @@ import {
   getOrgScopeId,
   assertCanManageTargetUser,
 } from "../../utils/auth/orgScope.js";
+import {
+  razorpayClientsFor,
+  cancelRazorpaySubscriptionBestEffort,
+} from "../../services/razorpay.subscription.service.js";
 
 /* ================= GET ALL (PAGINATED) ================= */
 export const getUserSubscriptions = async (req, res) => {
@@ -12,6 +16,8 @@ export const getUserSubscriptions = async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const search = req.query.search?.trim() || "";
     const platform = req.query.platform || "";
+    /** "true" -> only 21-day Free Trial subscriptions, "false" -> everything else. */
+    const freeTrial = req.query.freeTrial || "";
 
     const skip = (page - 1) * limit;
 
@@ -21,6 +27,11 @@ export const getUserSubscriptions = async (req, res) => {
 
     if (platform) {
       matchStage.platform = platform;
+    }
+    if (freeTrial === "true") {
+      matchStage.freeTrialOffer = true;
+    } else if (freeTrial === "false") {
+      matchStage.freeTrialOffer = { $ne: true };
     }
 
     const orgId = getOrgScopeId(req.user);
@@ -179,6 +190,11 @@ export const updateUserSubscription = async (req, res) => {
 
   const updateData = { ...req.body };
 
+  // A subscription cannot be moved to another user or farm.
+  delete updateData._id;
+  delete updateData.userId;
+  delete updateData.fieldId;
+
   if (updateData.area && updateData.pricePerUnitMinor) {
     updateData.totalAmountMinor =
       updateData.area * updateData.pricePerUnitMinor;
@@ -200,22 +216,42 @@ export const updateUserSubscription = async (req, res) => {
     });
   }
 
-  const updated = await UserSubscription.findByIdAndUpdate(id, updateData, {
-    new: true,
-    runValidators: true,
-  });
+  try {
+    const updated = await UserSubscription.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
 
-  res.json({
-    success: true,
-    data: updated,
-  });
+    return res.json({
+      success: true,
+      data: updated,
+    });
+  } catch (error) {
+    if (error?.name === "ValidationError" || error?.name === "CastError") {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    console.error("updateUserSubscription:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update subscription",
+    });
+  }
 };
 
 /* ================= DELETE ================= */
 export const deleteUserSubscription = async (req, res) => {
   const { id } = req.params;
 
-  const existing = await UserSubscription.findById(id).select("userId");
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid subscription ID",
+    });
+  }
+
+  const existing = await UserSubscription.findById(id).select(
+    "userId status razorpaySubscriptionId",
+  );
   if (!existing) {
     return res.status(404).json({
       success: false,
@@ -231,10 +267,32 @@ export const deleteUserSubscription = async (req, res) => {
     });
   }
 
-  await UserSubscription.findByIdAndDelete(id);
+  try {
+    // Deleting the record must not leave the customer's Razorpay autopay
+    // running: stop it first (best effort, ignores "already cancelled").
+    if (
+      existing.razorpaySubscriptionId &&
+      !["cancelled", "expired"].includes(existing.status)
+    ) {
+      for (const razorpay of razorpayClientsFor("biodrops")) {
+        await cancelRazorpaySubscriptionBestEffort(
+          razorpay,
+          existing.razorpaySubscriptionId,
+        );
+      }
+    }
 
-  res.json({
-    success: true,
-    message: "Subscription deleted successfully",
-  });
+    await UserSubscription.findByIdAndDelete(id);
+
+    return res.json({
+      success: true,
+      message: "Subscription deleted successfully",
+    });
+  } catch (error) {
+    console.error("deleteUserSubscription:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete subscription",
+    });
+  }
 };
