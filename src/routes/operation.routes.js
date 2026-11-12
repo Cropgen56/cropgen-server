@@ -9,13 +9,20 @@ import {
 
 import { isAuthenticated } from "../middleware/auth.middleware.js";
 
+import {
+  requirePlanFeature,
+  requireOperationPlanFeature,
+} from "../middleware/planFeature.middleware.js";
+
+const FEATURE = "farmOperationsManagement";
+
 const router = express.Router();
 
 // Define the routes
-router.post("/:farmFieldId/create", isAuthenticated, addOperation);
-router.get("/:farmFieldId/get", isAuthenticated, getOperationsByFarmField);
-router.get("/:operationId", isAuthenticated, getOperationById);
-router.put("/:operationId", isAuthenticated, updateOperation);
-router.delete("/:operationId", isAuthenticated, deleteOperation);
+router.post("/:farmFieldId/create", isAuthenticated, requirePlanFeature(FEATURE), addOperation);
+router.get("/:farmFieldId/get", isAuthenticated, requirePlanFeature(FEATURE), getOperationsByFarmField);
+router.get("/:operationId", isAuthenticated, requireOperationPlanFeature(FEATURE), getOperationById);
+router.put("/:operationId", isAuthenticated, requireOperationPlanFeature(FEATURE), updateOperation);
+router.delete("/:operationId", isAuthenticated, requireOperationPlanFeature(FEATURE), deleteOperation);
 
 export default router;
