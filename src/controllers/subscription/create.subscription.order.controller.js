@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import FarmField from "../../models/field.model.js";
 import SubscriptionPlan from "../../models/subscription-plan.model.js";
-import { mobilePlanRestrictionMessage } from "../../utils/subscription/mobilePlanRestriction.js";
+import { mobilePlanRestrictionMessage, isMobileAppRequest, resolveMobileRegion } from "../../utils/subscription/mobilePlanRestriction.js";
 import UserSubscription from "../../models/user-subscription.model.js";
 import { createSubscriptionActivationNotification } from "../../services/notification.service.js";
 import {
@@ -201,6 +201,7 @@ export const createSubscriptionOrder = async (req, res) => {
       req,
       plan,
       bodyDisplayCurrency,
+      isMobileAppRequest(req) ? await resolveMobileRegion(userId) : "IN",
     );
     if (mobileRestrictionMessage) {
       return res.status(403).json({ message: mobileRestrictionMessage });

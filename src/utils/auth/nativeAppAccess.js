@@ -1,9 +1,9 @@
 /**
  * CropGen native mobile app access rules (Android and iOS only).
  *
- * The mobile app is for Indian users with CropGen accounts only:
- *  - sign-in and sign-up need an Indian mobile number (+91), and
- *  - existing accounts must belong to the CROPGEN organization.
+ * The mobile app is for CropGen accounts only: existing accounts must belong
+ * to the CROPGEN organization. Any country's mobile number may be used (India
+ * sees the INR plan, other countries the USD plans).
  * Web and other clients are not affected.
  */
 

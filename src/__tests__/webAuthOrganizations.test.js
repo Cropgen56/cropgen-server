@@ -16,7 +16,6 @@ jest.setTimeout(120000);
 
 // The messages are the source of truth in the app code, not copied here.
 const {
-  INDIA_ONLY_MESSAGE,
   CROPGEN_ONLY_APP_MESSAGE,
   CROPGEN_ONLY_SIGNUP_MESSAGE,
 } = await import("../utils/auth/nativeAppAccess.js");
@@ -308,13 +307,13 @@ describe("CropGen mobile app (Indian numbers and CropGen accounts only)", () => 
     expect(await User.findOne({ phone })).toBeNull();
   });
 
-  test("a non-Indian phone number is refused", async () => {
+  test("a non-Indian phone number is no longer refused on the mobile app", async () => {
     const send = await request(app)
       .post("/api/auth/send-otp")
       .set(APP)
       .send({ phone: "+14155550123", language: "en" });
-    expect(send.status).toBe(403);
-    expect(send.body.message).toBe(INDIA_ONLY_MESSAGE);
+    expect(send.body.message).not.toMatch(/Indian mobile numbers/);
+    expect(send.status).not.toBe(403);
   });
 
   test("an existing AAT account cannot sign in on the mobile app and stays AAT", async () => {
@@ -355,7 +354,7 @@ describe("CropGen mobile app (Indian numbers and CropGen accounts only)", () => 
     expect(await orgCodeOf({ email })).toBe("CROPGEN");
   });
 
-  test("Google: an AAT account, or a CropGen account with a non-Indian number, is refused", async () => {
+  test("Google: an AAT account is refused; a CropGen account with a non-Indian number is allowed", async () => {
     const aat = "mobile-google-aat@example.com";
     await User.create({
       email: aat, phone: "+919000000404", firstName: "Aat", role: "farmer", terms: true, organization: orgs.AAT,
@@ -370,8 +369,7 @@ describe("CropGen mobile app (Indian numbers and CropGen accounts only)", () => 
       email: abroad, phone: "+14155550199", firstName: "Ab", role: "farmer", terms: true, organization: orgs.CROPGEN,
     });
     const r2 = await request(app).post("/api/auth/google-mobile").set(APP).send({ token: `g:${abroad}:X Y` });
-    expect(r2.status).toBe(403);
-    expect(r2.body.message).toBe(INDIA_ONLY_MESSAGE);
+    expect(r2.status).not.toBe(403);
   });
 });
 

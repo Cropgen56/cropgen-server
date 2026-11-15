@@ -1,8 +1,6 @@
 import {
   CROPGEN_ONLY_APP_MESSAGE,
-  INDIA_ONLY_MESSAGE,
   isCropgenOrgUser,
-  isIndianPhone,
   isNativeCropgenAppRequest,
 } from "../../utils/auth/nativeAppAccess.js";
 import { OAuth2Client } from "google-auth-library";
@@ -162,11 +160,6 @@ const runGoogleMobileLogin = async (
         return res
           .status(403)
           .json({ success: false, message: CROPGEN_ONLY_APP_MESSAGE });
-      }
-      if (!isIndianPhone(user.phone)) {
-        return res
-          .status(403)
-          .json({ success: false, message: INDIA_ONLY_MESSAGE });
       }
     }
 

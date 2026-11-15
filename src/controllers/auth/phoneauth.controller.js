@@ -7,9 +7,7 @@ import {
   CROPGEN_ONLY_APP_MESSAGE,
   CROPGEN_ONLY_SIGNUP_MESSAGE,
   CROPGEN_ORG_CODE,
-  INDIA_ONLY_MESSAGE,
   isCropgenOrgUser,
-  isIndianPhone,
   isNativeCropgenAppRequest,
 } from "../../utils/auth/nativeAppAccess.js";
 import { whatsappLanguageMap } from "../../utils/whatsapp/languageMap.js";
@@ -217,10 +215,6 @@ export const sendWhatsappOtp = async (req, res) => {
         success: false,
         message: "Phone must be in +<countrycode><number> format",
       });
-    }
-
-    if (isNativeCropgenAppRequest(req) && !isIndianPhone(phone)) {
-      return res.status(403).json({ success: false, message: INDIA_ONLY_MESSAGE });
     }
 
     const isSignup = signupIntent === true;
@@ -497,9 +491,6 @@ export const verifyWhatsappOtp = async (req, res) => {
       (await findLatestOtpUserByPhone(phone, appOrgCode)) ||
       (await findUserByPhone(phone, appOrgCode));
 
-    if (isNativeCropgenAppRequest(req) && !isIndianPhone(phone)) {
-      return res.status(403).json({ success: false, message: INDIA_ONLY_MESSAGE });
-    }
     if (isNativeCropgenAppRequest(req) && user && !isCropgenOrgUser(user)) {
       return res
         .status(404)
@@ -645,10 +636,6 @@ export const resendWhatsappOtp = async (req, res) => {
         success: false,
         message: "Phone must be in +<countrycode><number> format",
       });
-    }
-
-    if (isNativeCropgenAppRequest(req) && !isIndianPhone(phone)) {
-      return res.status(403).json({ success: false, message: INDIA_ONLY_MESSAGE });
     }
 
     const appOrgCode = headerOrgCode(req);
