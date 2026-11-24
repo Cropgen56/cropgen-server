@@ -53,7 +53,8 @@ const userSchema = new Schema(
       type: String,
       trim: true,
       uppercase: true,
-      maxlength: 10,
+      // 2-letter code for Indian states (MH, TN…); free text for anything not on the list.
+      maxlength: 60,
       default: null,
     },
     city: {
@@ -80,7 +81,15 @@ const userSchema = new Schema(
       type: String,
       trim: true,
       uppercase: true,
-      maxlength: 32,
+      maxlength: 60,
+      default: null,
+    },
+
+    /** Taluka / tehsil / block — optional, typed by the farmer. */
+    taluka: {
+      type: String,
+      trim: true,
+      maxlength: 60,
       default: null,
     },
 

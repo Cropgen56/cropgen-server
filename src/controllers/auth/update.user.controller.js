@@ -2,6 +2,7 @@ import User from "../../models/user.model.js";
 import Organization from "../../models/organization.model.js";
 import appSocketService from "../../features/agent/services/appSocket.service.js";
 import { clearWhatsAppAgentCache } from "../../features/agent/services/whatsappAgent.service.js";
+import { normalizeStateCode } from "../../features/agent/utils/farmerContext.js";
 import { regenerateAdvisoriesForLanguageChange } from "../../features/advisory/services/regenerateAdvisoriesForLanguage.service.js";
 
 /** Profile fields admins may update (excludes OTP, tokens, activity timestamps). */
@@ -13,6 +14,8 @@ const ALLOWED_USER_UPDATE_FIELDS = new Set([
   "phone",
   "country",
   "state",
+  "district",
+  "taluka",
   "city",
   "village",
   "pincode",
@@ -29,13 +32,37 @@ const NULLABLE_STRING_FIELDS = new Set([
   "phone",
   "country",
   "state",
+  "district",
+  "taluka",
   "city",
   "village",
   "pincode",
   "razorpayCustomerId",
 ]);
 
-function pickAllowedUpdateFields(body) {
+/** Place names: letters (any script), digits, spaces and . , ' ( ) & / - ; max 60. */
+const PLACE_RE = /^[\p{L}\p{M}0-9][\p{L}\p{M}0-9\s.,'()&/-]{0,59}$/u;
+const PLACE_FIELDS = new Set(["district", "taluka", "city", "village"]);
+const LOCATION_FIELDS = ["state", "district", "taluka", "city", "village", "pincode", "country"];
+
+/** Returns an error message, or null if the location values are acceptable. */
+export function validateLocationFields(updateData) {
+  for (const key of PLACE_FIELDS) {
+    const v = updateData[key];
+    if (v != null && !PLACE_RE.test(v)) {
+      return `Invalid ${key}. Use letters, numbers and spaces only (max 60 characters).`;
+    }
+  }
+  if (updateData.state != null && updateData.state.length > 60) {
+    return "Invalid state (max 60 characters).";
+  }
+  if (updateData.pincode != null && !/^[0-9A-Za-z -]{3,10}$/.test(updateData.pincode)) {
+    return "Invalid pincode.";
+  }
+  return null;
+}
+
+export function pickAllowedUpdateFields(body) {
   const updateData = {};
   for (const key of ALLOWED_USER_UPDATE_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(body, key)) {
@@ -43,8 +70,16 @@ function pickAllowedUpdateFields(body) {
       if (NULLABLE_STRING_FIELDS.has(key) && value === "") {
         value = null;
       }
-      if (key === "country" || key === "state") {
+      if (key === "state") {
+        const raw = value == null ? "" : String(value).trim().replace(/\s+/g, " ");
+        // "Maharashtra" / "MAHARASHTRA" / "MH" all become the code MH; unknown text is kept.
+        value = raw ? normalizeStateCode(raw) || raw.toUpperCase() : null;
+      } else if (key === "country") {
         value = value == null ? null : String(value).trim().toUpperCase();
+      } else if (key === "district") {
+        value = value == null ? null : String(value).trim().replace(/\s+/g, " ").toUpperCase();
+      } else if (PLACE_FIELDS.has(key) && typeof value === "string") {
+        value = value.trim().replace(/\s+/g, " ");
       } else if (typeof value === "string" && key !== "email") {
         value = value.trim();
       } else if (key === "email" && typeof value === "string") {
@@ -132,6 +167,11 @@ export const updateUserById = async (req, res) => {
       });
     }
 
+    const locationError = validateLocationFields(updateData);
+    if (locationError) {
+      return res.status(400).json({ success: false, message: locationError });
+    }
+
     /* ================= UPDATE USER ================= */
     const user = await User.findByIdAndUpdate(
       id,
@@ -153,8 +193,19 @@ export const updateUserById = async (req, res) => {
       });
     }
 
+    // The chat agent builds its view of the farmer (location, missing fields) once per
+    // session — drop it so the next message sees the new address.
+    const locationChanged = LOCATION_FIELDS.some((f) =>
+      Object.prototype.hasOwnProperty.call(updateData, f),
+    );
+    if (locationChanged) {
+      void appSocketService.refreshAfterProfileChange(String(id));
+      clearWhatsAppAgentCache(String(id));
+    }
+
     if (Object.prototype.hasOwnProperty.call(updateData, "language")) {
-      appSocketService.cleanupUser(String(id));
+      // Rebuild the live chat agent in the new language (keeps the chosen farm / all-farms mode).
+      void appSocketService.refreshAfterProfileChange(String(id));
       clearWhatsAppAgentCache(String(id));
 
       /* ---------- Re-generate saved advisories in the new language (background) ----------

@@ -59,6 +59,7 @@ import {
   setupSocket,
   logWhatsAppAgentStatus,
 } from "./src/features/agent/index.js";
+import { warmNoticeLanguages } from "./src/features/agent/utils/noticeText.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -318,6 +319,7 @@ const startServer = async () => {
       runAdvisoryJob();
     }
     startAdvisoryQueueWorker();
+    warmNoticeLanguages(["hi", "mr"]); // pre-translate server chat messages so greetings are instant
 
     const httpServer = http.createServer(app);
 

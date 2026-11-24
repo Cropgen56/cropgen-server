@@ -278,6 +278,8 @@ const tokenPayload = {
         state: user.state,
         city: user.city,
         village: user.village,
+        district: user.district,
+        taluka: user.taluka,
         pincode: user.pincode,
       },
       onboardingRequired,

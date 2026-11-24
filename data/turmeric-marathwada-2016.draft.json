@@ -1,0 +1,1289 @@
+[
+  {
+    "recordId": "TUR-MWD-PLANT-001",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "planting",
+    "growthStage": "pre-planting",
+    "recommendation": "Choose medium-grade, well-drained soil for turmeric. The looser (friable) the soil, the better the yield. Plough 18–22 cm deep before planting.",
+    "conditions": "Land preparation before planting.",
+    "numericValue": 18,
+    "numericValueMax": 22,
+    "numericUnit": "cm",
+    "calculationBasis": "ploughing depth",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 16 — Summer season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "",
+    "requiredInputs": [
+      "soil type",
+      "drainage"
+    ],
+    "reviewNotes": "Book p. 16 gives 18–22 cm in one paragraph and 18–20 cm (cross-ploughing) in another. Reviewer: pick one or state both. Corrected from an earlier draft that wrongly said 'medium-heavy' soil.",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-NUTR-001",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "nutrient",
+    "growthStage": "pre-planting",
+    "recommendation": "Mix well-decomposed farmyard manure or compost into the soil at land preparation: 25–30 cartloads per acre.",
+    "conditions": "Basal organic matter during land preparation.",
+    "numericValue": 25,
+    "numericValueMax": 30,
+    "numericUnit": "cartload",
+    "calculationBasis": "per acre",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 16 — Summer season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Cartload size is not defined in the source.",
+    "requiredInputs": [
+      "area and unit",
+      "local cartload size"
+    ],
+    "reviewNotes": "CONFLICT: book p. 16 says 25–30 cartloads/acre AND 30–40 cartloads/hectare. 1 ha ≈ 2.47 acre, so these do not agree. Do not approve until the reviewer decides which is right or drops both. Cartload size is not defined.",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-NUTR-002",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "nutrient",
+    "growthStage": "pre-planting",
+    "recommendation": "Mix well-decomposed farmyard manure or compost into the soil before ploughing: 30–40 cartloads per hectare.",
+    "conditions": "Basal organic matter during land preparation.",
+    "numericValue": 30,
+    "numericValueMax": 40,
+    "numericUnit": "cartload",
+    "calculationBasis": "per hectare",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 16 — Summer season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Cartload size is not defined in the source.",
+    "requiredInputs": [
+      "area and unit",
+      "local cartload size"
+    ],
+    "reviewNotes": "CONFLICT: book p. 16 says 25–30 cartloads/acre AND 30–40 cartloads/hectare. 1 ha ≈ 2.47 acre, so these do not agree. Do not approve until the reviewer decides which is right or drops both. Cartload size is not defined.",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-VAR-001",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "variety",
+    "growthStage": "ALL",
+    "recommendation": "Varieties suggested for turmeric planting: Selam (Salem), Lokhandi, Krishna, Rajapuri, Phule Swarup.",
+    "conditions": "Marathwada conditions.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 57 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "district"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-PLANT-002",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "planting",
+    "growthStage": "planting",
+    "recommendation": "Plant on raised beds (gadi-vafa) when drip, sprinkler or micro-sprinkler irrigation is available. If water is given by flooding, plant on ridges and furrows (sari-varamba).",
+    "conditions": "Depends on the irrigation method.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 57 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "irrigation method"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-PLANT-003",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "planting",
+    "growthStage": "planting",
+    "recommendation": "Chilli or coriander can be grown as an intercrop in turmeric. Do not intercrop maize: it cuts turmeric yield by 15–20%.",
+    "conditions": "Intercropping decision.",
+    "numericValue": 15,
+    "numericValueMax": 20,
+    "numericUnit": "%",
+    "calculationBasis": "yield loss with maize intercrop",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 57 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "district",
+      "crop stage"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-DISEASE-001",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "disease",
+    "growthStage": "pre-planting",
+    "recommendation": "Seed-rhizome treatment before planting: dip in a solution of quinalphos 20 ml + carbendazim 10 g, or dimethoate 10 ml + mancozeb 25 g, per 10 litres of water. Keep seed rhizomes submerged at least 10–15 minutes.",
+    "conditions": "Applies if planting is still to be done.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 57 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Check current CIB&RC registration/label for turmeric in Maharashtra before use; wear PPE; observe the pre-harvest interval on the label. The source mixes an insecticide with a fungicide. The agent guardrail is not to recommend tank mixes: reviewer to decide whether to allow, split or drop.",
+    "requiredInputs": [
+      "planting date",
+      "label check"
+    ],
+    "reviewNotes": "The source mixes an insecticide with a fungicide. The agent guardrail is not to recommend tank mixes: reviewer to decide whether to allow, split or drop.",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-WEED-001",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "weed",
+    "growthStage": "planting",
+    "recommendation": "Weed control after planting: glyphosate 4–5 ml per litre of water. Do not spray any herbicide once the turmeric has started to sprout.",
+    "conditions": "Only before turmeric emergence.",
+    "numericValue": 4,
+    "numericValueMax": 5,
+    "numericUnit": "ml",
+    "calculationBasis": "per litre of water",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 57 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Glyphosate is non-selective and harms the crop if it touches it. Check current CIB&RC registration/label for turmeric in Maharashtra before use; wear PPE; observe the pre-harvest interval on the label.",
+    "requiredInputs": [
+      "planting date",
+      "crop stage"
+    ],
+    "reviewNotes": "Reviewer: confirm this timing and that glyphosate is acceptable for turmeric under current rules.",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-PEST-001",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "pest",
+    "growthStage": "growing",
+    "recommendation": "For nematode control, plant marigold as a trap/border crop on all four sides of the turmeric field. Use micro-sprinkler irrigation.",
+    "conditions": "Nematode-prone fields.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 57 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "district",
+      "crop stage"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-IRRIG-001",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "irrigation",
+    "growthStage": "growing",
+    "recommendation": "In a dry spell, mulch turmeric (and ginger); organic mulch is preferred.",
+    "conditions": "Rainfall break / moisture stress.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 58 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "recent rainfall"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-SOIL-001",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "soil",
+    "growthStage": "growing",
+    "recommendation": "Earth up turmeric (and ginger) by adding soil around the plants.",
+    "conditions": "During the growing season.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 58 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "district",
+      "crop stage"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-DISEASE-002",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "disease",
+    "growthStage": "growing",
+    "recommendation": "Leaf spot: spray mancozeb 30 g per 10 litres of water.",
+    "conditions": "When leaf spots appear on leaves.",
+    "numericValue": 30,
+    "numericValueMax": null,
+    "numericUnit": "g",
+    "calculationBasis": "per 10 litres of water",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 58, 93, 94 — Turmeric disease advisory"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Check current CIB&RC registration/label for turmeric in Maharashtra before use; wear PPE; observe the pre-harvest interval on the label.",
+    "requiredInputs": [
+      "symptom confirmed",
+      "crop stage",
+      "label check"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-DISEASE-003",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "disease",
+    "growthStage": "growing",
+    "recommendation": "Leaf spot: spray carbendazim 10–15 g per 10 litres of water.",
+    "conditions": "When leaf spots appear on leaves.",
+    "numericValue": 10,
+    "numericValueMax": 15,
+    "numericUnit": "g",
+    "calculationBasis": "per 10 litres of water",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 58, 93, 94 — Turmeric disease advisory"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Check current CIB&RC registration/label for turmeric in Maharashtra before use; wear PPE; observe the pre-harvest interval on the label.",
+    "requiredInputs": [
+      "symptom confirmed",
+      "crop stage",
+      "label check"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-DISEASE-004",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "disease",
+    "growthStage": "growing",
+    "recommendation": "Leaf spot: spray copper oxychloride 25 g per 10 litres of water (about 0.25%), or 1% Bordeaux mixture.",
+    "conditions": "When leaf spots appear on leaves.",
+    "numericValue": 25,
+    "numericValueMax": null,
+    "numericUnit": "g",
+    "calculationBasis": "per 10 litres of water",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 58, 93 — Turmeric disease advisory"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Check current CIB&RC registration/label for turmeric in Maharashtra before use; wear PPE; observe the pre-harvest interval on the label.",
+    "requiredInputs": [
+      "symptom confirmed",
+      "crop stage",
+      "label check"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-DISEASE-005",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "disease",
+    "growthStage": "growing",
+    "recommendation": "Rhizome rot (kand-kuj): spray a combined fungicide, metalaxyl 8% + mancozeb 64%, 2.5 g per litre of water; or carbendazim 50 WP 1 g per litre; or mancozeb 2.5 g per litre.",
+    "conditions": "When rhizome rot is seen.",
+    "numericValue": 2.5,
+    "numericValueMax": null,
+    "numericUnit": "g",
+    "calculationBasis": "per litre of water (metalaxyl+mancozeb)",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 93 — Turmeric disease advisory"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Check current CIB&RC registration/label for turmeric in Maharashtra before use; wear PPE; observe the pre-harvest interval on the label. Rhizome rot is often worse in waterlogged soil — check drainage first.",
+    "requiredInputs": [
+      "symptom confirmed",
+      "drainage status",
+      "label check"
+    ],
+    "reviewNotes": "Source says 'spray' for rhizome rot. Reviewer: confirm whether a drench is meant.",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-DISEASE-006",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "disease",
+    "growthStage": "growing",
+    "recommendation": "Karpa (leaf blight/blotch): spray copper oxychloride 25 g, or carbendazim 10 g + 10 ml sticker, per 10 litres of water.",
+    "conditions": "When karpa symptoms appear.",
+    "numericValue": 10,
+    "numericValueMax": null,
+    "numericUnit": "g",
+    "calculationBasis": "per 10 litres of water (carbendazim)",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 93, 94 — Turmeric disease advisory"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Check current CIB&RC registration/label for turmeric in Maharashtra before use; wear PPE; observe the pre-harvest interval on the label.",
+    "requiredInputs": [
+      "symptom confirmed",
+      "crop stage",
+      "label check"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-PEST-002",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "pest",
+    "growthStage": "growing",
+    "recommendation": "White grub (humani): apply the biological Metarhizium anisopliae 3–4 kg per hectare to the soil.",
+    "conditions": "Where white grub is a problem.",
+    "numericValue": 3,
+    "numericValueMax": 4,
+    "numericUnit": "kg",
+    "calculationBasis": "per hectare",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 58 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "area and unit"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-PEST-003",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "pest",
+    "growthStage": "growing",
+    "recommendation": "White grub (humani): drench with chlorpyrifos (20% EC) 25–30 ml per 10 litres of water.",
+    "conditions": "Where white grub is a problem.",
+    "numericValue": 25,
+    "numericValueMax": 30,
+    "numericUnit": "ml",
+    "calculationBasis": "per 10 litres of water",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 58 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Check current CIB&RC registration/label for turmeric in Maharashtra before use; wear PPE; observe the pre-harvest interval on the label.",
+    "requiredInputs": [
+      "symptom confirmed",
+      "label check"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-PEST-004",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "pest",
+    "growthStage": "growing",
+    "recommendation": "Rhizome fly (kand-mashi): apply Phorate 10G, 6 kg per hectare, into the soil.",
+    "conditions": "Rhizome fly infestation.",
+    "numericValue": 6,
+    "numericValueMax": null,
+    "numericUnit": "kg",
+    "calculationBasis": "per hectare",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 58 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Highly hazardous granular insecticide. Check current CIB&RC registration/label for turmeric in Maharashtra before use; wear PPE; observe the pre-harvest interval on the label.",
+    "requiredInputs": [
+      "area and unit",
+      "label check"
+    ],
+    "reviewNotes": "Reviewer: confirm Phorate is still registered/permitted for turmeric; consider dropping.",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-PEST-005",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "pest",
+    "growthStage": "growing",
+    "recommendation": "Leaf-rolling caterpillar (late August to second week of November): collect and destroy rolled leaves, and spray carbaryl 30–40 g per 10 litres of water.",
+    "conditions": "Season: last week of August to second week of November.",
+    "numericValue": 30,
+    "numericValueMax": 40,
+    "numericUnit": "g",
+    "calculationBasis": "per 10 litres of water",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 58 — Kharif season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "Check current CIB&RC registration/label for turmeric in Maharashtra before use; wear PPE; observe the pre-harvest interval on the label.",
+    "requiredInputs": [
+      "pest confirmed",
+      "label check"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-PEST-006",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "pest",
+    "growthStage": "growing",
+    "recommendation": "A new type of leaf-rolling caterpillar was reported. If 4–5 larvae are found when inspecting 10 plants, remove the affected leaf parts and take them out of the field to destroy.",
+    "conditions": "Scouting threshold.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 93 — Rabi season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "scouting"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-IRRIG-002",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "irrigation",
+    "growthStage": "growing",
+    "recommendation": "In winter with flood irrigation, keep 12–15 days between two irrigations. Where possible use drip or sprinkler and give only the water the crop needs.",
+    "conditions": "Winter (rabi) season.",
+    "numericValue": 12,
+    "numericValueMax": 15,
+    "numericUnit": "days",
+    "calculationBasis": "interval between irrigations (flood)",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 93, 94 — Rabi season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "irrigation method",
+      "soil type"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-SOIL-002",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "soil",
+    "growthStage": "growing",
+    "recommendation": "If turmeric rhizomes are exposed, cover them with soil. Rhizomes in sunlight turn green, stop growing and reduce yield.",
+    "conditions": "Whenever rhizomes are exposed.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 94 — Rabi season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "district",
+      "crop stage"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-HARVEST-001",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "harvest",
+    "growthStage": "maturity",
+    "recommendation": "Turmeric harvest usually begins in February. Stop irrigation 15 days before harvest.",
+    "conditions": "Marathwada planting calendar in this source.",
+    "numericValue": 15,
+    "numericValueMax": null,
+    "numericUnit": "days",
+    "calculationBasis": "stop irrigation before harvest",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 94 — Rabi season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "planting date",
+      "variety"
+    ],
+    "reviewNotes": "Source gives a month, not days after planting. Do not give a firm harvest date from this alone.",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-HARVEST-002",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "harvest",
+    "growthStage": "maturity",
+    "recommendation": "Harvest when the leaves turn yellow and fall to the ground. Cut the plant tops close to the ground before digging. Dig 8–10 days after cutting the tops; if the soil is very dry, irrigate lightly first.",
+    "conditions": "Ridge-and-furrow planting, digging by spade.",
+    "numericValue": 8,
+    "numericValueMax": 10,
+    "numericUnit": "days",
+    "calculationBasis": "after cutting tops, before digging",
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 94 — Rabi season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "planting method",
+      "crop stage"
+    ],
+    "reviewNotes": "",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-HARVEST-003",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "harvest",
+    "growthStage": "post-harvest",
+    "recommendation": "After digging, boil the rhizomes in a pan or pressure cooker, dry them in the sun, then polish in a drum and dry again before storing. Grade into thick, long, medium-thick and small rhizomes, and make sure no soil sticks to them.",
+    "conditions": "After harvest.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 16 — Summer season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "district",
+      "crop stage"
+    ],
+    "reviewNotes": "Corrected from an earlier draft that wrongly said 'mother rhizomes'.",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-WEATHER-001",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "weather_risk",
+    "growthStage": "post-harvest",
+    "recommendation": "If harvested turmeric is wetted by unseasonal rain, dry it on tarpaulin or polythene, not on bare ground. Boiled turmeric spread out to dry should be heaped and covered with tarpaulin; even a little water lowers its quality.",
+    "conditions": "Unseasonal rain during or after harvest.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 16 — Summer season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": [
+      "recent rainfall"
+    ],
+    "reviewNotes": "Corrected from an earlier draft that merged two paragraphs and wrongly said wet turmeric 'loses weight' (the book says quality drops).",
+    "status": "draft"
+  },
+  {
+    "recordId": "TUR-MWD-WEATHER-002",
+    "crop": "turmeric",
+    "region": {
+      "country": "India",
+      "state": "MH",
+      "district": "ALL",
+      "districts": [
+        "Aurangabad",
+        "Chhatrapati Sambhajinagar",
+        "Jalna",
+        "Beed",
+        "Latur",
+        "Osmanabad",
+        "Dharashiv",
+        "Nanded",
+        "Parbhani",
+        "Hingoli"
+      ]
+    },
+    "topic": "weather_risk",
+    "growthStage": "maturity",
+    "recommendation": "If tops were cut and rain makes new shoots sprout from exposed rhizomes, snap off the new shoots so weight is not lost.",
+    "conditions": "Rain after cutting the tops.",
+    "numericValue": null,
+    "numericValueMax": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV), Parbhani",
+      "title": "Krishi Hawaman Salla – Hawaman Badal Aadharit (Weather-based agro-advisory book, Marathi)",
+      "url": "https://www.vnmkv.ac.in/static/documents/bookPublish/KRISHI_SALLA-HAAMAN_AADHARIT.pdf",
+      "documentId": "VNMKV/Pub/05/2016",
+      "yearOrVersion": "2016 (1st ed.)",
+      "pageOrSection": "p. 16 — Summer season advisory, turmeric"
+    },
+    "reviewedOn": "2016-06-01",
+    "confidence": "low",
+    "contraindications": "",
+    "requiredInputs": [
+      "crop stage",
+      "recent rainfall"
+    ],
+    "reviewNotes": "Weather-contingency advisory written for the 2015-16 drought in Marathwada; confirm it still applies to the current season.",
+    "status": "draft"
+  }
+]

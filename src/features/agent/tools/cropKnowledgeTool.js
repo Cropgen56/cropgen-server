@@ -125,6 +125,26 @@ export function buildCropKnowledge(crop, topic) {
   }
 }
 
+const DOSE_RE =
+  /\b\d+(?:[.,]\d+)?(?:\s*(?:-|–|to)\s*\d+(?:[.,]\d+)?)?\s*(?:kg|g|gm|grams?|mg|ml|ltrs?|litres?|liters?|l|quintals?|qtls?|qt|tonnes?|tons?|t|lit|lt|cc)\b(?:\s*(?:\/|per)\s*(?:ha|hectare|acre|plant|tree|pit|l|litre|liter|m2|bigha|guntha))?/gi;
+const WITHHELD = "[amount withheld — needs a sourced record]";
+
+/** Unsourced doses must not reach the farmer. Set AGENT_ALLOW_UNSOURCED_DOSES=true to disable. */
+export function withholdUnsourcedDoses(value) {
+  if (String(process.env.AGENT_ALLOW_UNSOURCED_DOSES ?? "").toLowerCase() === "true") {
+    return value;
+  }
+  const walk = (v) => {
+    if (typeof v === "string") return v.replace(DOSE_RE, WITHHELD);
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") {
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    }
+    return v;
+  };
+  return walk(value);
+}
+
 export const cropKnowledgeTool = tool({
   name: "get_crop_knowledge",
   description:
@@ -149,6 +169,11 @@ export const cropKnowledgeTool = tool({
         note: "No stored data for this crop. If suggestions are listed, ask which one the farmer means; otherwise answer from general agronomy. Do not mention an encyclopedia, tool or database.",
       });
     }
-    return JSON.stringify({ found: true, ...buildCropKnowledge(crop, topic) });
+    return JSON.stringify({
+      found: true,
+      ...withholdUnsourcedDoses(buildCropKnowledge(crop, topic)),
+      usageRule:
+        'General reference with no regional source. Amounts shown as "[amount withheld…]" must NOT be guessed or filled in: say the exact amount needs a soil test or the local KVK / state agricultural university package of practices, and use get_sourced_guidance for a sourced number. Product names, methods and timing may be used.',
+    });
   },
 });

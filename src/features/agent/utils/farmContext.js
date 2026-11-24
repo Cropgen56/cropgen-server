@@ -77,7 +77,7 @@ function farmCentroid(farm) {
 }
 
 export function describeFarmerLocationForPrompt(user, farms = []) {
-  const loc = [user?.village, user?.city, user?.district, user?.state, user?.pincode]
+  const loc = [user?.village, user?.taluka, user?.city, user?.district, user?.state, user?.pincode]
     .map((v) => (v == null ? "" : String(v).trim()))
     .filter(Boolean)
     .join(", ");

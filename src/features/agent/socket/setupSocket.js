@@ -146,6 +146,76 @@ function wirePublicNamespace(ns) {
   });
 }
 
+/**
+ * Chat for a logged-in farmer (socket.userId already verified). Every message the SERVER
+ * writes is in the farmer's profile language; `kind` tells the app what the message is
+ * ("welcome" | "farm_context" | "system") so it never has to parse the wording.
+ * Old app versions ignore the extra argument.
+ */
+function bindAppSocket(socket) {
+  const userId = socket.userId;
+  const agentOptions = getAppAgentOptions(socket);
+
+  const ready = (async () => {
+    try {
+      const welcomeMsg = await appSocketService.initializeUser(userId, agentOptions);
+      socket.emit("ai_response", welcomeMsg, { kind: "welcome" });
+    } catch (err) {
+      console.error("App socket init error:", err);
+      socket.emit(
+        "ai_response",
+        await appSocketService.notice(userId, "welcome_fallback"),
+        { kind: "welcome" },
+      );
+    }
+  })();
+
+  socket.on("user_message", async (msg) => {
+    const cleanedMsg = (msg || "").toString().trim();
+    if (!cleanedMsg) return;
+    await ready;
+
+    appSocketService.recordMessage(userId, "user", cleanedMsg);
+    const reply = await appSocketService.handleMessage(userId, cleanedMsg);
+    socket.emit("ai_response", reply);
+    appSocketService.recordMessage(userId, "ai", reply);
+    // The agent saved the farmer's location: have the app re-fetch the profile.
+    if (appSocketService.consumeProfileSaved(userId)) {
+      socket.emit("profile_updated");
+    }
+  });
+
+  socket.on("reset_conversation", async () => {
+    await ready;
+    const resetMsg = await appSocketService.resetConversation(userId, agentOptions);
+    socket.emit("ai_response", resetMsg, { kind: "system" });
+  });
+
+  socket.on("set_active_farm", async (fieldId) => {
+    await ready;
+    try {
+      const reply = await appSocketService.setActiveFarm(userId, fieldId, agentOptions);
+      socket.emit("ai_response", reply, { kind: "farm_context" });
+    } catch (err) {
+      console.error("set_active_farm error:", err);
+      socket.emit(
+        "ai_response",
+        await appSocketService.notice(userId, "ctx_fail"),
+        { kind: "system" },
+      );
+    }
+  });
+
+  socket.on("get_history", async () => {
+    const history = await appSocketService.getChatHistory(userId);
+    socket.emit("chat_history", { conversations: history });
+  });
+
+  socket.on("disconnect", () => {
+    appSocketService.cleanupUser(userId);
+  });
+}
+
 /** @param {import("socket.io").Namespace} ns */
 function wireAppNamespace(ns) {
   ns.use((socket, next) => {
@@ -165,67 +235,7 @@ function wireAppNamespace(ns) {
     }
   });
 
-  ns.on("connection", async (socket) => {
-    const userId = socket.userId;
-    const agentOptions = getAppAgentOptions(socket);
-
-    try {
-      const welcomeMsg = await appSocketService.initializeUser(
-        userId,
-        agentOptions,
-      );
-      socket.emit("ai_response", welcomeMsg);
-    } catch (err) {
-      console.error("App socket init error:", err);
-      socket.emit(
-        "ai_response",
-        "Welcome! How can I help with your farm today?",
-      );
-    }
-
-    socket.on("user_message", async (msg) => {
-      const cleanedMsg = (msg || "").toString().trim();
-      if (!cleanedMsg) return;
-
-      appSocketService.recordMessage(userId, "user", cleanedMsg);
-      const reply = await appSocketService.handleMessage(userId, cleanedMsg);
-      socket.emit("ai_response", reply);
-      appSocketService.recordMessage(userId, "ai", reply);
-    });
-
-    socket.on("reset_conversation", async () => {
-      await appSocketService.resetConversation(userId, agentOptions);
-      const resetMsg =
-        "Conversation reset. Ask a farming question, or tap a farm for field-specific advice.";
-      socket.emit("ai_response", resetMsg);
-    });
-
-    socket.on("set_active_farm", async (fieldId) => {
-      try {
-        const reply = await appSocketService.setActiveFarm(
-          userId,
-          fieldId,
-          agentOptions,
-        );
-        socket.emit("ai_response", reply);
-      } catch (err) {
-        console.error("set_active_farm error:", err);
-        socket.emit(
-          "ai_response",
-          "Could not switch farm context. Please try again.",
-        );
-      }
-    });
-
-    socket.on("get_history", async () => {
-      const history = await appSocketService.getChatHistory(userId);
-      socket.emit("chat_history", { conversations: history });
-    });
-
-    socket.on("disconnect", () => {
-      appSocketService.cleanupUser(userId);
-    });
-  });
+  ns.on("connection", bindAppSocket);
 }
 
 /**
@@ -258,65 +268,7 @@ function wireDefaultNamespace(io) {
 
   root.on("connection", async (socket) => {
     if (socket.cropgenAppUser) {
-      const userId = socket.userId;
-      const agentOptions = getAppAgentOptions(socket);
-
-      try {
-        const welcomeMsg = await appSocketService.initializeUser(
-          userId,
-          agentOptions,
-        );
-        socket.emit("ai_response", welcomeMsg);
-      } catch (err) {
-        console.error("App socket init error:", err);
-        socket.emit(
-          "ai_response",
-          "Welcome! How can I help with your farm today?",
-        );
-      }
-
-      socket.on("user_message", async (msg) => {
-        const cleanedMsg = (msg || "").toString().trim();
-        if (!cleanedMsg) return;
-
-        appSocketService.recordMessage(userId, "user", cleanedMsg);
-        const reply = await appSocketService.handleMessage(userId, cleanedMsg);
-        socket.emit("ai_response", reply);
-        appSocketService.recordMessage(userId, "ai", reply);
-      });
-
-      socket.on("reset_conversation", async () => {
-        await appSocketService.resetConversation(userId, agentOptions);
-        const resetMsg =
-        "Conversation reset. Ask a farming question, or tap a farm for field-specific advice.";
-        socket.emit("ai_response", resetMsg);
-      });
-
-      socket.on("set_active_farm", async (fieldId) => {
-        try {
-          const reply = await appSocketService.setActiveFarm(
-            userId,
-            fieldId,
-            agentOptions,
-          );
-          socket.emit("ai_response", reply);
-        } catch (err) {
-          console.error("set_active_farm error:", err);
-          socket.emit(
-            "ai_response",
-            "Could not switch farm context. Please try again.",
-          );
-        }
-      });
-
-      socket.on("get_history", async () => {
-        const history = await appSocketService.getChatHistory(userId);
-        socket.emit("chat_history", { conversations: history });
-      });
-
-      socket.on("disconnect", () => {
-        appSocketService.cleanupUser(userId);
-      });
+      bindAppSocket(socket);
       return;
     }
 

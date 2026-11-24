@@ -9,6 +9,7 @@ import {
 } from "../middleware/auth.middleware.js";
 import AppUserChat from "../models/app-user-chat.model.js";
 import User from "../models/user.model.js";
+import AgentTurnLog from "../models/agent-turn-log.model.js";
 
 const router = express.Router();
 
@@ -21,6 +22,33 @@ router.delete(
   ...adminOnly,
   chatController.deleteChatOfUser,
 );
+
+// AI agent review logs (admin access)
+router.get("/agent-logs", ...adminOnly, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const filter = {};
+    if (req.query.flag) filter.flags = String(req.query.flag);
+    if (req.query.user) filter.user = String(req.query.user);
+    const rows = await AgentTurnLog.find(filter).sort({ createdAt: -1 }).limit(limit).lean();
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to load agent logs" });
+  }
+});
+router.get("/agent-logs/summary", ...adminOnly, async (req, res) => {
+  try {
+    const days = Math.min(Number(req.query.days) || 7, 90);
+    const since = new Date(Date.now() - days * 864e5);
+    const [flags, totals] = await Promise.all([
+      AgentTurnLog.aggregate([{ $match: { createdAt: { $gte: since } } }, { $unwind: "$flags" }, { $group: { _id: "$flags", count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
+      AgentTurnLog.aggregate([{ $match: { createdAt: { $gte: since } } }, { $group: { _id: "$farmerState", turns: { $sum: 1 }, avgLatencyMs: { $avg: "$latencyMs" }, tokens: { $sum: "$totalTokens" } } }]),
+    ]);
+    res.json({ success: true, data: { days, flags, byFarmerState: totals } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Failed to summarise agent logs" });
+  }
+});
 
 // Farmer routes (admin access)
 router.get("/farmers/all", ...adminOnly, farmerController.getAllFarmers);

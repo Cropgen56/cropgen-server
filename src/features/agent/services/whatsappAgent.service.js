@@ -11,6 +11,7 @@ import {
 import { log } from "../../../utils/logger.js";
 import { normalizeFarmerLanguage } from "../../../utils/language/farmerLanguages.js";
 import { attachCropContextToFarms } from "../utils/agentCropContext.js";
+import { buildFarmerContext } from "../utils/farmerContext.js";
 
 const WHATSAPP_TEXT_MAX = 4096;
 const HISTORY_LIMIT = 20;
@@ -127,6 +128,9 @@ async function getOrCreateAgent(farmer) {
     advisoryByFarmId,
     organizationCode: orgCode,
     channel: "whatsapp",
+    userId: farmer._id.toString(),
+    farmerUser: user,
+    farmerContext: buildFarmerContext(user, farmsWithCrops),
     language: normalizeFarmerLanguage(user?.language),
   });
 

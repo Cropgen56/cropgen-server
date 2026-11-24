@@ -1,0 +1,27 @@
+[
+  {
+    "recordId": "TEMPLATE-001",
+    "crop": "turmeric",
+    "region": { "country": "India", "state": "Maharashtra", "district": "ALL" },
+    "topic": "planting",
+    "growthStage": "ALL",
+    "recommendation": "REPLACE with the actionable statement copied from the cited package of practices.",
+    "conditions": "REPLACE with the conditions under which it applies (soil, irrigation, season).",
+    "numericValue": null,
+    "numericUnit": null,
+    "calculationBasis": null,
+    "source": {
+      "publisher": "REPLACE (e.g. state agricultural university / KVK / ICAR institute)",
+      "title": "REPLACE",
+      "url": "",
+      "documentId": "",
+      "yearOrVersion": "REPLACE",
+      "pageOrSection": ""
+    },
+    "reviewedOn": "2026-01-01",
+    "confidence": "medium",
+    "contraindications": "",
+    "requiredInputs": ["state", "district", "area and unit", "planting date"],
+    "status": "draft"
+  }
+]
