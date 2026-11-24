@@ -8,8 +8,9 @@ import MandiPrice from "../models/mandi-price.model.js";
  *   1. When the commodity is due for a refresh (see below) the server calls
  *      data.gov.in directly and upserts every record into MongoDB.
  *   2. The response is read from MongoDB: today's prices when they exist,
- *      otherwise the most recent earlier day that was stored (normally
- *      yesterday), never a mix of days.
+ *      otherwise the most recent earlier day that was stored — however old,
+ *      so a crop always shows its last available rates (the app labels the
+ *      date). Never a mix of days.
  *   3. If data.gov.in fails or rate-limits (429), nothing changes: the stored
  *      prices are served. An error is returned only when the database has
  *      nothing for that commodity either.
@@ -28,9 +29,6 @@ const SAMPLE_KEY = "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b";
 export const REFRESH_MS = 30 * 60 * 1000;
 export const EMPTY_REFRESH_MS = 5 * 60 * 1000;
 export const COOLDOWN_MS = 60 * 1000;
-/** Older stored prices than this are not shown (they would mislead). */
-export const MAX_AGE_DAYS = 7;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const lastRefresh = new Map(); // commodityKey -> { at, empty }
 const inflight = new Map(); // commodityKey -> Promise
@@ -146,15 +144,16 @@ async function refreshIfDue(commodity, key, now) {
 }
 
 /**
- * The prices to show: today's if stored, else the latest earlier day (within
- * MAX_AGE_DAYS). One day only.
+ * The prices to show: today's if stored, else the latest day stored before it,
+ * no matter how old — a crop should always show its last available rates, and
+ * the response carries that day's date so the app can say how old they are.
+ * Future-dated rows are ignored. One day only.
  */
 async function readStored(key, now) {
   const today = todayIst(now);
-  const oldest = new Date(today.getTime() - MAX_AGE_DAYS * DAY_MS);
   const latest = await MandiPrice.findOne({
     commodityKey: key,
-    arrivalDate: { $lte: today, $gte: oldest },
+    arrivalDate: { $lte: today },
   })
     .sort({ arrivalDate: -1 })
     .select("arrivalDate")

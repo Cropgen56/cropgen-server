@@ -1,4 +1,5 @@
 import { getMandiRecords } from "../../services/mandi.service.js";
+import { getTradedCrops as loadTradedCrops } from "../../services/mandiTraded.service.js";
 
 /** GET /v1/api/mandi/prices?commodity=Tomato */
 export const getMandiPrices = async (req, res) => {
@@ -22,6 +23,24 @@ export const getMandiPrices = async (req, res) => {
       message: rateLimited
         ? "The market-price service is busy. Please try again in a minute."
         : "Could not load market prices right now.",
+    });
+  }
+};
+
+/**
+ * GET /v1/api/mandi/traded-crops
+ * The catalog crops that are traded in mandis (so the app can hide the rest).
+ * `complete: false` means more crops are still being checked in the background.
+ */
+export const getTradedCrops = async (req, res) => {
+  try {
+    const { crops, complete, pending } = await loadTradedCrops();
+    return res.json({ success: true, crops, complete, pending });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      code: "MANDI_TRADED_UNAVAILABLE",
+      message: "Could not work out which crops are traded right now.",
     });
   }
 };

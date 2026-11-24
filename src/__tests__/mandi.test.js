@@ -141,19 +141,47 @@ describe("one day only: today's, else the latest stored day", () => {
     expect(r.records.map((x) => x.market)).toEqual(["Aluva"]);
   });
 
-  test("future-dated rows are ignored and rows older than 7 days are not shown", async () => {
+  test("future-dated rows are ignored", async () => {
     await MandiPrice.create({
       commodityKey: "tomato", state: "K", district: "E", market: "Future", variety: "L", grade: "F",
       arrivalDate: new Date(today().getTime() + 3 * DAY), data: rec("Future", today()),
-    });
-    await MandiPrice.create({
-      commodityKey: "tomato", state: "K", district: "E", market: "Ancient", variety: "L", grade: "F",
-      arrivalDate: daysAgo(8), data: rec("Ancient", daysAgo(8)),
     });
     get.mockResolvedValue(ok([]));
     const r = await svc.getMandiRecords("Tomato");
     expect(r.records).toEqual([]);
     expect(r.date).toBeNull();
+  });
+
+  test("a crop always shows its last available rates, however old", async () => {
+    // Last reported 40 days ago — previously hidden after 7 days.
+    await MandiPrice.create({
+      commodityKey: "tomato", state: "K", district: "E", market: "Aluva", variety: "L", grade: "F",
+      arrivalDate: daysAgo(40), data: rec("Aluva", daysAgo(40)),
+    });
+    get.mockResolvedValue(ok([]));
+    const r = await svc.getMandiRecords("Tomato");
+    expect(r.isToday).toBe(false);
+    expect(r.date).toBe(daysAgo(40).toISOString().slice(0, 10));
+    expect(r.records.map((x) => x.market)).toEqual(["Aluva"]);
+  });
+
+  test("shows the most recent stored day, not an older busier one", async () => {
+    await MandiPrice.create({
+      commodityKey: "tomato", state: "K", district: "E", market: "OldA", variety: "L", grade: "F",
+      arrivalDate: daysAgo(60), data: rec("OldA", daysAgo(60)),
+    });
+    await MandiPrice.create({
+      commodityKey: "tomato", state: "K", district: "E", market: "OldB", variety: "L", grade: "F",
+      arrivalDate: daysAgo(60), data: rec("OldB", daysAgo(60)),
+    });
+    await MandiPrice.create({
+      commodityKey: "tomato", state: "K", district: "E", market: "Recent", variety: "L", grade: "F",
+      arrivalDate: daysAgo(12), data: rec("Recent", daysAgo(12)),
+    });
+    get.mockResolvedValue(ok([]));
+    const r = await svc.getMandiRecords("Tomato");
+    expect(r.date).toBe(daysAgo(12).toISOString().slice(0, 10));
+    expect(r.records.map((x) => x.market)).toEqual(["Recent"]);
   });
 });
 

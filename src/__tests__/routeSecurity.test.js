@@ -133,6 +133,7 @@ const PUBLIC_ROUTES = [
   "GET /v1/api/crop/get-crop-list",
   "GET /v1/api/crop/get/:id",
   "GET /v1/api/mandi/prices",
+  "GET /v1/api/mandi/traded-crops",
   "GET /v1/api/subscription-plans/",
   "POST /v1/api/auth/admin-otp",
   "POST /v1/api/auth/biodrops/login/google",
