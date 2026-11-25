@@ -309,14 +309,26 @@ const startServer = async () => {
     // or advisories that the deployed server already sends.
     const cronJobsDisabled =
       String(process.env.DISABLE_CRON_JOBS || "").toLowerCase() === "true";
+    // pm2 cluster mode runs several copies of this file (NODE_APP_INSTANCE
+    // 0..n-1). Scheduled jobs and the advisory queue worker run only in copy
+    // 0, otherwise every farmer would get each notification/advisory n times.
+    // Without pm2 the variable is unset and this process counts as primary.
+    const isPrimaryInstance =
+      String(process.env.NODE_APP_INSTANCE ?? "0") === "0";
     if (cronJobsDisabled) {
       console.log("[Cron] DISABLE_CRON_JOBS=true — scheduled jobs not started");
+    } else if (!isPrimaryInstance) {
+      console.log(
+        `[Cron] instance ${process.env.NODE_APP_INSTANCE} — scheduled jobs run on instance 0 only`,
+      );
     } else {
       startNotificationWorker();
       startSubscriptionExpiryJob();
       runAdvisoryJob();
     }
-    startAdvisoryQueueWorker();
+    if (isPrimaryInstance) {
+      startAdvisoryQueueWorker();
+    }
     warmNoticeLanguages(["hi", "mr"]); // pre-translate server chat messages so greetings are instant
 
     const httpServer = http.createServer(app);
