@@ -90,6 +90,35 @@ async function processRazorpayEvent(event, eventId) {
     throw e;
   }
 
+  try {
+    await applyRazorpayEvent({
+      eventType,
+      eventId,
+      payload,
+      userSubscription,
+      subscriptionEntity,
+    });
+  } catch (e) {
+    // The billing-event row doubles as the "already handled" marker. Remove
+    // it so Razorpay's retry (we answer non-2xx) processes the event again.
+    await SubscriptionBillingEvent.deleteOne({ razorpayEventId: eventId }).catch(
+      (delErr) =>
+        console.error(
+          `Razorpay webhook: could not clear billing event ${eventId} after failure:`,
+          delErr,
+        ),
+    );
+    throw e;
+  }
+}
+
+async function applyRazorpayEvent({
+  eventType,
+  eventId,
+  payload,
+  userSubscription,
+  subscriptionEntity,
+}) {
   if (eventType === "subscription.authenticated") {
     if (
       userSubscription?.billingCycle === "trial" &&
@@ -346,7 +375,12 @@ const createRazorpayWebhookHandler = (secretEnvVar) => async (req, res) => {
       return res.status(400).send("Invalid signature");
     }
 
-    const event = JSON.parse(raw.toString());
+    let event;
+    try {
+      event = JSON.parse(raw.toString());
+    } catch {
+      return res.status(400).send("Bad request");
+    }
 
     const headerEventId =
       req.headers["x-razorpay-event-id"] ||
@@ -361,13 +395,14 @@ const createRazorpayWebhookHandler = (secretEnvVar) => async (req, res) => {
         : null) ||
       crypto.createHash("sha256").update(raw).digest("hex");
 
-    res.status(200).json({ received: true });
-
+    // Acknowledge only after the event is stored and applied: a 200 tells
+    // Razorpay not to retry, so an earlier ack lost events on any failure.
     await processRazorpayEvent(event, eventId);
+    return res.status(200).json({ received: true });
   } catch (e) {
-    console.error("Razorpay webhook error:", e);
+    console.error("Razorpay webhook processing failed (Razorpay will retry):", e);
     if (!res.headersSent) {
-      return res.status(400).send("Bad request");
+      return res.status(500).send("Processing failed");
     }
   }
 };

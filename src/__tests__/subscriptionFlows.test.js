@@ -238,6 +238,50 @@ describe("web checkout: trial with autopay -> verify -> conversion", () => {
     const forged = await webhook(ev, { secret: "wrong", id: "evt_forged" });
     expect(forged.statusCode).toBe(400);
   });
+
+  test("webhook: a processing failure answers 500 and Razorpay's retry of the same event applies it", async () => {
+    const userId = await seedUser();
+    const planId = await seedPlan({ slug: "growth-retry" });
+    const farmId = await seedFarm(userId, 2);
+    const created = await order(userId, { farmId: String(farmId), planId: String(planId), billingCycle: "yearly", displayCurrency: "USD" });
+    const row = await rowOf(created.body.subscriptionId);
+    const ev = { event: "subscription.authenticated", payload: { subscription: { entity: { id: row.razorpaySubscriptionId, notes: { userSubscriptionId: String(row._id) } } } } };
+
+    const saveSpy = jest
+      .spyOn(UserSubscription.prototype, "save")
+      .mockRejectedValueOnce(new Error("db blip"));
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const first = await webhook(ev, { id: "evt_retry" });
+      expect(first.statusCode).toBe(500); // not acknowledged → Razorpay retries
+      expect((await rowOf(row._id)).status).toBe("pending");
+      expect(await SubscriptionBillingEvent.countDocuments({ razorpayEventId: "evt_retry" })).toBe(0);
+
+      const retry = await webhook(ev, { id: "evt_retry" });
+      expect(retry.statusCode).toBe(200);
+      expect((await rowOf(row._id)).status).toBe("active");
+      expect(await SubscriptionBillingEvent.countDocuments({ razorpayEventId: "evt_retry" })).toBe(1);
+    } finally {
+      saveSpy.mockRestore();
+      errSpy.mockRestore();
+    }
+  });
+
+  test("webhook: unparseable body with a valid signature is refused with 400", async () => {
+    const raw = Buffer.from("not json");
+    const res = mockRes();
+    await handleRazorpayWebhook(
+      {
+        body: raw,
+        headers: {
+          "x-razorpay-signature": crypto.createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET).update(raw).digest("hex"),
+          "x-razorpay-event-id": "evt_badjson",
+        },
+      },
+      res,
+    );
+    expect(res.statusCode).toBe(400);
+  });
 });
 
 describe("paid (non-trial) recurring checkout: payment must belong to the subscription", () => {
