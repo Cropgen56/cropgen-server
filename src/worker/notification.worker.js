@@ -7,7 +7,6 @@ import {
   formatTemplateAsChatText,
   saveWhatsAppOutbound,
 } from "../services/whatsappMessageStore.js";
-import { isBiodropsUser } from "../utils/organization/biodropsOrganization.js";
 
 const MAX_RETRY = 3;
 const BATCH_SIZE = 10;
@@ -44,21 +43,11 @@ export const startNotificationWorker = () => {
   });
 };
 
-async function processNotification(notification) {
+export async function processNotification(notification) {
   try {
     const user = notification.userId;
 
     if (!user) throw new Error("User not found");
-
-    // Satagro (BioDrops) users get WhatsApp via the Satagro number; their email
-    // templates are still CropGen-branded, so email-only Satagro users are skipped.
-    if (isBiodropsUser(user) && !user.phone) {
-      notification.status = "skipped";
-      notification.channel = null;
-      notification.error = "biodrops_email_notifications_disabled";
-      await notification.save();
-      return;
-    }
 
     /* ================= WHATSAPP PRIORITY ================= */
 
@@ -91,16 +80,19 @@ async function processNotification(notification) {
       });
     } else if (user.email) {
       /* ================= EMAIL FALLBACK ================= */
+      const organizationCode = user.organization?.organizationCode;
       const { subject, html } = generateEmailFromTemplate(
         notification.templateName,
         notification.parameters,
         notification.createdAt,
+        organizationCode,
       );
 
       await sendEmail({
         to: user.email,
         subject,
         html,
+        organizationCode,
       });
 
       notification.channel = "email";
