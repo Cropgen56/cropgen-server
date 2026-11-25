@@ -15,6 +15,7 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "../config/db.js";
 import { createRedisConnection } from "../config/redisConnection.js";
 import { sendBasicEmail } from "../config/sesClient.js";
+import { createRateLimiter, sendWithThrottleRetry } from "./sesSendRate.js";
 
 import EmailCampaing from "../models/email-campaign.model.js";
 import EmailStatus from "../models/email-status.model.js";
@@ -44,11 +45,17 @@ async function initQueueScheduler() {
 await initQueueScheduler();
 
 /** 3) Throughput controls */
-const maxSendsPerSecond = parseInt(
-  process.env.SES_MAX_SENDS_PER_SECOND || "14",
-  10
-);
+// Per-email cap shared by all concurrent batches. Default 10/s leaves headroom
+// under the SES account limit (14/s) for the API server's transactional mail.
+const sendsPerSecond = Number(process.env.SES_WORKER_SENDS_PER_SECOND) || 10;
+const acquireSendSlot = createRateLimiter(sendsPerSecond);
+const throttleMaxAttempts =
+  parseInt(process.env.SES_THROTTLE_MAX_ATTEMPTS || "4", 10) || 4;
 const concurrency = parseInt(process.env.SES_SEND_CONCURRENCY || "4", 10);
+logger.info(
+  { sendsPerSecond, concurrency, throttleMaxAttempts },
+  "Email worker throughput settings"
+);
 
 /** 4) Worker: processes "send-batch" jobs */
 const worker = new Worker(
@@ -104,12 +111,16 @@ const worker = new Worker(
       });
 
       try {
-        const res = await sendBasicEmail({
-          to,
-          subject,
-          html: personalizedHtml,
-          from,
-        });
+        const { result: res, attempts } = await sendWithThrottleRetry(
+          () =>
+            sendBasicEmail({
+              to,
+              subject,
+              html: personalizedHtml,
+              from,
+            }),
+          { acquire: acquireSendSlot, maxAttempts: throttleMaxAttempts }
+        );
         sent++;
 
         await EmailStatus.create({
@@ -117,7 +128,7 @@ const worker = new Worker(
           recipient: to,
           status: "sent",
           messageId: res?.MessageId,
-          attempts: 1,
+          attempts,
           lastAttemptAt: new Date(),
           isTest: Boolean(test),
           batchId: String(job.id),
@@ -130,7 +141,7 @@ const worker = new Worker(
           recipient: to,
           status: "failed",
           error: { message: err?.message, stack: err?.stack },
-          attempts: 1,
+          attempts: err?.attempts || 1,
           lastAttemptAt: new Date(),
           isTest: Boolean(test),
           batchId: String(job.id),
@@ -155,7 +166,8 @@ const worker = new Worker(
   {
     connection,
     concurrency,
-    limiter: { max: maxSendsPerSecond, duration: 1000 },
+    // No BullMQ `limiter`: it counts batches, not emails. Pacing is per email
+    // via acquireSendSlot above.
   }
 );
 
