@@ -40,6 +40,27 @@ function buildWeatherSuggestion(weatherSummary) {
   };
 }
 
+/**
+ * Short reason for a failed Observearth call, e.g. "429", "503 Rate limiting
+ * failed. Redis unavailable.", "OBSERVEARTH_COOLDOWN", "timeout".
+ */
+export function describeWeatherError(err) {
+  if (!err) return "no data";
+  const status = err.response?.status;
+  if (status) {
+    const data = err.response?.data;
+    const detail =
+      (typeof data === "object" && (data?.detail || data?.error)) ||
+      (typeof data === "string" ? data : "");
+    return detail ? `${status} ${String(detail).slice(0, 80)}` : String(status);
+  }
+  if (err.code === "OBSERVEARTH_COOLDOWN") return "OBSERVEARTH_COOLDOWN";
+  if (err.code === "ECONNABORTED" || /timeout/i.test(err.message || "")) {
+    return "timeout";
+  }
+  return err.code || err.message || String(err);
+}
+
 export async function runWeatherSuggestionModule(ctx) {
   const warnings = [];
   const errors = [];
@@ -60,7 +81,9 @@ export async function runWeatherSuggestionModule(ctx) {
         forecastSettled.status === "fulfilled" ? forecastSettled.value : null;
 
       if (!currentWeatherResp && !forecastWeather) {
-        errors.push("Weather unavailable for barren land advisory");
+        errors.push(
+          `Weather unavailable for barren land advisory (current: ${describeWeatherError(currentSettled.reason)}; forecast: ${describeWeatherError(forecastSettled.reason)})`,
+        );
         return moduleResult(MODULE_IDS.WEATHER, null, { errors });
       }
 
