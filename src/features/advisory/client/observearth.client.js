@@ -11,9 +11,80 @@ const HISTORICAL_TIMEOUT_MS =
 const HISTORICAL_MAX_TOTAL_MS =
   Number(process.env.OBSERVEARTH_HISTORICAL_MAX_MS) || 25_000;
 
+/** Default pause after a 429/503 when Observearth sends no Retry-After header */
+const RATE_LIMIT_COOLDOWN_MS =
+  Number(process.env.OBSERVEARTH_RATE_LIMIT_COOLDOWN_MS) || 60_000;
+const MAX_RATE_LIMIT_COOLDOWN_MS = 10 * 60_000;
+
 const observearthHttp = axios.create({
   timeout: CURRENT_FORECAST_TIMEOUT_MS,
 });
+
+/**
+ * Process-wide circuit breaker: after Observearth answers 429 or 503, all
+ * Observearth calls fail fast (no network) until the cooldown ends, so one
+ * rate-limited farm doesn't make every other farm hit the limit too.
+ */
+let cooldownUntil = 0;
+
+function isRateLimitStatus(status) {
+  return status === 429 || status === 503;
+}
+
+function parseRetryAfterMs(headerValue) {
+  if (headerValue == null || headerValue === "") return null;
+  const seconds = Number(headerValue);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const dateMs = Date.parse(headerValue);
+  if (Number.isFinite(dateMs)) return Math.max(0, dateMs - Date.now());
+  return null;
+}
+
+function startCooldown(err) {
+  const retryAfterMs = parseRetryAfterMs(err?.response?.headers?.["retry-after"]);
+  const ms = Math.min(
+    retryAfterMs ?? RATE_LIMIT_COOLDOWN_MS,
+    MAX_RATE_LIMIT_COOLDOWN_MS,
+  );
+  const now = Date.now();
+  const until = now + ms;
+  if (until > cooldownUntil) {
+    const wasCooling = now < cooldownUntil;
+    cooldownUntil = until;
+    if (!wasCooling) {
+      console.warn(
+        `[Observearth] ${err.response.status} received — pausing Observearth calls for ${Math.round(ms / 1000)}s`,
+      );
+    }
+  }
+}
+
+export function getObservearthCooldownRemainingMs() {
+  return Math.max(0, cooldownUntil - Date.now());
+}
+
+/** Test helper */
+export function resetObservearthCooldown() {
+  cooldownUntil = 0;
+}
+
+function cooldownError() {
+  const err = new Error(
+    `Observearth paused after rate limit (${Math.ceil(getObservearthCooldownRemainingMs() / 1000)}s left)`,
+  );
+  err.code = "OBSERVEARTH_COOLDOWN";
+  return err;
+}
+
+async function observearthGet(url, config) {
+  if (getObservearthCooldownRemainingMs() > 0) throw cooldownError();
+  try {
+    return await observearthHttp.get(url, config);
+  } catch (err) {
+    if (isRateLimitStatus(err?.response?.status)) startCooldown(err);
+    throw err;
+  }
+}
 
 function getObservearthHeaders() {
   const apiKey = process.env.OBSERVEARTH_API_KEY;
@@ -31,7 +102,7 @@ function getObservearthHeaders() {
 
 export async function getCurrentWeather(geometryId) {
   const url = `${OBSERVEARTH_BASE}/current/?geometry_id=${geometryId}`;
-  const { data } = await observearthHttp.get(url, {
+  const { data } = await observearthGet(url, {
     headers: getObservearthHeaders(),
   });
   return data;
@@ -39,7 +110,7 @@ export async function getCurrentWeather(geometryId) {
 
 export async function getForecastWeather(geometryId) {
   const url = `${OBSERVEARTH_BASE}/forecast/?geometry_id=${geometryId}`;
-  const { data } = await observearthHttp.get(url, {
+  const { data } = await observearthGet(url, {
     headers: getObservearthHeaders(),
   });
   return data;
@@ -52,7 +123,7 @@ export async function getHistoricalWeather(
   timeoutMs = HISTORICAL_TIMEOUT_MS,
 ) {
   const url = `${OBSERVEARTH_BASE}/historical/?geometry_id=${geometryId}&start_date=${startDate}&end_date=${endDate}`;
-  const { data } = await observearthHttp.get(url, {
+  const { data } = await observearthGet(url, {
     headers: getObservearthHeaders(),
     timeout: timeoutMs,
   });
@@ -67,7 +138,15 @@ function isRetryableObservearthError(err) {
   if (err?.code === "ECONNABORTED" || err?.message?.includes("timeout")) {
     return false;
   }
-  return status === 429 || status === 500 || status === 502 || status === 503;
+  // 429/503 are handled by the cooldown instead of an immediate retry.
+  return status === 500 || status === 502;
+}
+
+function isRateLimitOrCooldown(err) {
+  return (
+    err?.code === "OBSERVEARTH_COOLDOWN" ||
+    isRateLimitStatus(err?.response?.status)
+  );
 }
 
 function formatObservearthError(err) {
@@ -199,6 +278,13 @@ export async function getHistoricalWeatherWithFallback(
       lastError = new Error("Observearth returned empty daily time series");
     } catch (err) {
       lastError = err;
+      if (isRateLimitOrCooldown(err)) {
+        // Other windows would hit the same limit — stop here.
+        console.warn(
+          `[Observearth] Historical skipped for ${geometryId}: ${formatObservearthError(err)}`,
+        );
+        break;
+      }
       const msg = formatObservearthError(err);
       console.warn(
         `[Observearth] Historical ${windowDays}d failed for ${geometryId}: ${msg}`,
@@ -223,6 +309,7 @@ export async function getHistoricalWeatherWithFallback(
           }
         } catch (retryErr) {
           lastError = retryErr;
+          if (isRateLimitOrCooldown(retryErr)) break;
         }
       }
     }
