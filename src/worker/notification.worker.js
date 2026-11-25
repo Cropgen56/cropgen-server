@@ -10,10 +10,62 @@ import {
 
 const MAX_RETRY = 3;
 const BATCH_SIZE = 10;
+/** A send takes seconds; "processing" for longer means the worker was interrupted. */
+const STUCK_AFTER_MS = 15 * 60 * 1000;
+/** Older notifications are no longer worth sending (e.g. a months-old welcome). */
+const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Rows are set to "processing" before sending. If the process dies mid-send
+ * (restart, crash) they stay "processing" forever and are never retried.
+ * Put recent ones back in the queue (counting a retry) and mark old ones
+ * "skipped" so a stale message is never sent.
+ */
+export async function recoverStuckNotifications(now = new Date()) {
+  const stuckBefore = new Date(now.getTime() - STUCK_AFTER_MS);
+  const staleBefore = new Date(now.getTime() - STALE_AFTER_MS);
+  const stuck = { status: "processing", updatedAt: { $lt: stuckBefore } };
+
+  const skipped = await Notification.updateMany(
+    { ...stuck, createdAt: { $lt: staleBefore } },
+    {
+      $set: {
+        status: "skipped",
+        error: "Stuck in processing (worker interrupted); too old to send",
+      },
+    },
+  );
+  const exhausted = await Notification.updateMany(
+    { ...stuck, createdAt: { $gte: staleBefore }, retryCount: { $gte: MAX_RETRY - 1 } },
+    {
+      $set: { status: "failed", error: "Worker interrupted while sending" },
+      $inc: { retryCount: 1 },
+    },
+  );
+  const requeued = await Notification.updateMany(
+    { ...stuck, createdAt: { $gte: staleBefore }, retryCount: { $lt: MAX_RETRY - 1 } },
+    {
+      $set: { status: "pending", error: "Worker interrupted while sending; retrying" },
+      $inc: { retryCount: 1 },
+    },
+  );
+
+  const counts = {
+    skipped: skipped.modifiedCount,
+    failed: exhausted.modifiedCount,
+    requeued: requeued.modifiedCount,
+  };
+  if (counts.skipped || counts.failed || counts.requeued) {
+    console.warn("[Notification] recovered stuck notifications", counts);
+  }
+  return counts;
+}
 
 export const startNotificationWorker = () => {
   cron.schedule("*/1 * * * *", async () => {
     try {
+      await recoverStuckNotifications();
+
       // Process up to BATCH_SIZE notifications safely
       for (let i = 0; i < BATCH_SIZE; i++) {
         // 🔐 Atomic locking to prevent duplicate processing
