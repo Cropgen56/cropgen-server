@@ -50,7 +50,6 @@ import {
 // Workers
 import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.worker.js";
 import { startNotificationWorker } from "./src/worker/notification.worker.js";
-import { startWelcomeFarmReminderWorker } from "./src/worker/welcomeFarm.worker.js";
 import { runAdvisoryJob } from "./src/features/advisory/workers/advisory.worker.js";
 import { startAdvisoryQueueWorker } from "./src/features/advisory/queue/advisory.queue.js";
 
@@ -315,7 +314,6 @@ const startServer = async () => {
     } else {
       startNotificationWorker();
       startSubscriptionExpiryJob();
-      startWelcomeFarmReminderWorker();
       runAdvisoryJob();
     }
     startAdvisoryQueueWorker();

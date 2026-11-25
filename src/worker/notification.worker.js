@@ -50,10 +50,12 @@ async function processNotification(notification) {
 
     if (!user) throw new Error("User not found");
 
-    if (isBiodropsUser(user)) {
+    // Satagro (BioDrops) users get WhatsApp via the Satagro number; their email
+    // templates are still CropGen-branded, so email-only Satagro users are skipped.
+    if (isBiodropsUser(user) && !user.phone) {
       notification.status = "skipped";
       notification.channel = null;
-      notification.error = "biodrops_template_notifications_disabled";
+      notification.error = "biodrops_email_notifications_disabled";
       await notification.save();
       return;
     }
@@ -65,6 +67,7 @@ async function processNotification(notification) {
         to: user.phone.replace("+", ""),
         templateName: notification.templateName,
         parameters: notification.parameters,
+        organizationCode: user.organization?.organizationCode,
       });
 
       notification.channel = "whatsapp";

@@ -1,8 +1,7 @@
 import axios from "axios";
+import { isBiodropsOrganizationCode } from "../utils/organization/biodropsOrganization.js";
 
-const GRAPH_URL = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
-
-// Map internal notification template names to WhatsApp Business template names
+// Map internal notification template names to WhatsApp Business template names (CropGen number)
 const WHATSAPP_TEMPLATE_NAME_MAP = {
   plan_expiry_reminder_notification:
     "plan_expiry_reminder_notification_utility",
@@ -10,20 +9,45 @@ const WHATSAPP_TEMPLATE_NAME_MAP = {
   farm_advisory: "farm_advisory",
 };
 
+// Satagro (BioDrops) number: its own phone id/token and its own "satagro_" templates
+const SATAGRO_TEMPLATE_NAME_MAP = {
+  advisory: "satagro_advisory",
+  plan_expiry_reminder_notification:
+    "satagro_plan_expiry_reminder_notification_utility",
+  plan_activation_notification: "satagro_plan_activation_notification",
+};
+
+function resolveSender(organizationCode) {
+  if (isBiodropsOrganizationCode(organizationCode)) {
+    return {
+      phoneNumberId: process.env.BIODROPS_WHATSAPP_PHONE_NUMBER_ID,
+      accessToken: process.env.BIODROPS_WHATSAPP_ACCESS_TOKEN,
+      templateNames: SATAGRO_TEMPLATE_NAME_MAP,
+    };
+  }
+  return {
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+    accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+    templateNames: WHATSAPP_TEMPLATE_NAME_MAP,
+  };
+}
+
 export const sendWhatsAppTemplate = async ({
   to,
   templateName,
   languageCode = "en",
   parameters = [],
+  organizationCode,
 }) => {
   if (!to) throw new Error("Phone number is required");
   if (!templateName) throw new Error("Template name is required");
 
+  const sender = resolveSender(organizationCode);
   const resolvedTemplateName =
-    WHATSAPP_TEMPLATE_NAME_MAP[templateName] || templateName;
+    sender.templateNames[templateName] || templateName;
 
   return axios.post(
-    GRAPH_URL,
+    `https://graph.facebook.com/v18.0/${sender.phoneNumberId}/messages`,
     {
       messaging_product: "whatsapp",
       to,
@@ -44,7 +68,7 @@ export const sendWhatsAppTemplate = async ({
     },
     {
       headers: {
-        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${sender.accessToken}`,
         "Content-Type": "application/json",
       },
     },

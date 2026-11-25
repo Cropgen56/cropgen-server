@@ -34,7 +34,6 @@ jest.unstable_mockModule("../../../services/razorpay.order.service.js", () => ({
 jest.unstable_mockModule("../../../services/notification.service.js", () => ({
   createSubscriptionActivationNotification: jest.fn(async () => {}),
   createSubscriptionExpiryNotification: jest.fn(async () => {}),
-  createWelcomeFarmNotification: jest.fn(async () => {}),
 }));
 
 let mongo;

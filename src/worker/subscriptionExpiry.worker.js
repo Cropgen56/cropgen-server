@@ -2,7 +2,6 @@ import cron from "node-cron";
 import UserSubscription from "../models/user-subscription.model.js";
 import Notification from "../models/notification.model.js";
 import { createSubscriptionExpiryNotification } from "../services/notification.service.js";
-import { isBiodropsUser } from "../utils/organization/biodropsOrganization.js";
 
 /**
  * Marks every active subscription whose end date has passed as expired and
@@ -39,8 +38,6 @@ export const startSubscriptionExpiryJob = () => {
       });
 
       for (const sub of activeSubs) {
-        if (isBiodropsUser(sub.userId)) continue;
-
         const diffTime = sub.endDate - now;
         const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 

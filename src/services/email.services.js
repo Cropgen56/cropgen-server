@@ -2,7 +2,6 @@ import { sendBasicEmail } from "../config/sesClient.js";
 import { advisoryEmailTemplateFromNotification } from "../features/advisory/templates/advisoryEmail.template.js";
 import { planActivationEmailTemplate } from "../templates/planActivationEmail.template.js";
 import { planExpiryReminderEmailTemplate } from "../templates/planExpiryReminderEmail.template.js";
-import { welcomeFarmEmailTemplate } from "../templates/welcomeFarmEmail.template.js";
 
 export const sendEmail = async ({ to, subject, html }) => {
   return sendBasicEmail({
@@ -40,15 +39,6 @@ export const generateEmailFromTemplate = (templateName, parameters, date) => {
         html: advisoryEmailTemplateFromNotification({
           parameters,
           createdAt: date,
-        }),
-      };
-
-    case "welcome_farm_notification":
-    case "cropgen_create_farm_reminder":
-      return {
-        subject: "Welcome to CropGen - Add Your Farm 🌱",
-        html: welcomeFarmEmailTemplate({
-          parameters,
         }),
       };
 
