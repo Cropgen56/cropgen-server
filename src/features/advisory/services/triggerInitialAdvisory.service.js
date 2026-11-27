@@ -2,6 +2,8 @@ import FarmField from "../../../models/field.model.js";
 import User from "../../../models/user.model.js";
 import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
 import { generateAdvisoryForField } from "./advisory.service.js";
+import FieldCrop from "../../../models/field-crop.model.js";
+import { barrenAdvisoryAllowed } from "../utils/shared/barrenAudience.js";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const GENERATION_TIMEOUT_MS =
@@ -35,10 +37,11 @@ export async function triggerInitialAdvisoryForNewField(
   const farmFieldIdStr = String(farmFieldId);
 
   try {
-    const farm = await FarmField.findById(farmFieldId).populate(
-      "user",
-      "language firstName email phone",
-    );
+    const farm = await FarmField.findById(farmFieldId).populate({
+      path: "user",
+      select: "language firstName email phone organization",
+      populate: { path: "organization", select: "organizationCode" },
+    });
 
     if (!farm) {
       console.error(`[Advisory] Initial trigger: farm not found ${farmFieldIdStr}`);
@@ -64,6 +67,14 @@ export async function triggerInitialAdvisoryForNewField(
         `[Advisory] Initial trigger: invalid boundary on farm ${farmFieldIdStr}`,
       );
       return { ok: false, error: "invalid_field_boundary" };
+    }
+
+    // Barren land (no active crop) gets an automatic advisory only for BIODROPS users.
+    if (!cropInstanceId) {
+      const activeCrops = await FieldCrop.countDocuments({ farmField: farm._id, isActive: true });
+      if (activeCrops === 0 && !(await barrenAdvisoryAllowed(farmer))) {
+        return { ok: true, skipped: "barren_not_biodrops" };
+      }
     }
 
     const { aoiId, created } = await resolveAOIForFarm(farm);

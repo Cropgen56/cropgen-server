@@ -10,6 +10,13 @@ import {
   patchAdvisoryActivityProgress,
 } from "../controllers/advisory.controller.js";
 import {
+  getFieldEvents,
+  getMyEvents,
+  updateFieldEvent,
+  getFieldCondition,
+  triggerConditionMonitor,
+} from "../controllers/fieldEvents.controller.js";
+import {
   checkApiKey,
   isAuthenticated,
 } from "../../../middleware/auth.middleware.js";
@@ -17,6 +24,13 @@ import {
 const router = express.Router();
 
 router.post("/internal/generate-advisory", checkApiKey, generateFarmAdvisory);
+// Crop condition monitor (real-time events / popups). Registered before the
+// "/:farmFieldId" catch-all.
+router.post("/internal/monitor", checkApiKey, triggerConditionMonitor);
+router.get("/events/user/me", isAuthenticated, getMyEvents);
+router.patch("/events/item/:eventId", isAuthenticated, updateFieldEvent);
+router.get("/events/:farmFieldId", isAuthenticated, getFieldEvents);
+router.get("/condition/:farmFieldId", isAuthenticated, getFieldCondition);
 router.patch(
   "/:advisoryId/activities/:activityType/progress",
   isAuthenticated,

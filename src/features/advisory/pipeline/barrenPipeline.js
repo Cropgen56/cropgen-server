@@ -56,7 +56,8 @@ export async function runBarrenAdvisoryPipeline({
       `module ${result.module} done in ${Date.now() - startedAt}ms${result.ok ? "" : " (with warnings/errors)"}`,
     );
     if (result.module === "weatherSuggestion" && !result.ok) {
-      throw new Error(result.errors[0] || "Weather unavailable for barren land");
+      // No weather: continue; the advisory is generated from the other modules.
+      logStep(`weather unavailable, generating without weather: ${result.errors[0] || "no data"}`);
     }
     if (result.module === "advisorySuggestion" && !result.ok) {
       throw new Error(result.errors[0] || "Barren advisory module failed");

@@ -57,7 +57,8 @@ export function getSprayDecision(evidence) {
   const cropStage = evidence?.cropGrowthStage;
 
   const windSpeed = weather?.windSpeedToday ?? weather?.current?.windSpeed ?? 0;
-  const rainLikely = weather?.rainProbabilityToday === "likely";
+  // rainProbabilityToday is "high" | "moderate" | "low" (evidenceBuilder.js)
+  const rainLikely = weather?.rainProbabilityToday === "high";
   const rainfall = Array.isArray(weather?.next7Days?.rainfall)
     ? weather.next7Days.rainfall[0]
     : 0;

@@ -33,6 +33,9 @@ function crossedPhaseBoundary(lastDays, currentDays) {
   return false;
 }
 
+/** Refresh an advisory at least every N days (ADVISORY_MAX_DAYS_BETWEEN, default 2). */
+export const ADVISORY_MAX_DAYS_BETWEEN = Number(process.env.ADVISORY_MAX_DAYS_BETWEEN) || 2;
+
 /**
  * Cron: when to refresh pre-sowing advisories (no GDD).
  */
@@ -40,7 +43,7 @@ export function shouldGenerateBarrenLandAdvisory({
   lastAdvisory,
   currentSnapshot,
   expectedSowingDateISO,
-  maxDaysBetweenAdvisories = 7,
+  maxDaysBetweenAdvisories = ADVISORY_MAX_DAYS_BETWEEN,
 }) {
   if (!lastAdvisory) {
     return { generate: true, reason: "first_barren_advisory" };

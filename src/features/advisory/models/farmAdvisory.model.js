@@ -117,12 +117,22 @@ const FarmAdvisorySchema = new Schema(
     weatherSnapshot: { type: Schema.Types.Mixed, default: null },
     /** Farmer language the advisory text was generated in (e.g. "mr"). */
     language: { type: String, default: null },
-    /** How activities were produced: llm | rules | hybrid */
+    /** How activities were produced: engine (workbook rules) | llm | rules | hybrid */
     activitiesSource: {
       type: String,
-      enum: ["llm", "rules", "hybrid"],
+      enum: ["engine", "llm", "rules", "hybrid"],
       default: "rules",
     },
+    /** Rules engine run metadata: mode, rulesVersion, country, dataQuality flags… */
+    engine: { type: Schema.Types.Mixed, default: null },
+    /** Structured engine decisions (spray / irrigation / fertilizer) with rule ids — for audit and history. */
+    decisions: { type: Schema.Types.Mixed, default: null },
+    /** Alerts fired on this run: { alertId, severity, vars, sentAt, whatsapp } (drives cooldowns). */
+    alerts: { type: [Schema.Types.Mixed], default: [] },
+    /** Exact WhatsApp texts the engine produced (daily / alerts / fertilizer). */
+    whatsappPreview: { type: Schema.Types.Mixed, default: null },
+    /** Shadow mode only: what the engine would have said (not sent to farmers). */
+    engineShadow: { type: Schema.Types.Mixed, default: null },
     /** Operations created on the farm calendar from activitiesToDo */
     linkedOperationIds: {
       type: [{ type: Schema.Types.ObjectId, ref: "Operation" }],
@@ -133,6 +143,7 @@ const FarmAdvisorySchema = new Schema(
 );
 
 FarmAdvisorySchema.index({ farmFieldId: 1 });
+FarmAdvisorySchema.index({ farmFieldId: 1, cropInstanceId: 1, createdAt: -1 });
 FarmAdvisorySchema.index({ createdAt: -1 });
 
 export default mongoose.model("FarmAdvisory", FarmAdvisorySchema);

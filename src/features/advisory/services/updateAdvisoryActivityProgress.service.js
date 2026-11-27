@@ -3,6 +3,7 @@ import {
   getTodayDateISO,
   upsertAdvisoryActivityOperation,
 } from "./syncAdvisoryToOperations.service.js";
+import { enqueueConditionCheck } from "../queue/conditionMonitor.queue.js";
 
 const VALID_PROGRESS = ["started", "in_progress", "completed"];
 
@@ -58,6 +59,16 @@ export async function updateAdvisoryActivityProgress({
     index: activityIndex,
     operationDate: getTodayDateISO(),
   });
+
+  if (progress === "completed") {
+    // Farmer did something (spray / irrigation / fertilizer): re-check the field
+    // so water balance, overdue tasks and spray rotation update right away.
+    await enqueueConditionCheck({
+      farmFieldId: advisory.farmFieldId,
+      cropInstanceId: advisory.cropInstanceId,
+      trigger: "operation",
+    });
+  }
 
   return advisory;
 }

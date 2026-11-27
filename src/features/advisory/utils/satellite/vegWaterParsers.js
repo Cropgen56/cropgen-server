@@ -7,10 +7,23 @@ function getTimeseriesArray(vegTs) {
   return Array.isArray(series) ? series : [];
 }
 
+/** Scenes cloudier than this (inside the field, when the provider reports it) are dropped. */
+const NDVI_MAX_CLOUD_PCT = Number(process.env.NDVI_MAX_CLOUD_PCT) || 40;
+
 function getPointDateValue(p) {
   const date = p?.date ?? p?.timestamp ?? p?.time ?? null;
   const value = p?.value ?? p?.ndvi ?? p?.index ?? p?.mean ?? null;
-  return { date: String(date || ""), value: Number(value) };
+  const cloudRaw = p?.cloud_cover ?? p?.cloudCover ?? p?.cloud ?? p?.cloud_percentage ?? p?.cloud_pct ?? null;
+  const cloud = cloudRaw === null || cloudRaw === undefined || cloudRaw === "" ? null : Number(cloudRaw);
+  return { date: String(date || ""), value: Number(value), cloud: Number.isFinite(cloud) ? cloud : null };
+}
+
+/** Keep valid NDVI values from clear scenes; if every scene is cloudy keep them all (flagged). */
+function clearScenes(points) {
+  const valid = points.filter((p) => p.value >= -1 && p.value <= 1);
+  const clear = valid.filter((p) => p.cloud === null || p.cloud <= NDVI_MAX_CLOUD_PCT);
+  if (clear.length) return { points: clear, droppedCloudy: valid.length - clear.length, allCloudy: false };
+  return { points: valid, droppedCloudy: 0, allCloudy: valid.length > 0 };
 }
 
 /**
@@ -31,9 +44,10 @@ export function parseNDVIMetrics(vegTs) {
   const inputSeries = getTimeseriesArray(vegTs);
   if (!inputSeries.length) return { ndviLatest: null, ndviMean: null, trend: 0, ndviTrend: 0, values: [] };
 
-  const points = inputSeries
+  const parsed = inputSeries
     .map((p) => getPointDateValue(p))
     .filter((p) => p.date && !Number.isNaN(p.value));
+  const { points, droppedCloudy, allCloudy } = clearScenes(parsed);
   if (!points.length) return { ndviLatest: null, ndviMean: null, trend: 0, ndviTrend: 0, values: [] };
 
   const sorted = [...points].sort((a, b) => String(a.date).localeCompare(String(b.date)));
@@ -51,6 +65,8 @@ export function parseNDVIMetrics(vegTs) {
     ndviTrend: trend,
     values,
     series,
+    droppedCloudy,
+    allCloudy,
   };
 }
 

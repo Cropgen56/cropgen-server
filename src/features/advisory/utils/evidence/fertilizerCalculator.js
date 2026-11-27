@@ -30,8 +30,13 @@ function pickInorganicProducts(N_kgHa, P_kgHa, K_kgHa, acre, isDrip) {
   const products = [];
   const method = isDrip ? "Drip fertigation" : "Broadcast + immediate irrigation";
 
-  if (N_kgHa > 3) {
-    const ureaDose = Math.round(N_kgHa / 0.46);
+  // DAP (18:46:0) is sized on P2O5 and also supplies 18% N - credit that N
+  // before sizing urea, otherwise total N is over-applied.
+  const dapDoseForP = P_kgHa > 3 ? Math.round(P_kgHa / 0.46) : 0;
+  const nFromDap = dapDoseForP * 0.18;
+  const nRemaining = Math.max(0, N_kgHa - nFromDap);
+  if (nRemaining > 3) {
+    const ureaDose = Math.round(nRemaining / 0.46);
     products.push({
       name: "Urea 46%",
       quantityKgPerHa: ureaDose,
@@ -40,8 +45,8 @@ function pickInorganicProducts(N_kgHa, P_kgHa, K_kgHa, acre, isDrip) {
       method,
     });
   }
-  if (P_kgHa > 3) {
-    const dapDose = Math.round(P_kgHa / 0.46);
+  if (dapDoseForP > 0) {
+    const dapDose = dapDoseForP;
     products.push({
       name: "DAP 18:46:0",
       quantityKgPerHa: dapDose,
@@ -60,7 +65,7 @@ function pickInorganicProducts(N_kgHa, P_kgHa, K_kgHa, acre, isDrip) {
       method,
     });
   }
-  if (products.length === 0) {
+  if (products.length === 0 && Math.max(N_kgHa, P_kgHa, K_kgHa) > 0) {
     const dominant = Math.max(N_kgHa, P_kgHa, K_kgHa);
     const npkDose = Math.round(dominant / 0.19);
     products.push({

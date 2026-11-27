@@ -17,7 +17,7 @@ export async function dispatchAdvisoryGeneration({
     const job = await enqueueAdvisoryJob(
       {
         farmFieldId: String(farmFieldId),
-        aoiId: String(aoiId),
+        aoiId: aoiId ? String(aoiId) : null,
         language: language || "en",
         platform,
         options,

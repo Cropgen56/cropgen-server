@@ -6,7 +6,6 @@ import "../../../models/user.model.js";
 import cron from "node-cron";
 
 import { resolveAOIForFarm } from "../../../utils/weather/weather.utils.js";
-import { isMaturityOrHarvestStage } from "../pipeline/advisoryContext.js";
 
 import {
   getBaseTemperature,
@@ -27,6 +26,11 @@ import {
 } from "../utils/weather/weatherSnapshot.utils.js";
 import { shouldGenerateBarrenLandAdvisory } from "../utils/agronomy/barrenLand/barrenLandScheduling.js";
 import { dispatchAdvisoryGeneration } from "../services/advisoryDispatch.service.js";
+import { ADVISORY_MAX_DAYS_BETWEEN } from "../utils/weather/weatherSnapshot.utils.js";
+import { barrenAdvisoryAllowed } from "../utils/shared/barrenAudience.js";
+
+/** Seasonal crops auto-retire only once fully ripe (BBCH 89), not at early maturity (85). */
+const RETIRE_BBCH = Number(process.env.ADVISORY_RETIRE_BBCH) || 89;
 
 export const CROP_GDD_THRESHOLDS = {
   wheat: 50,
@@ -295,6 +299,10 @@ async function processWithConcurrency(items, concurrency, handler) {
 }
 
 /** Barren-land re-advisory check (farm has no active crop right now). */
+function daysSinceAdvisory(advisory) {
+  return (Date.now() - new Date(advisory.createdAt).getTime()) / 86400000;
+}
+
 async function runBarrenLandCheck({ farm, aoiId, language }) {
   const lastAdvisory = await FarmAdvisory.findOne({
     farmFieldId: farm._id,
@@ -302,6 +310,14 @@ async function runBarrenLandCheck({ farm, aoiId, language }) {
 
   if (!lastAdvisory) {
     await dispatchAdvisoryGeneration({ farmFieldId: farm._id, aoiId, language });
+    return;
+  }
+
+  if (!aoiId) {
+    // No weather possible: refresh on the time interval alone.
+    if (daysSinceAdvisory(lastAdvisory) >= ADVISORY_MAX_DAYS_BETWEEN) {
+      await dispatchAdvisoryGeneration({ farmFieldId: farm._id, aoiId: null, language });
+    }
     return;
   }
 
@@ -347,9 +363,22 @@ async function runCropCheck({ farm, crop, aoiId, language }) {
     return;
   }
 
+  if (!aoiId) {
+    // No weather possible: the growth-degree-day gate cannot run, so refresh on the time interval alone.
+    if (daysSinceAdvisory(lastAdvisory) >= ADVISORY_MAX_DAYS_BETWEEN) {
+      await dispatchAdvisoryGeneration({
+        farmFieldId: farm._id,
+        aoiId: null,
+        language,
+        cropInstanceId: crop._id,
+      });
+    }
+    return;
+  }
+
   if (
     crop.cropLifecycleType === "seasonal" &&
-    isMaturityOrHarvestStage(lastAdvisory.plantGrowthActivity)
+    (lastAdvisory.plantGrowthActivity?.bbchStage ?? 0) >= RETIRE_BBCH
   ) {
     crop.isActive = false;
     crop.actualEndDate = new Date();
@@ -463,12 +492,15 @@ export const runAdvisoryJob = async () => {
       }
 
       console.log(
-        `[Advisory] cron processing ${fieldIds.length} subscribed farm(s) (all orgs; AAT plans without smart advisory excluded)`,
+        `[Advisory] cron processing ${fieldIds.length} subscribed farm(s) (all orgs; AAT Starter excluded)`,
       );
 
       const farms = await FarmField.find({
         _id: { $in: fieldIds },
-      }).populate("user");
+      }).populate({
+        path: "user",
+        populate: { path: "organization", select: "organizationCode" },
+      });
 
       await processWithConcurrency(
         farms,
@@ -477,7 +509,14 @@ export const runAdvisoryJob = async () => {
           try {
             if (!farm.user) return;
 
-            const { aoiId } = await resolveAOIForFarm(farm);
+            // No AOI (ObservEarth refused to create one, or the lookup failed):
+            // still advise the farm, without weather. Every subscribed farm gets advice.
+            let aoiId = null;
+            try {
+              ({ aoiId } = await resolveAOIForFarm(farm));
+            } catch (aoiErr) {
+              console.warn(`[Advisory] farm ${farm._id}: no AOI, generating without weather (${aoiErr.message})`);
+            }
             const language = farm.user.language || "en";
 
             const activeCrops = await FieldCrop.find({
@@ -493,7 +532,10 @@ export const runAdvisoryJob = async () => {
                 farm.isBarrenLand = true;
                 await farm.save();
               }
-              await runBarrenLandCheck({ farm, aoiId, language });
+              // Barren-land advice is automatic for BIODROPS users only.
+              if (await barrenAdvisoryAllowed(farm.user)) {
+                await runBarrenLandCheck({ farm, aoiId, language });
+              }
               return;
             }
 
@@ -512,3 +554,4 @@ export const runAdvisoryJob = async () => {
     }
   });
 };
+export { runCropCheck, runBarrenLandCheck };

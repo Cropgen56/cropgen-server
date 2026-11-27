@@ -32,7 +32,7 @@ function weatherActivity(evidence) {
   const rain3 = w.rainfallForecast3d ?? 0;
   const rain7 = w.rainfallForecast7d ?? 0;
   const rainProb =
-    w.rainProbabilityToday === "likely"
+    ["high", "moderate"].includes(w.rainProbabilityToday)
       ? t("detail_rain_prob_likely", lang)
       : t("detail_rain_prob_low", lang);
 

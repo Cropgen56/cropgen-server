@@ -123,9 +123,12 @@ export function buildOperationFromActivity(activity, index, { farmFieldId, advis
   const operationType =
     ACTIVITY_TO_OPERATION_TYPE[activity.type] || "other";
 
+  // The rule tag ([rk:rule=…|tgt=…|grp=…]) lets the next advisory run read back
+  // exactly which rule / chemistry group / fertilizer window this operation was.
   const comments = [
     `[Smart Advisory] ${activity.title || activity.type}`,
     activity.message || "",
+    activity?.details?.ruleTag || "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -150,18 +153,37 @@ export function buildOperationFromActivity(activity, index, { farmFieldId, advis
  * Persist advisory "Activities To Do" as calendar operations for the farm field.
  * Replaces prior non-completed advisory-sourced operations for the same field.
  */
+/** Engine actions that mean "the farmer has something to do". */
+const ACTIONABLE_ENGINE_ACTIONS = {
+  SPRAY: new Set(["SPRAY", "WAIT", "MONITOR", "CONSULT"]),
+  IRRIGATION: new Set(["IRRIGATE", "MAINTAIN", "PROTECTIVE", "CONSERVE", "DRAIN", "LIGHT_HEAT", "LIGHT_FROST"]),
+  FERTIGATION: new Set(["APPLY"]),
+};
+
+export function isActionableEngineActivity(activity) {
+  const type = activity?.type;
+  if (type === "MONITORING") return Array.isArray(activity?.details?.watchFor) && activity.details.watchFor.length > 0;
+  const allowed = ACTIONABLE_ENGINE_ACTIONS[type];
+  return Boolean(allowed && allowed.has(activity?.details?.engineAction));
+}
+
 export async function syncAdvisoryActivitiesToOperations({
   farmFieldId,
   advisoryId,
   activitiesToDo = [],
   generatedAt = new Date(),
+  onlyActionable = false,
 }) {
   if (!farmFieldId || !advisoryId) {
     return { created: 0, deleted: 0, operationIds: [] };
   }
 
   const baseDate = generatedAt instanceof Date ? generatedAt : new Date(generatedAt);
-  const activities = Array.isArray(activitiesToDo) ? activitiesToDo : [];
+  const allActivities = Array.isArray(activitiesToDo) ? activitiesToDo : [];
+  // Engine advisories: only put real tasks on the calendar (not "no spray today").
+  const activities = onlyActionable
+    ? allActivities.filter(isActionableEngineActivity)
+    : allActivities;
 
   const deleteResult = await Operation.deleteMany({
     farmField: farmFieldId,

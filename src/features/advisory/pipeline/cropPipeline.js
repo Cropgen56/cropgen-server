@@ -14,6 +14,21 @@ import FarmAdvisory from "../models/farmAdvisory.model.js";
 const DEFER_OPTICAL_PASS =
   String(process.env.ADVISORY_DEFER_OPTICAL_PASS || "true").toLowerCase() ===
   "true";
+/**
+ * Fetch optical indices (NDRE, nitrogen, chlorophyll…) BEFORE crop health and
+ * the decision modules so they are actually used. Skipped on the lightweight
+ * first-advisory path to keep it fast (that path still defers them).
+ */
+const OPTICAL_BEFORE_DECISIONS =
+  String(process.env.ADVISORY_OPTICAL_BEFORE_DECISIONS || "true").toLowerCase() ===
+  "true";
+
+/** Second satellite pass (optical indices); runs only after GDD has a stage. */
+async function runOpticalPassModule(ctx) {
+  const result = await runSatelliteEnrichmentModule(ctx);
+  ctx.stash.opticalDone = Boolean(result?.data?.opticalIndicesSummary);
+  return result;
+}
 
 /**
  * Crop-in-field advisory pipeline (modules 1 → 7). Runs once per crop
@@ -63,6 +78,7 @@ export async function runCropAdvisoryPipeline({
     runWeatherSuggestionModule,
     runSatelliteEnrichmentModule,
     runGddBbchModule,
+    ...(OPTICAL_BEFORE_DECISIONS && !lightweight ? [runOpticalPassModule] : []),
     runNpkModule,
     runCropHealthModule,
     runFertilizerRecommendationModule,
@@ -81,7 +97,9 @@ export async function runCropAdvisoryPipeline({
       logStep(`module ${result.module} failed: ${result.errors.join("; ")}`);
     }
     if (result.module === "weatherSuggestion" && !result.ok) {
-      throw new Error(result.errors[0] || "Weather module failed");
+      // No weather (ObservEarth down, AOI missing, etc.): continue without it.
+      // The advisory is generated from the other modules and is marked as weather-less.
+      logStep(`weather unavailable, generating without weather: ${result.errors[0] || "no data"}`);
     }
     if (result.module === "advisorySuggestion" && !result.ok) {
       throw new Error(result.errors[0] || "Advisory module failed");
@@ -93,7 +111,9 @@ export async function runCropAdvisoryPipeline({
     throw new Error("Advisory pipeline completed without saving an advisory");
   }
 
-  if (!DEFER_OPTICAL_PASS) {
+  if (ctx.stash.opticalDone) {
+    logStep("optical indices already used in decisions");
+  } else if (!DEFER_OPTICAL_PASS) {
     const startedAt = Date.now();
     const secondSatellitePass = await runSatelliteEnrichmentModule(ctx);
     registerModule(ctx, secondSatellitePass);

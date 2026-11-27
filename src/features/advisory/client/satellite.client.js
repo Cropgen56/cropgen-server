@@ -209,3 +209,79 @@ export async function fetchOpticalIndexSnapshots(
     };
   });
 }
+
+/* ------------------------------------------------------------------ *
+ * Condition monitor: Sentinel-1 radar + multi-index optical series.  *
+ * ------------------------------------------------------------------ */
+
+/**
+ * Sentinel-1 SAR backscatter timeseries (VV, VH) for the field polygon.
+ *
+ * Expected server contract (see docs/SATELLITE_API_SPEC.md):
+ *   POST {CROPGEN_TS_BASE}{SATELLITE_S1_PATH}
+ *   body  { geometry, start_date, end_date, satellite: "s1", polarizations: ["VV","VH"], orbit: "both" }
+ *   reply { timeseries: [{ date, vv, vh, orbit? }] }   values in dB (linear also accepted)
+ *
+ * Returns [] when the endpoint is not deployed yet (404/501) so the monitor
+ * simply skips radar checks; other errors are thrown to the caller.
+ */
+const S1_PATH = process.env.SATELLITE_S1_PATH || "/timeseries/sar/sar";
+let s1Unavailable = false;
+
+export function parseSarTimeseries(data) {
+  const rows = data?.timeseries || data?.data?.timeseries || data?.results || (Array.isArray(data) ? data : []);
+  return (Array.isArray(rows) ? rows : [])
+    .map((r) => ({
+      date: String(r?.date ?? r?.time ?? r?.timestamp ?? "").slice(0, 10),
+      vv: r?.vv ?? r?.VV ?? r?.vv_db ?? null,
+      vh: r?.vh ?? r?.VH ?? r?.vh_db ?? null,
+    }))
+    .filter((r) => r.date && (r.vv !== null || r.vh !== null));
+}
+
+export async function getSarTimeseries(geometry, startDate, endDate) {
+  if (s1Unavailable || String(process.env.MONITOR_S1_ENABLED || "true").toLowerCase() === "false") return [];
+  try {
+    const { data } = await satelliteHttp.post(
+      `${CROPGEN_TS_BASE}${S1_PATH}`,
+      { geometry, start_date: startDate, end_date: endDate, satellite: "s1", polarizations: ["VV", "VH"], orbit: "both" },
+      { headers: getSatelliteHeaders(), timeout: SATELLITE_HEAVY_TIMEOUT_MS },
+    );
+    return parseSarTimeseries(data);
+  } catch (err) {
+    const status = err?.response?.status;
+    if (status === 404 || status === 501) {
+      s1Unavailable = true; // stop calling until restart
+      console.warn(`[Satellite] Sentinel-1 endpoint ${S1_PATH} not available (${status}) - radar checks disabled`);
+      return [];
+    }
+    throw err;
+  }
+}
+
+/**
+ * Optical index series for the monitor, cloud-filtered via the shared parser.
+ * NDVI / NDRE / EVI from the vegetation endpoint, NDMI from the water endpoint.
+ * Each index fails independently.
+ * @returns {Promise<{ series: Record<string, {date: string, value: number}[]>, errors: string[] }>}
+ */
+export async function getMonitorOpticalSeries(geometry, startDate, endDate, parseFn) {
+  const plan = [
+    ["NDVI", () => getVegetationTimeseries(geometry, startDate, endDate, "NDVI")],
+    ["NDRE", () => getVegetationTimeseries(geometry, startDate, endDate, "NDRE")],
+    ["EVI", () => getVegetationTimeseries(geometry, startDate, endDate, "EVI")],
+    ["NDMI", () => getWaterTimeseries(geometry, startDate, endDate, "NDMI")],
+  ];
+  const settled = await Promise.allSettled(plan.map(([, fn]) => fn()));
+  const series = {};
+  const errors = [];
+  settled.forEach((r, i) => {
+    const name = plan[i][0];
+    if (r.status === "fulfilled") {
+      series[name] = parseFn(r.value)?.series || [];
+    } else {
+      errors.push(`${name}: ${r.reason?.message || r.reason}`);
+    }
+  });
+  return { series, errors };
+}

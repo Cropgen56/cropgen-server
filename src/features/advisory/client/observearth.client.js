@@ -11,14 +11,15 @@ const HISTORICAL_TIMEOUT_MS =
 const HISTORICAL_MAX_TOTAL_MS =
   Number(process.env.OBSERVEARTH_HISTORICAL_MAX_MS) || 25_000;
 
+const observearthHttp = axios.create({
+  timeout: CURRENT_FORECAST_TIMEOUT_MS,
+});
+
 /** Default pause after a 429/503 when Observearth sends no Retry-After header */
 const RATE_LIMIT_COOLDOWN_MS =
   Number(process.env.OBSERVEARTH_RATE_LIMIT_COOLDOWN_MS) || 60_000;
 const MAX_RATE_LIMIT_COOLDOWN_MS = 10 * 60_000;
 
-const observearthHttp = axios.create({
-  timeout: CURRENT_FORECAST_TIMEOUT_MS,
-});
 
 /**
  * Process-wide circuit breaker: after Observearth answers 429 or 503, all
@@ -86,6 +87,7 @@ async function observearthGet(url, config) {
   }
 }
 
+
 function getObservearthHeaders() {
   const apiKey = process.env.OBSERVEARTH_API_KEY;
   const csrf = process.env.OBSERVEARTH_CSRF || "";
@@ -138,8 +140,7 @@ function isRetryableObservearthError(err) {
   if (err?.code === "ECONNABORTED" || err?.message?.includes("timeout")) {
     return false;
   }
-  // 429/503 are handled by the cooldown instead of an immediate retry.
-  return status === 500 || status === 502;
+  return status === 429 || status === 500 || status === 502 || status === 503;
 }
 
 function isRateLimitOrCooldown(err) {
@@ -223,8 +224,128 @@ export async function fetchWeatherBundle(
   };
 }
 
+const SEASON_MAX_DAYS = Number(process.env.ADVISORY_HISTORY_MAX_DAYS) || 180;
+const SEASON_MIN_DAYS = 14;
+const SEASON_CHUNK_DAYS = Number(process.env.OBSERVEARTH_HISTORICAL_CHUNK_DAYS) || 30;
+const SEASON_CONCURRENCY = 2;
+const SEASON_MAX_TOTAL_MS = Number(process.env.OBSERVEARTH_HISTORICAL_SEASON_MAX_MS) || 45_000;
+
+function isoAddDays(iso, days) {
+  const d = new Date(`${String(iso).slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function isoDiffDays(aISO, bISO) {
+  return Math.round(
+    (new Date(`${String(bISO).slice(0, 10)}T12:00:00Z`) - new Date(`${String(aISO).slice(0, 10)}T12:00:00Z`)) / 86400000,
+  );
+}
+
 /**
- * Short windows first; never blocks on full sowing→today (that endpoint hangs).
+ * Merge several Observearth historical payloads ({ daily: { time: [], <field>: [] } })
+ * into one, sorted by date, de-duplicated. Exported for tests.
+ */
+export function mergeDailyPayloads(payloads) {
+  const valid = (payloads || []).filter(hasDailyWeatherSeries);
+  if (!valid.length) return null;
+  const fields = new Set();
+  for (const p of valid) {
+    for (const [k, v] of Object.entries(p.daily)) {
+      if (k !== "time" && Array.isArray(v)) fields.add(k);
+    }
+  }
+  const byDate = new Map();
+  for (const p of valid) {
+    p.daily.time.forEach((t, i) => {
+      const date = String(t).slice(0, 10);
+      const row = byDate.get(date) || {};
+      for (const f of fields) {
+        const arr = p.daily[f];
+        if (Array.isArray(arr) && i < arr.length && arr[i] !== null && arr[i] !== undefined) row[f] = arr[i];
+      }
+      byDate.set(date, row);
+    });
+  }
+  const dates = [...byDate.keys()].sort();
+  const daily = { time: dates };
+  for (const f of fields) daily[f] = dates.map((d) => (byDate.get(d)[f] ?? null));
+  return { ...valid[0], daily };
+}
+
+/**
+ * Whole-season history (sowing → today, capped at ADVISORY_HISTORY_MAX_DAYS)
+ * fetched as parallel 30-day chunks, so one slow request cannot block the rest.
+ * Returns { data, startDate, endDate, windowDays, partial } or null if every chunk failed.
+ */
+async function getSeasonHistoricalWeather(geometryId, startDate, endDate, { maxDays, onProgress } = {}) {
+  const end = String(endDate).slice(0, 10);
+  const earliest = isoAddDays(end, -(maxDays || SEASON_MAX_DAYS));
+  const latestStart = isoAddDays(end, -SEASON_MIN_DAYS);
+  let start = String(startDate || latestStart).slice(0, 10);
+  if (start < earliest) start = earliest;
+  if (start > latestStart) start = latestStart;
+
+  const chunks = [];
+  for (let from = start; from <= end; from = isoAddDays(from, SEASON_CHUNK_DAYS)) {
+    const to = isoAddDays(from, SEASON_CHUNK_DAYS - 1);
+    chunks.push([from, to > end ? end : to]);
+  }
+  onProgress?.(`historical season ${start}→${end} in ${chunks.length} chunk(s)`);
+
+  const startedAt = Date.now();
+  const results = new Array(chunks.length).fill(null);
+  let next = 0;
+  let rateLimited = false;
+  async function worker() {
+    while (next < chunks.length) {
+      const idx = next++;
+      if (rateLimited || Date.now() - startedAt > SEASON_MAX_TOTAL_MS) return;
+      const [from, to] = chunks[idx];
+      try {
+        const data = await getHistoricalWeather(geometryId, from, to, HISTORICAL_TIMEOUT_MS);
+        if (hasDailyWeatherSeries(data)) results[idx] = data;
+      } catch (err) {
+        if (isRateLimitOrCooldown(err)) {
+          rateLimited = true; // stop fetching more chunks
+        } else if (isRetryableObservearthError(err)) {
+          // Transient 500/502: retry this chunk once after a short pause.
+          await sleep(800);
+          try {
+            const data = await getHistoricalWeather(geometryId, from, to, HISTORICAL_TIMEOUT_MS);
+            if (hasDailyWeatherSeries(data)) results[idx] = data;
+          } catch (retryErr) {
+            if (isRateLimitOrCooldown(retryErr)) rateLimited = true;
+            console.warn(`[Observearth] Historical chunk ${from}→${to} failed after retry for ${geometryId}: ${formatObservearthError(retryErr)}`);
+          }
+        } else {
+          console.warn(`[Observearth] Historical chunk ${from}→${to} failed for ${geometryId}: ${formatObservearthError(err)}`);
+        }
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(SEASON_CONCURRENCY, chunks.length) }, worker));
+
+  const merged = mergeDailyPayloads(results);
+  if (!merged) return null;
+  const okChunks = results.filter(Boolean).length;
+  const first = merged.daily.time[0];
+  log.info(
+    `[Observearth] Historical season OK (${okChunks}/${chunks.length} chunks, ${merged.daily.time.length} days) in ${Date.now() - startedAt}ms`,
+  );
+  return {
+    data: merged,
+    startDate: first,
+    endDate: end,
+    windowDays: isoDiffDays(first, end),
+    partial: okChunks < chunks.length,
+  };
+}
+
+/**
+ * Season history first (needed for correct GDD and recent disease weather);
+ * falls back to short windows only if every season chunk failed.
+ * `preferShortWindows` (new fields) limits the season fetch to the last 14 days.
  */
 export async function getHistoricalWeatherWithFallback(
   geometryId,
@@ -232,9 +353,16 @@ export async function getHistoricalWeatherWithFallback(
   endDate,
   { preferShortWindows = false, onProgress } = {},
 ) {
-  const windowDaysList = preferShortWindows
-    ? [1, 3, 7]
-    : [1, 3, 7, 14, 30];
+  const season = await getSeasonHistoricalWeather(geometryId, startDate, endDate, {
+    maxDays: preferShortWindows ? SEASON_MIN_DAYS : SEASON_MAX_DAYS,
+    onProgress,
+  });
+  if (season) {
+    return { ...season, error: null };
+  }
+
+  // Fallback: largest short window that works (was: the first, usually 1 day).
+  const windowDaysList = preferShortWindows ? [7, 3, 1] : [30, 14, 7, 3, 1];
 
   let lastError = null;
   const startedAt = Date.now();

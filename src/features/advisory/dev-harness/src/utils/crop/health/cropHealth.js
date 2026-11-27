@@ -1,0 +1,1 @@
+export function calcCropHealth({ ndvi }) { const v = ndvi?.ndviLatest ?? 0.5; const cat = v > 0.6 ? "Good" : v > 0.45 ? "Moderate" : "Poor"; return { score: v, percentage: Math.round(v * 100), category: cat, recommendation: "" }; }

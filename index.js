@@ -52,6 +52,8 @@ import { startSubscriptionExpiryJob } from "./src/worker/subscriptionExpiry.work
 import { startNotificationWorker } from "./src/worker/notification.worker.js";
 import { runAdvisoryJob } from "./src/features/advisory/workers/advisory.worker.js";
 import { startAdvisoryQueueWorker } from "./src/features/advisory/queue/advisory.queue.js";
+import { startConditionMonitorJobs } from "./src/features/advisory/workers/conditionMonitor.worker.js";
+import { startAoiCleanupJob } from "./src/utils/weather/aoiCleanup.js";
 
 // Agent socket
 import {
@@ -325,6 +327,8 @@ const startServer = async () => {
       startNotificationWorker();
       startSubscriptionExpiryJob();
       runAdvisoryJob();
+      startConditionMonitorJobs(); // no-op unless CONDITION_MONITOR_ENABLED=true
+      startAoiCleanupJob(); // no-op unless AOI_CLEANUP_ENABLED=true
     }
     if (isPrimaryInstance) {
       startAdvisoryQueueWorker();

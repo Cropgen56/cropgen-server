@@ -1,0 +1,13 @@
+{
+  "rulesVersion": "1368edaaf954",
+  "liveStatuses": [
+    "Draft",
+    "Reviewed",
+    "Approved"
+  ],
+  "scenarios": 74880,
+  "exceptions": 0,
+  "violations": 0,
+  "byRule": {},
+  "msPerScenario": 0.058
+}

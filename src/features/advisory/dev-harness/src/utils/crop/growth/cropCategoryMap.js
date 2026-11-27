@@ -1,0 +1,1 @@
+export const CROP_CATEGORY_MAP = { wheat: "cereal", rice: "cereal", corn: "cereal", soybean: "oilseed", cotton: "oilseed", tomato: "vegetable", potato: "vegetable", onion: "vegetable", chickpea: "pulse", grapes: "fruit", mango: "fruit", pomegranate: "fruit", sugarcane: "cereal" };
